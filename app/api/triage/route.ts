@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     const genAI = new GoogleGenerativeAI(apiKey);
 
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       systemInstruction: generateClinicalPrompt(telemetry),
       generationConfig: {
         temperature: 0.2, // Determinismo clínico
