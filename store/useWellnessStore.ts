@@ -166,7 +166,7 @@ export const useWellnessStore = create<WellnessState>()(
     }),
     {
       name: 'exovitals-wellness-storage',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => window.localStorage),
       // Se rehidrata en el cliente tras montar, para evitar desajustes de SSR.
       skipHydration: true,
       partialize: ({ xp, streak, bestStreak, day, lastCompletedDay, progress }) => ({

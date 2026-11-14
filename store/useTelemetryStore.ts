@@ -141,7 +141,7 @@ export const useTelemetryStore = create<TelemetryState>()(
     }),
     {
       name: 'exovitals-core-storage',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => window.localStorage),
     }
   )
 );
