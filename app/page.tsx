@@ -1,5 +1,15 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
+import type { BodyMarker } from "../components/body3d/BodyViewer";
+import { ALL_CREDITS } from "../components/body3d/modelCatalog";
+
+// WebGL sólo existe en el navegador: los visores 3D no se prerenderizan.
+const BodyViewer = dynamic(() => import("../components/body3d/BodyViewer"), {
+  ssr: false,
+  loading: () => <div className="body3d body3d-placeholder">Cargando cuerpo 3D…</div>,
+});
+const OrganViewer = dynamic(() => import("../components/body3d/OrganViewer"), { ssr: false });
 
 type SystemId = "neuro" | "cardio" | "inmune" | "oseo" | "conducta";
 type StatusColor = "green" | "amber" | "red";
@@ -57,15 +67,6 @@ const SYSTEMS_DATA: Record<SystemId, SystemData> = {
   },
 };
 
-// Posición del nodo y de su rótulo (side: 1 = derecha, -1 = izquierda)
-const NODES = [
-  { id: "neuro", cx: 222, cy: 50, lx: 276, side: 1 },
-  { id: "conducta", cx: 178, cy: 50, lx: 124, side: -1 },
-  { id: "cardio", cx: 214, cy: 128, lx: 276, side: 1 },
-  { id: "inmune", cx: 178, cy: 172, lx: 124, side: -1 },
-  { id: "oseo", cx: 181, cy: 284, lx: 124, side: -1 },
-] as const;
-
 const STATUS_LABEL: Record<StatusColor, string> = { green: "Óptimo", amber: "Precaución", red: "Crítico" };
 // Color + forma + texto: nunca solo color
 const STATUS_ICON: Record<StatusColor, string> = { green: "✓", amber: "▲", red: "■" };
@@ -120,7 +121,38 @@ const GLOBAL_CSS = `
   .scan{animation:scan 6s linear infinite}
   .ring{animation:ring 1.6s ease-out 3;transform-box:fill-box;transform-origin:center}
   .beat{animation:beat .545s ease-in-out infinite}
-}`;
+  .body3d-marker.is-critical .body3d-dot::after{animation:ring 1.6s ease-out infinite}
+}
+.body3d{position:relative;height:min(80vh,620px);min-height:420px;background:radial-gradient(ellipse at 50% 40%,#0f1a24 0%,var(--bg) 70%);border:1px dotted var(--line)}
+.body3d canvas{touch-action:pan-y!important}
+.body3d-placeholder{display:flex;align-items:center;justify-content:center;color:var(--dim)}
+.body3d-hint{position:absolute;left:10px;bottom:6px;margin:0;font-size:13px}
+.body3d-overlay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none}
+.body3d-loading{margin:0;color:var(--dim);font:500 14px 'IBM Plex Mono',monospace;white-space:nowrap}
+.body3d-marker{position:absolute;left:0;top:0;width:0;height:0;padding:0;border:0;background:none;color:var(--ink);cursor:pointer;font:inherit}
+.body3d-dot{position:absolute;left:-13px;top:-13px;display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--status);color:#05070a;font:700 14px 'Barlow',sans-serif;border:2px solid #05070a;box-shadow:0 0 0 1px var(--status)}
+.body3d-dot::after{content:"";position:absolute;inset:-3px;border-radius:50%;border:2px solid var(--status);opacity:0}
+.body3d-num{position:absolute;left:-9px;top:-9px;width:16px;height:16px;border-radius:50%;background:var(--b);color:#fff;font:800 10px 'Barlow',sans-serif;display:flex;align-items:center;justify-content:center}
+.body3d-lead{position:absolute;left:13px;top:var(--dy);width:56px;height:1px;background:var(--ink);opacity:.45;transform-origin:left center}
+.body3d-label{position:absolute;left:69px;top:calc(var(--dy) - 18px);display:flex;flex-direction:column;align-items:flex-start;padding:2px 8px;background:rgba(5,7,10,.82);border-left:2px solid var(--status);line-height:1.1;white-space:nowrap}
+.body3d-label strong{font:800 16px 'Barlow Condensed',sans-serif}
+.body3d-label em{font:700 12px 'Barlow',sans-serif;font-style:normal;color:var(--status)}
+.body3d-marker.is-left .body3d-lead{left:auto;right:13px}
+.body3d-marker.is-left .body3d-label{left:auto;right:69px;align-items:flex-end;border-left:0;border-right:2px solid var(--status)}
+.body3d-marker:not(.is-selected) .body3d-label{opacity:.78}
+.body3d-marker.is-selected .body3d-dot{outline:2px solid var(--y);outline-offset:3px}
+.body3d-marker.is-selected .body3d-lead{opacity:.95;background:var(--y)}
+.body3d-marker.is-selected .body3d-label{opacity:1;border-color:var(--y)}
+.body3d-marker:focus-visible .body3d-dot{outline:2px solid var(--y);outline-offset:4px}
+.organ3d{margin-top:18px;padding-top:12px;border-top:1px dotted var(--line)}
+.organ3d-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+.organ3d-tabs{display:flex}
+.organ3d-tabs .btn{min-height:38px;font-size:15px;padding:0 12px}
+.organ3d-why{margin:8px 0 10px;color:#dcdcd6;font-size:17px;line-height:1.4;max-width:56ch}
+.organ3d-canvas{position:relative;height:280px;background:radial-gradient(ellipse at 50% 50%,#0f1a24 0%,var(--bg) 72%);border:1px dotted var(--line)}
+.organ3d-credit{margin:6px 0 0;font-size:13px}
+.organ3d-credit a{color:var(--c)}
+.organ3d-empty{margin:0;font-size:16px}`;
 
 const STEPS = [
   { tag: "Seguridad 0G", title: "Detente. No flotes", kit: "Correas azules", chip: "bg-sky-500 text-[#0b0d11]",
@@ -294,81 +326,26 @@ export default function BodyMapHUD() {
               <div className="sec"><p className="dim" style={{ fontSize: 16 }}>Aquí Marcelo integrará los gráficos en Recharts y el motor <code>clinicalEngine.ts</code>.</p></div>
             </>
           )}
+          <OrganViewer key={selectedSystem} system={selectedSystem} />
         </main>
 
-        <svg viewBox="0 0 400 430" style={{ width: "100%", maxHeight: "80vh" }} role="group" aria-label="Mapa corporal">
-          <defs>
-            <g id="armL">
-              <path className="ln" d="M150 102 Q124 108 120 146 L112 200 Q110 216 124 218 L134 216 L148 160 Z" />
-              <circle className="in" cx="150" cy="106" r="7" />
-              <line className="in" x1="113" y1="182" x2="136" y2="186" />
-            </g>
-            <g id="legL">
-              <path className="ln" d="M164 232 L199 232 L195 332 L191 396 Q192 414 176 414 L158 414 Q158 400 164 392 L168 332 Z" />
-              <line className="in" x1="167" y1="332" x2="195" y2="332" />
-              <circle className="in" cx="181" cy="332" r="7" />
-              <path className="in" d="M181 244 L181 326 M181 340 L179 390" strokeWidth="3" />
-            </g>
-          </defs>
-
-          {/* Escala vertical */}
-          <g stroke="#a8a69c" strokeOpacity=".5">
-            <line x1="14" y1="20" x2="14" y2="414" />
-            {Array.from({ length: 21 }, (_, i) => (
-              <line key={i} x1="14" x2={i % 5 === 0 ? 24 : 19} y1={20 + i * 19.7} y2={20 + i * 19.7} />
-            ))}
-          </g>
-
-          {/* Piernas, brazos y torso */}
-          <use href="#legL" />
-          <use href="#legL" transform="translate(400 0) scale(-1 1)" />
-          <use href="#armL" />
-          <use href="#armL" transform="translate(400 0) scale(-1 1)" />
-          <path className="ln" d="M150 100 Q200 88 250 100 L258 150 Q254 190 244 214 L238 234 L162 234 L156 214 Q146 190 142 150 Z" />
-          <rect className="ln" x="184" y="84" width="32" height="12" rx="3" />
-          <path className="in" d="M162 216 L238 216" strokeDasharray="5 4" />
-
-          {/* Interior: columna, costillas, riñones, corazón */}
-          <path className="in" d="M200 96 L200 232" strokeDasharray="2 4" />
-          <path className="in" d="M168 118 Q184 128 198 120 M168 136 Q184 146 198 138 M168 154 Q184 164 198 156 M232 118 Q216 128 202 120 M232 136 Q216 146 202 138 M232 154 Q216 164 202 156" />
-          <ellipse className="in" cx="182" cy="198" rx="6" ry="10" />
-          <ellipse className="in" cx="218" cy="198" rx="6" ry="10" />
-          <path d="M214 120 q-7 -9 -12 -2 q-4 9 12 22 q16 -13 12 -22 q-5 -7 -12 2z" fill="#ff5547" fillOpacity=".35" stroke="#ff5547" strokeOpacity=".6" />
-
-          {/* Casco */}
-          <circle className="ln" cx="200" cy="52" r="33" />
-          <ellipse className="in" cx="200" cy="55" rx="23" ry="18" />
-          <circle className="in" cx="190" cy="55" r="3" /><circle className="in" cx="210" cy="55" r="3" />
-          <path className="in" d="M186 36 Q200 28 214 36" />
-
-          {/* Escáner */}
-          <line className="scan" x1="108" x2="292" y1="22" y2="22" stroke="#ebe6d8" strokeOpacity=".35" />
-
-          {/* Nodos con rótulo */}
-          {NODES.map((n) => {
-            const s = SYSTEMS_DATA[n.id];
-            const selected = selectedSystem === n.id;
-            const select = () => setSelectedSystem(n.id);
-            const anchor = n.side > 0 ? "start" : "end";
-            const tx = n.lx + n.side * 8;
-            return (
-              <g key={n.id} className="node" role="button" tabIndex={0}
-                aria-label={`${s.name}: ${STATUS_LABEL[s.status]}. ${s.metric}`} aria-pressed={selected}
-                onClick={select}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(); } }}>
-                <line x1={n.cx + n.side * 14} y1={n.cy} x2={n.lx} y2={n.cy} stroke="#ebe6d8" strokeOpacity={selected ? 0.9 : 0.35} />
-                <circle className="hit" cx={n.cx} cy={n.cy} r="22" fill="transparent" stroke={selected ? "#ebe6d8" : "transparent"} strokeWidth="2" />
-                {s.status === "red" && <circle className="ring" cx={n.cx} cy={n.cy} r="14" fill="none" stroke="#ff5547" strokeWidth="2" />}
-                <circle cx={n.cx} cy={n.cy} r="14" fill={STATUS_FILL[s.status]} stroke="#05070a" strokeWidth="2" />
-                <text x={n.cx} y={n.cy + 6} textAnchor="middle" fontSize="17" fontWeight="700" fill="#05070a">{STATUS_ICON[s.status]}</text>
-                <circle cx={n.cx - 14} cy={n.cy - 14} r="8" fill="#1a73c8" /><text x={n.cx - 14} y={n.cy - 10.5} textAnchor="middle" fontSize="10" fontWeight="800" fill="#fff">{ids.indexOf(n.id) + 1}</text>
-                <text className="cn" x={tx} y={n.cy - 6} textAnchor={anchor}>{s.short}</text>
-                <text className="cs" x={tx} y={n.cy + 10} textAnchor={anchor} fill={STATUS_FILL[s.status]}>{STATUS_LABEL[s.status]}</text>
-                <text className="cm" x={tx} y={n.cy + 25} textAnchor={anchor}>{s.metric}</text>
-              </g>
-            );
+        <BodyViewer
+          selected={selectedSystem}
+          onSelect={setSelectedSystem}
+          markers={ids.map((id): BodyMarker => {
+            const sys = SYSTEMS_DATA[id];
+            return {
+              id,
+              number: ids.indexOf(id) + 1,
+              title: sys.short,
+              statusLabel: STATUS_LABEL[sys.status],
+              icon: STATUS_ICON[sys.status],
+              color: STATUS_FILL[sys.status],
+              metric: sys.metric,
+              critical: sys.status === "red",
+            };
           })}
-        </svg>
+        />
 
         <nav aria-label="Sistemas, del más grave al menos grave">
           <p className="kick">Sistemas monitoreados</p>
@@ -401,6 +378,15 @@ export default function BodyMapHUD() {
         <p className="dim" style={{ fontSize: 15, margin: "10px 0 0" }}>Índice de riesgo 0–100: ✓ menos de 40 óptimo · ▲ 40 a 69 precaución · ■ 70 o más crítico</p>
       </section>
       <p className="src">Fuentes: NASA-STD-3001 y los cinco riesgos del Programa de Investigación Humana de la NASA. Datos simulados para el prototipo; no es un dispositivo médico.</p>
+      <p className="src">
+        Modelos 3D (Sketchfab):{" "}
+        {ALL_CREDITS.map((c, i) => (
+          <span key={c.source}>
+            {i > 0 && " · "}
+            <a href={c.source} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>{c.title}</a> — {c.author} ({c.license})
+          </span>
+        ))}
+      </p>
     </div>
   );
 }
