@@ -9,7 +9,11 @@ import {
 } from '../types/telemetry';
 import { evaluateTelemetry } from '../utils/clinicalEngine';
 
-type TelemetryDataState = Biomarkers & Environment & ClinicalAlerts;
+type TelemetryDataState = Biomarkers &
+  Environment &
+  ClinicalAlerts & {
+    isManualOverride: boolean;
+  };
 
 export const initialState: TelemetryDataState = {
   // Biomarkers (Astronauta base sano)
@@ -32,6 +36,9 @@ export const initialState: TelemetryDataState = {
   isRenalWarning: false,
   isRadiationWarning: false,
   isCo2Warning: false,
+
+  // Control de Simulación Manual (Override)
+  isManualOverride: false,
 };
 
 export const useTelemetryStore = create<TelemetryState>()(
@@ -70,12 +77,15 @@ export const useTelemetryStore = create<TelemetryState>()(
       },
 
       triggerCodeRed: () => {
-        set({ isEmergency: true });
+        set({ isEmergency: true, isManualOverride: true });
       },
 
       simulateScenario: (scenario: ScenarioType) => {
         if (scenario === 'RESET') {
-          set({ ...initialState });
+          set({
+            ...initialState,
+            isManualOverride: false,
+          });
           return;
         }
 
@@ -136,6 +146,7 @@ export const useTelemetryStore = create<TelemetryState>()(
           ...nextBio,
           ...nextEnv,
           ...alerts,
+          isManualOverride: true,
         });
       },
     }),
