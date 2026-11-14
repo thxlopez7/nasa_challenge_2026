@@ -29,10 +29,14 @@ export const RIDGE_THRESHOLDS = {
     minCistatinaC: 1.15,
     /** Calcio iónico elevado (mmol/L): resorción ósea */
     minCalcioIonico: 1.25,
+    /** Ratio Cistatina C / Creatinina cuando ambas suben en daño renal franco */
+    minCisCrRatio: 1.2,
   },
   radiation: {
     /** Tasa de dosis actual (µSv/h) */
     minRadiationRate: 50.0,
+    /** Dosis acumulada de misión (mSv) */
+    minRadiationAccumulated: 50.0,
     /** Linfopenia (cél/µL) */
     maxLinfocitos: 1000,
     /** Ratio neutrófilos / linfocitos */
@@ -49,28 +53,43 @@ export const RIDGE_THRESHOLDS = {
 type SensorReadings = Biomarkers & Environment;
 type AutomaticAlerts = Omit<ClinicalAlerts, 'isEmergency'>;
 
-/** Una lectura sólo participa en una regla si es un número finito. */
-const isReading = (value: number): boolean => Number.isFinite(value);
+/** Una lectura sólo participa en una regla si es un número finito y no negativo. */
+const isValidReading = (value: number): boolean =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0;
 
 /**
  * Ratio neutrófilos / linfocitos (NLR).
  * Devuelve `Infinity` con linfocitos en 0 y neutrófilos presentes (linfopenia
- * absoluta), y `NaN` si ninguna lectura es interpretable.
+ * absoluta), y `NaN` si ninguna lectura es interpretable o si hay valores negativos.
  */
 export function computeNlr(
   bio: Pick<Biomarkers, 'neutrofilos' | 'linfocitos'>
 ): number {
+  if (
+    !isValidReading(bio.neutrofilos) ||
+    !isValidReading(bio.linfocitos)
+  ) {
+    return Number.NaN;
+  }
   return bio.neutrofilos / bio.linfocitos;
 }
 
-/** Regla 1 — Nefropatía oculta (gravedad alterada). */
+/** Regla 1 — Nefropatía oculta o progresiva en microgravedad (gravedad alterada). */
 export function isHiddenNephropathy(bio: Biomarkers): boolean {
   const t = RIDGE_THRESHOLDS.renal;
-  if (![bio.creatinina, bio.cistatinaC, bio.calcioIonico].every(isReading)) {
+  if (
+    ![bio.creatinina, bio.cistatinaC, bio.calcioIonico].every(isValidReading) ||
+    bio.creatinina <= 0
+  ) {
     return false;
   }
+
+  const isCreatinineMaskedOrDisproportionate =
+    bio.creatinina <= t.maxCreatinina ||
+    bio.cistatinaC / bio.creatinina > t.minCisCrRatio;
+
   return (
-    bio.creatinina <= t.maxCreatinina &&
+    isCreatinineMaskedOrDisproportionate &&
     bio.cistatinaC > t.minCistatinaC &&
     bio.calcioIonico > t.minCalcioIonico
   );
@@ -82,12 +101,24 @@ export function isRadiationImmunosuppression(
   env: Environment
 ): boolean {
   const t = RIDGE_THRESHOLDS.radiation;
-  if (![env.radiationRate, bio.linfocitos, bio.neutrofilos].every(isReading)) {
+  if (
+    ![
+      env.radiationRate,
+      env.radiationAccumulated,
+      bio.linfocitos,
+      bio.neutrofilos,
+    ].every(isValidReading)
+  ) {
     return false;
   }
+
   const nlr = computeNlr(bio);
+  const hasHighRadiationExposure =
+    env.radiationRate > t.minRadiationRate ||
+    env.radiationAccumulated > t.minRadiationAccumulated;
+
   return (
-    env.radiationRate > t.minRadiationRate &&
+    hasHighRadiationExposure &&
     bio.linfocitos < t.maxLinfocitos &&
     nlr > t.minNlr
   );
@@ -96,7 +127,7 @@ export function isRadiationImmunosuppression(
 /** Regla 3 — Bolsillo de CO2 (hipercapnia con SpO2 conservada). */
 export function isCo2Pocket(bio: Biomarkers, env: Environment): boolean {
   const t = RIDGE_THRESHOLDS.co2;
-  if (![env.co2Level, bio.spO2].every(isReading)) {
+  if (![env.co2Level, bio.spO2].every(isValidReading)) {
     return false;
   }
   return env.co2Level > t.minCo2Level && bio.spO2 >= t.minSpO2;

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
 import {
   Biomarkers,
   ClinicalAlerts,
@@ -41,6 +41,68 @@ export const initialState: TelemetryDataState = {
   isManualOverride: false,
 };
 
+/**
+ * Sanitiza lecturas entrantes: si el valor es `undefined`, `NaN` o `Infinity`,
+ * conserva el último valor válido conocido del store.
+ */
+const pickFiniteNumber = (
+  incoming: number | undefined,
+  fallback: number
+): number =>
+  typeof incoming === 'number' && Number.isFinite(incoming)
+    ? incoming
+    : fallback;
+
+/**
+ * Storage seguro para SSR en Next.js 15+ y Node 25+ con throttle de escritura (2s)
+ * para no bloquear el hilo principal en loops de 1 Hz.
+ */
+const createThrottledBrowserStorage = (): StateStorage => {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  let pendingValue: string | null = null;
+
+  return {
+    getItem: (name: string): string | null => {
+      if (typeof window === 'undefined') return null;
+      try {
+        return window.localStorage.getItem(name);
+      } catch {
+        return null;
+      }
+    },
+    setItem: (name: string, value: string): void => {
+      if (typeof window === 'undefined') return;
+      pendingValue = value;
+      if (timeoutId !== null) return;
+
+      try {
+        window.localStorage.setItem(name, value);
+      } catch {
+        // Ignore quota errors
+      }
+
+      timeoutId = setTimeout(() => {
+        timeoutId = null;
+        if (pendingValue !== null) {
+          try {
+            window.localStorage.setItem(name, pendingValue);
+          } catch {
+            // Ignore quota errors
+          }
+        }
+      }, 1500);
+    },
+    removeItem: (name: string): void => {
+      if (typeof window === 'undefined') return;
+      try {
+        window.localStorage.removeItem(name);
+      } catch {
+        // Ignore storage errors
+      }
+    },
+  };
+};
+
 export const useTelemetryStore = create<TelemetryState>()(
   persist(
     (set, get) => ({
@@ -50,21 +112,50 @@ export const useTelemetryStore = create<TelemetryState>()(
         const currentState = get();
 
         const nextBio: Biomarkers = {
-          heartRate: data.heartRate ?? currentState.heartRate,
-          spO2: data.spO2 ?? currentState.spO2,
-          cistatinaC: data.cistatinaC ?? currentState.cistatinaC,
-          creatinina: data.creatinina ?? currentState.creatinina,
-          calcioIonico: data.calcioIonico ?? currentState.calcioIonico,
-          linfocitos: data.linfocitos ?? currentState.linfocitos,
-          neutrofilos: data.neutrofilos ?? currentState.neutrofilos,
-          cortisol: data.cortisol ?? currentState.cortisol,
+          heartRate: pickFiniteNumber(data.heartRate, currentState.heartRate),
+          spO2: pickFiniteNumber(data.spO2, currentState.spO2),
+          cistatinaC: pickFiniteNumber(
+            data.cistatinaC,
+            currentState.cistatinaC
+          ),
+          creatinina: pickFiniteNumber(
+            data.creatinina,
+            currentState.creatinina
+          ),
+          calcioIonico: pickFiniteNumber(
+            data.calcioIonico,
+            currentState.calcioIonico
+          ),
+          linfocitos: pickFiniteNumber(
+            data.linfocitos,
+            currentState.linfocitos
+          ),
+          neutrofilos: pickFiniteNumber(
+            data.neutrofilos,
+            currentState.neutrofilos
+          ),
+          cortisol: pickFiniteNumber(data.cortisol, currentState.cortisol),
         };
 
+        const nextRadiationAccumulated = pickFiniteNumber(
+          data.radiationAccumulated,
+          currentState.radiationAccumulated
+        );
+
+        // Si el dataset inyecta `radiationAccumulated` creciente sin `radiationRate`,
+        // estimamos la tasa instantánea en función de la exposición acumulada.
+        const derivedRadiationRate =
+          data.radiationRate !== undefined
+            ? pickFiniteNumber(data.radiationRate, currentState.radiationRate)
+            : data.radiationAccumulated !== undefined &&
+              nextRadiationAccumulated > 50
+            ? 85.0
+            : currentState.radiationRate;
+
         const nextEnv: Environment = {
-          co2Level: data.co2Level ?? currentState.co2Level,
-          radiationRate: data.radiationRate ?? currentState.radiationRate,
-          radiationAccumulated:
-            data.radiationAccumulated ?? currentState.radiationAccumulated,
+          co2Level: pickFiniteNumber(data.co2Level, currentState.co2Level),
+          radiationRate: derivedRadiationRate,
+          radiationAccumulated: nextRadiationAccumulated,
         };
 
         const alerts = evaluateTelemetry(nextBio, nextEnv);
@@ -152,10 +243,7 @@ export const useTelemetryStore = create<TelemetryState>()(
     }),
     {
       name: 'exovitals-core-storage',
-      // `window` sólo existe en el navegador: en el render del servidor esto
-      // lanza, zustand lo captura y no persiste, sin tocar el localStorage
-      // experimental de Node 25+.
-      storage: createJSONStorage(() => window.localStorage),
+      storage: createJSONStorage(createThrottledBrowserStorage),
     }
   )
 );

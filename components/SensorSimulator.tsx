@@ -2,20 +2,21 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTelemetryStore } from '../store/useTelemetryStore';
+import type { Biomarkers, Environment } from '../types/telemetry';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ScenarioFrame = Record<string, any>;
+type ScenarioFrame = Partial<Biomarkers & Environment>;
 
 export function SensorSimulator(): null {
   const updateSensors = useTelemetryStore((state) => state.updateSensors);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [scenarioData, setScenarioData] = useState<any[]>([]);
+  const [scenarioData, setScenarioData] = useState<ScenarioFrame[]>([]);
   const tickIndex = useRef<number>(0);
 
   useEffect(() => {
-    let isMounted = true;
+    const abortController = new AbortController();
 
-    fetch('/data/scenario_ridge_critical.json')
+    fetch('/data/scenario_ridge_critical.json', {
+      signal: abortController.signal,
+    })
       .then((res) => {
         if (!res.ok) {
           throw new Error(
@@ -24,13 +25,16 @@ export function SensorSimulator(): null {
         }
         return res.json();
       })
-      .then((data: ScenarioFrame[]) => {
-        if (isMounted && Array.isArray(data)) {
+      .then((data: unknown) => {
+        if (Array.isArray(data)) {
           tickIndex.current = 0;
-          setScenarioData(data);
+          setScenarioData(data as ScenarioFrame[]);
         }
       })
       .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
+        }
         console.error(
           '[SensorSimulator] Fallo cargando /data/scenario_ridge_critical.json:',
           error
@@ -38,7 +42,7 @@ export function SensorSimulator(): null {
       });
 
     return () => {
-      isMounted = false;
+      abortController.abort();
     };
   }, []);
 
@@ -53,7 +57,7 @@ export function SensorSimulator(): null {
 
       const currentData = scenarioData[tickIndex.current];
 
-      if (currentData) {
+      if (currentData && typeof currentData === 'object') {
         updateSensors(currentData);
       }
 
