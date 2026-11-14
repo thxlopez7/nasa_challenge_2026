@@ -6,6 +6,7 @@ constituye una obra derivada.
 
 | Archivo | Modelo | Autor | Licencia |
 |---|---|---|---|
+| body-wireframe.glb | [3D human body wireframe model](https://sketchfab.com/3d-models/3d-human-body-wireframe-model-66f684f022fb47ef9e22eaae406b231e) | Syed Mohammad Hasan | CC-BY-4.0 |
 | body.glb | [Male Full Body Ecorche](https://sketchfab.com/3d-models/male-full-body-ecorche-ab11ebff89224f03bd75efede1164cf6) | Diego Luján García | CC-BY-4.0 |
 | eye-blue.glb | [Blue Eyeball (Free)](https://sketchfab.com/3d-models/blue-eyeball-free-18915d2f17a2431fbefeb3eaf4411f16) | Tom Hodes | CC-BY-4.0 |
 | eye-brown.glb | [Brown Eyeball (Free)](https://sketchfab.com/3d-models/brown-eyeball-free-9189fb68802a4f70b955f7e00da6e6f7) | Tom Hodes | CC-BY-4.0 |

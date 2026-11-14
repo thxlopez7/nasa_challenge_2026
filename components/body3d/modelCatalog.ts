@@ -35,6 +35,17 @@ export const BODY_MODEL: ModelEntry = {
   },
 };
 
+export const WIREFRAME_MODEL: ModelEntry = {
+  url: '/models/body-wireframe.glb',
+  label: 'Cuerpo holográfico (wireframe)',
+  credit: {
+    title: '3D human body wireframe model',
+    author: 'Syed Mohammad Hasan',
+    source: 'https://sketchfab.com/3d-models/3d-human-body-wireframe-model-66f684f022fb47ef9e22eaae406b231e',
+    license: 'CC-BY-4.0',
+  },
+};
+
 const EYE_BLUE: ModelEntry = {
   url: '/models/eye-blue.glb',
   label: 'Iris azul',
@@ -129,6 +140,7 @@ export const SYSTEM_MODELS: Record<BodySystemId, { why: string; models: ModelEnt
 };
 
 export const ALL_CREDITS: ModelCredit[] = [
+  WIREFRAME_MODEL.credit,
   BODY_MODEL.credit,
   EYE_BLUE.credit,
   EYE_BROWN.credit,

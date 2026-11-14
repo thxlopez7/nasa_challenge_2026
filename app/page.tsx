@@ -1,13 +1,13 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
-import type { BodyMarker } from "../components/body3d/BodyViewer";
-import { ALL_CREDITS } from "../components/body3d/modelCatalog";
+import type { Anomaly, BodyMarker, Layer, Stage } from "../components/body3d/BodyExperience";
+import { ALL_CREDITS, SYSTEM_MODELS } from "../components/body3d/modelCatalog";
 
 // WebGL sólo existe en el navegador: los visores 3D no se prerenderizan.
-const BodyViewer = dynamic(() => import("../components/body3d/BodyViewer"), {
+const BodyExperience = dynamic(() => import("../components/body3d/BodyExperience"), {
   ssr: false,
-  loading: () => <div className="body3d body3d-placeholder">Cargando cuerpo 3D…</div>,
+  loading: () => <div className="xp-canvas xp-placeholder">Iniciando escáner…</div>,
 });
 const OrganViewer = dynamic(() => import("../components/body3d/OrganViewer"), { ssr: false });
 
@@ -122,13 +122,19 @@ const GLOBAL_CSS = `
   .ring{animation:ring 1.6s ease-out 3;transform-box:fill-box;transform-origin:center}
   .beat{animation:beat .545s ease-in-out infinite}
   .body3d-marker.is-critical .body3d-dot::after{animation:ring 1.6s ease-out infinite}
+  .xp-panel{animation:xpIn .5s ease-out both}
+  .xp-finding{animation:xpIn .45s ease-out both}
+  .xp-cta{animation:xpGlow 1.8s ease-in-out infinite}
+  .xp-sys.is-red .xp-sys-icon{animation:xpPulse 1.1s ease-in-out infinite}
+  .is-explore .body3d-marker{animation:xpFade .6s ease-out 1.1s both}
 }
-.body3d{position:relative;height:min(80vh,620px);min-height:420px;background:radial-gradient(ellipse at 50% 40%,#0f1a24 0%,var(--bg) 70%);border:1px dotted var(--line)}
-.body3d canvas{touch-action:pan-y!important}
-.body3d-placeholder{display:flex;align-items:center;justify-content:center;color:var(--dim)}
-.body3d-hint{position:absolute;left:10px;bottom:6px;margin:0;font-size:13px}
+@keyframes xpIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes xpFade{from{opacity:0}to{opacity:1}}
+@keyframes xpGlow{0%,100%{box-shadow:0 0 0 0 rgba(255,230,0,.0)}50%{box-shadow:0 0 22px 2px rgba(255,230,0,.45)}}
+@keyframes xpPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,85,71,.7)}50%{box-shadow:0 0 0 6px rgba(255,85,71,0)}}
 .body3d-overlay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none}
 .body3d-loading{margin:0;color:var(--dim);font:500 14px 'IBM Plex Mono',monospace;white-space:nowrap}
+.body3d-marker[hidden]{display:none}
 .body3d-marker{position:absolute;left:0;top:0;width:0;height:0;padding:0;border:0;background:none;color:var(--ink);cursor:pointer;font:inherit}
 .body3d-dot{position:absolute;left:-13px;top:-13px;display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--status);color:#05070a;font:700 14px 'Barlow',sans-serif;border:2px solid #05070a;box-shadow:0 0 0 1px var(--status)}
 .body3d-dot::after{content:"";position:absolute;inset:-3px;border-radius:50%;border:2px solid var(--status);opacity:0}
@@ -152,7 +158,72 @@ const GLOBAL_CSS = `
 .organ3d-canvas{position:relative;height:280px;background:radial-gradient(ellipse at 50% 50%,#0f1a24 0%,var(--bg) 72%);border:1px dotted var(--line)}
 .organ3d-credit{margin:6px 0 0;font-size:13px}
 .organ3d-credit a{color:var(--c)}
-.organ3d-empty{margin:0;font-size:16px}`;
+.organ3d-empty{margin:0;font-size:16px}
+.xp-card .organ3d{margin-top:0;padding-top:0;border-top:0}
+.xp-stage{position:relative;margin-top:22px;height:clamp(580px,84vh,900px);border:1px solid #1c2733;background:radial-gradient(ellipse at 50% 42%,#0e1f2d 0%,#070b10 55%,var(--bg) 80%);overflow:hidden}
+.xp-stage::before,.xp-stage::after{content:"";position:absolute;width:42px;height:42px;border:2px solid var(--c);pointer-events:none;z-index:3;opacity:.7}
+.xp-stage::before{top:8px;left:8px;border-right:0;border-bottom:0}
+.xp-stage::after{bottom:8px;right:8px;border-left:0;border-top:0}
+.xp-canvas{position:absolute;inset:0}
+.xp-canvas canvas{touch-action:pan-y!important}
+.xp-placeholder{display:flex;align-items:center;justify-content:center;color:var(--dim);font:500 15px 'IBM Plex Mono',monospace}
+.xp-grid{position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(rgba(0,168,232,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(0,168,232,.07) 1px,transparent 1px);background-size:44px 44px;-webkit-mask-image:radial-gradient(ellipse at center,#000 25%,transparent 72%);mask-image:radial-gradient(ellipse at center,#000 25%,transparent 72%)}
+.xp-phase{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:4;display:flex;gap:10px;align-items:center;padding:6px 14px;background:rgba(5,7,10,.75);border:1px solid rgba(0,168,232,.45);color:var(--c);font:700 15px 'Barlow Condensed',sans-serif;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap}
+.xp-phase-n{color:var(--y);font-family:'IBM Plex Mono',monospace;letter-spacing:0}
+.xp-skip{position:absolute;top:12px;right:16px;z-index:4;min-height:40px;padding:0 14px;background:rgba(5,7,10,.75);border:1px solid var(--line);color:var(--ink);font:600 15px 'Barlow',sans-serif;cursor:pointer}
+.xp-skip:hover{border-color:var(--ink)}
+.xp-panel{position:absolute;top:64px;bottom:18px;z-index:4;width:min(350px,30%);overflow-y:auto;padding:16px 18px;background:linear-gradient(180deg,rgba(8,12,18,.9),rgba(8,12,18,.72));-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(85,91,102,.55)}
+.xp-left{left:16px}
+.xp-right{right:16px;width:min(290px,25%)}
+.xp-progress{height:6px;background:#1c232c;overflow:hidden}
+.xp-progress>div{height:100%;background:linear-gradient(90deg,var(--c),#8de8ff);transition:width .2s linear}
+.xp-pct{margin:6px 0 0;font-size:14px}
+.xp-wait{font-size:15px;margin:14px 0 0}
+.xp-findings{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}
+.xp-finding{display:flex;gap:10px;padding:10px 10px 10px 8px;border-left:3px solid var(--red);background:rgba(255,59,47,.08)}
+.xp-finding.is-amber{border-left-color:#ffa23a;background:rgba(255,162,58,.07)}
+.xp-finding-icon{flex-shrink:0;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--red);color:#05070a;font-weight:800;font-size:13px}
+.xp-finding.is-amber .xp-finding-icon{background:#ffa23a}
+.xp-finding strong{display:block;font:800 19px 'Barlow Condensed',sans-serif}
+.xp-finding span{display:block;font:700 14px 'Barlow',sans-serif}
+.xp-finding .mono{display:inline;font-size:13px}
+.xp-finding small{display:block;margin-top:4px;color:var(--dim);font-size:14px;line-height:1.35}
+.xp-summary{margin-top:16px;padding-top:12px;border-top:1px dotted var(--line)}
+.xp-summary p{margin:0 0 10px;font-size:26px;font-weight:800;line-height:1.05}
+.xp-cta{width:100%;min-height:54px;border:0;background:var(--y);color:#000;font:800 22px 'Barlow Condensed',sans-serif;cursor:pointer}
+.xp-title{margin:0 0 10px;font-size:34px;line-height:1;font-weight:800}
+.xp-status{margin:10px 0 4px;font:700 19px 'Barlow',sans-serif}
+.xp-panel .sec h3{font-size:20px}
+.xp-panel .sec p{font-size:17px}
+.xp-panel .mono{font-size:16px}
+.xp-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px}
+.xp-nav .btn{min-height:42px;min-width:52px}
+.xp-sys{display:flex;align-items:center;gap:10px;width:100%;margin-bottom:6px;padding:8px;background:rgba(255,255,255,.02);border:1px solid transparent;color:inherit;text-align:left;cursor:pointer;transition:border-color .15s,background .15s}
+.xp-sys:hover{border-color:var(--line)}
+.xp-sys[aria-pressed=true]{border-color:var(--y);background:rgba(255,230,0,.06)}
+.xp-sys-icon{flex-shrink:0;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#05070a;font-weight:800;font-size:14px}
+.xp-sys-text strong{display:block;font:800 17px 'Barlow Condensed',sans-serif}
+.xp-sys-text small{font-size:13px;font-weight:600}
+.xp-sys-text .mono{font-size:12px}
+.xp-seg{display:flex}
+.xp-seg .btn{flex:1;min-height:40px;font-size:15px;padding:0 8px}
+.xp-actions{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.xp-actions .btn{min-height:40px;font-size:15px;text-align:left}
+.xp-hint{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);z-index:4;margin:0;font-size:13px;white-space:nowrap}
+.xp-detail{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:24px}
+.xp-card{padding:16px;border:1px solid #1c2733;background:rgba(255,255,255,.015)}
+@media(max-width:900px){
+  .hud{padding:20px 16px 32px}.stripe{margin:-20px -16px 20px}
+  .xp-stage{height:auto;overflow:visible;border:0;background:none}
+  .xp-stage::before,.xp-stage::after{display:none}
+  .xp-canvas{position:relative;height:72vh;border:1px solid #1c2733;background:radial-gradient(ellipse at 50% 42%,#0e1f2d 0%,var(--bg) 75%)}
+  .xp-grid{height:72vh;bottom:auto}
+  .xp-panel{position:relative;top:auto;bottom:auto;left:auto;right:auto;width:auto;margin-top:12px}
+  .xp-hint{display:none}
+  .xp-phase{left:12px;top:12px;transform:none;font-size:13px;padding:5px 10px}
+  .xp-skip{top:52px;right:12px;min-height:36px;font-size:14px}
+  .xp-detail{grid-template-columns:1fr}
+}`;
 
 const STEPS = [
   { tag: "Seguridad 0G", title: "Detente. No flotes", kit: "Correas azules", chip: "bg-sky-500 text-[#0b0d11]",
@@ -268,10 +339,21 @@ function EmergencyProtocol({ onExit }: { onExit: () => void }) {
   );
 }
 
+const SEVERITY: Record<StatusColor, 0 | 1 | 2> = { green: 0, amber: 1, red: 2 };
+
 export default function BodyMapHUD() {
   const [selectedSystem, setSelectedSystem] = useState<SystemId>("inmune");
   const [isSurgeonMode, setIsSurgeonMode] = useState<boolean>(false);
   const [emergencyActive, setEmergencyActive] = useState<boolean>(false);
+
+  // Experiencia 3D: fase 1 escaneo holográfico → fase 2 anatomía
+  const [stage, setStage] = useState<Stage>("intro");
+  const [layer, setLayer] = useState<Layer>("anatomy");
+  const [progress, setProgress] = useState(0);
+  const [detected, setDetected] = useState<SystemId[]>([]);
+  const [scanDone, setScanDone] = useState(false);
+  const [introKey, setIntroKey] = useState(0);
+  const [homeKey, setHomeKey] = useState(0);
 
   const ids = Object.keys(SYSTEMS_DATA) as SystemId[];
   const current = SYSTEMS_DATA[selectedSystem];
@@ -281,7 +363,67 @@ export default function BodyMapHUD() {
     return [m.slice(0, i), m.slice(i + 2)];
   });
 
+  // Sistemas con problemas: se marcan en rojo sobre el holograma.
+  const anomalies: Anomaly[] = ids
+    .filter((id) => SEVERITY[SYSTEMS_DATA[id].status] > 0)
+    .map((id) => ({ id, severity: SEVERITY[SYSTEMS_DATA[id].status] as 1 | 2 }));
+
+  const markers: BodyMarker[] = ids.map((id) => {
+    const sys = SYSTEMS_DATA[id];
+    return {
+      id,
+      number: ids.indexOf(id) + 1,
+      title: sys.short,
+      statusLabel: STATUS_LABEL[sys.status],
+      icon: STATUS_ICON[sys.status],
+      color: STATUS_FILL[sys.status],
+      metric: sys.metric,
+      critical: sys.status === "red",
+    };
+  });
+
+  const onDetect = useCallback((id: SystemId) => setDetected((d) => (d.includes(id) ? d : [...d, id])), []);
+  const onIntroDone = useCallback(() => setScanDone(true), []);
+
+  const explore = (focus?: SystemId) => {
+    setStage("explore");
+    setLayer("anatomy");
+    setDetected(anomalies.map((a) => a.id));
+    setScanDone(true);
+    if (focus) setSelectedSystem(focus);
+  };
+  const replayScan = () => {
+    setDetected([]);
+    setScanDone(false);
+    setProgress(0);
+    setIntroKey((k) => k + 1);
+    setStage("intro");
+  };
+  const step = (dir: 1 | -1) => {
+    const i = sorted.indexOf(selectedSystem);
+    setSelectedSystem(sorted[(i + dir + sorted.length) % sorted.length]);
+  };
+
+  // Teclado: ← → recorren sistemas, 1–5 eligen, Enter/Espacio salta el escaneo.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (emergencyActive) return;
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (stage === "explore") {
+        if (e.key === "ArrowRight") setSelectedSystem((s) => sorted[(sorted.indexOf(s) + 1) % sorted.length]);
+        if (e.key === "ArrowLeft") setSelectedSystem((s) => sorted[(sorted.indexOf(s) - 1 + sorted.length) % sorted.length]);
+        const n = Number(e.key);
+        if (n >= 1 && n <= ids.length) setSelectedSystem(ids[n - 1]);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [stage, emergencyActive, sorted, ids]);
+
   if (emergencyActive) return <EmergencyProtocol onExit={() => setEmergencyActive(false)} />;
+
+  const critical = anomalies.filter((a) => a.severity === 2).length;
 
   return (
     <div className="hud">
@@ -290,7 +432,7 @@ export default function BodyMapHUD() {
       <header className="top">
         <div>
           <h1>La salud de la tripulación en el espacio</h1>
-          <p className="dek">Cinco sistemas del cuerpo vigilados sin depender de la Tierra. Elige uno para ver por qué importa, cómo medirlo y qué hacer.</p>
+          <p className="dek">Escaneamos el cuerpo sin depender de la Tierra, marcamos lo que duele o falla y te llevamos a la anatomía para entender por qué y qué hacer.</p>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center" }}>
           <div role="group" aria-label="Modo de vista" style={{ display: "flex" }}>
@@ -301,82 +443,158 @@ export default function BodyMapHUD() {
         </div>
       </header>
 
-      <div className="layout">
-        <main aria-live="polite">
-          <p className="kick">Sistema seleccionado</p>
-          <h2 className="disp" style={{ fontSize: 46, lineHeight: 1, margin: "0 0 12px", fontWeight: 800 }}>{current.name}</h2>
-          <div className="bar" style={{ display: "inline-flex", fontSize: 19 }}>Riesgo NASA: {current.hazard}</div>
-          <p style={{ color: STATUS_FILL[current.status], font: "700 22px 'Barlow', sans-serif", margin: "12px 0 14px" }}>
-            {STATUS_ICON[current.status]} {STATUS_LABEL[current.status]} · <span className="dim">{current.metric}</span>
-          </p>
-          {!isSurgeonMode ? (
-            <>
-              <div className="sec"><h3>Por qué importa</h3><p>{current.crewSummary}</p></div>
-              <div className="sec"><h3>Cómo medirlo</h3><p>{current.howToMeasure}</p></div>
-              <div className="sec"><h3>Qué hacer ahora</h3><p>{current.crewAction}</p></div>
-            </>
-          ) : (
-            <>
-              <div className="sec">
-                <h3>Telemetría y biomarcadores RIDGE</h3>
-                {rows.map(([k, v]) => (
-                  <div className="mt" key={k}><span className="dim">{k}</span><span className="mono">{v}</span></div>
-                ))}
-              </div>
-              <div className="sec"><p className="dim" style={{ fontSize: 16 }}>Aquí Marcelo integrará los gráficos en Recharts y el motor <code>clinicalEngine.ts</code>.</p></div>
-            </>
-          )}
-          <OrganViewer key={selectedSystem} system={selectedSystem} />
-        </main>
-
-        <BodyViewer
+      {/* ---------------- Escenario 3D ---------------- */}
+      <section className={`xp-stage is-${stage}`} aria-label="Escáner corporal 3D">
+        <BodyExperience
+          stage={stage}
+          layer={layer}
+          anomalies={anomalies}
+          markers={markers}
           selected={selectedSystem}
-          onSelect={setSelectedSystem}
-          markers={ids.map((id): BodyMarker => {
-            const sys = SYSTEMS_DATA[id];
-            return {
-              id,
-              number: ids.indexOf(id) + 1,
-              title: sys.short,
-              statusLabel: STATUS_LABEL[sys.status],
-              icon: STATUS_ICON[sys.status],
-              color: STATUS_FILL[sys.status],
-              metric: sys.metric,
-              critical: sys.status === "red",
-            };
-          })}
+          onSelect={(id) => setSelectedSystem(id as SystemId)}
+          homeKey={homeKey}
+          introKey={introKey}
+          onDetect={(id) => onDetect(id as SystemId)}
+          onProgress={setProgress}
+          onIntroDone={onIntroDone}
         />
+        <div className="xp-grid" aria-hidden />
 
-        <nav aria-label="Sistemas, del más grave al menos grave">
-          <p className="kick">Sistemas monitoreados</p>
-          {sorted.map((id) => {
-            const s = SYSTEMS_DATA[id];
-            return (
-              <button key={id} className="srow" aria-pressed={selectedSystem === id} onClick={() => setSelectedSystem(id)}>
-                <div className="bar"><span>{ids.indexOf(id) + 1} · {s.short}</span><span>{STATUS_ICON[s.status]}</span></div>
-                <small style={{ color: STATUS_FILL[s.status] }}>{STATUS_LABEL[s.status]} <span className="dim mono" style={{ fontSize: 14 }}>{s.metric}</span></small>
-              </button>
-            );
-          })}
-        </nav>
-      </div>
-
-      <section style={{ marginTop: 28, borderTop: "1px dotted #555b66", paddingTop: 14 }}>
-        <p className="kick">Tendencia de 7 días · {current.short}</p>
-        <div className="chart" role="img" aria-label={`Índice de riesgo de los últimos 7 días: ${current.trend.join(", ")}`}>
-          {current.trend.map((v, i) => {
-            const st = v >= 70 ? "red" : v >= 40 ? "amber" : "green";
-            return (
-              <div className="col" key={i}>
-                <span className="mono" style={{ fontSize: 15 }}>{STATUS_ICON[st]} {v}</span>
-                <div className="cb" style={{ height: v * 1.5, background: STATUS_FILL[st] }} />
-              </div>
-            );
-          })}
+        <div className="xp-phase">
+          <span className="xp-phase-n">{stage === "intro" ? "01" : "02"}</span>
+          <span>{stage === "intro" ? "Escaneo biométrico" : layer === "anatomy" ? "Anatomía · músculos" : "Anatomía · holograma"}</span>
         </div>
-        <div className="days">{DAYS.map((d) => <span key={d}>{d}</span>)}</div>
-        <p className="dim" style={{ fontSize: 15, margin: "10px 0 0" }}>Índice de riesgo 0–100: ✓ menos de 40 óptimo · ▲ 40 a 69 precaución · ■ 70 o más crítico</p>
+
+        {stage === "intro" ? (
+          <>
+            <button className="xp-skip" onClick={() => explore()}>Saltar escaneo →</button>
+
+            <aside className="xp-panel xp-left" aria-live="polite">
+              <p className="kick">Escaneo 360°</p>
+              <div className="xp-progress" role="progressbar" aria-label="Progreso del escaneo" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
+                <div style={{ width: `${progress}%` }} />
+              </div>
+              <p className="mono dim xp-pct">{scanDone ? "Escaneo completo" : `Analizando… ${progress}%`}</p>
+
+              <ol className="xp-findings">
+                {detected.map((id) => {
+                  const sys = SYSTEMS_DATA[id];
+                  return (
+                    <li key={id} className={`xp-finding is-${sys.status}`}>
+                      <span className="xp-finding-icon" aria-hidden>{STATUS_ICON[sys.status]}</span>
+                      <div>
+                        <strong>{sys.short}</strong>
+                        <span style={{ color: STATUS_FILL[sys.status] }}>{STATUS_LABEL[sys.status]} · <span className="mono">{sys.metric}</span></span>
+                        <small>{sys.crewSummary}</small>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+              {detected.length === 0 && !scanDone && <p className="dim xp-wait">Buscando dolores, molestias y fallos…</p>}
+
+              {scanDone && (
+                <div className="xp-summary">
+                  <p className="disp">
+                    {anomalies.length} {anomalies.length === 1 ? "zona afectada" : "zonas afectadas"}
+                    {critical > 0 && <span style={{ color: STATUS_FILL.red }}> · {critical} crítica{critical > 1 ? "s" : ""}</span>}
+                  </p>
+                  <button className="xp-cta" onClick={() => explore(anomalies.find((a) => a.severity === 2)?.id ?? anomalies[0]?.id)}>
+                    Explorar anatomía →
+                  </button>
+                </div>
+              )}
+            </aside>
+          </>
+        ) : (
+          <>
+            <aside className="xp-panel xp-left" aria-live="polite">
+              <p className="kick">Sistema seleccionado</p>
+              <h2 className="disp xp-title">{current.name}</h2>
+              <div className="bar" style={{ display: "inline-flex", fontSize: 17 }}>Riesgo NASA: {current.hazard}</div>
+              <p className="xp-status" style={{ color: STATUS_FILL[current.status] }}>
+                {STATUS_ICON[current.status]} {STATUS_LABEL[current.status]} · <span className="dim mono">{current.metric}</span>
+              </p>
+              {!isSurgeonMode ? (
+                <>
+                  <div className="sec"><h3>Por qué importa</h3><p>{current.crewSummary}</p></div>
+                  <div className="sec"><h3>Cómo medirlo</h3><p>{current.howToMeasure}</p></div>
+                  <div className="sec"><h3>Qué hacer ahora</h3><p>{current.crewAction}</p></div>
+                </>
+              ) : (
+                <div className="sec">
+                  <h3>Telemetría y biomarcadores RIDGE</h3>
+                  {rows.map(([k, v]) => (
+                    <div className="mt" key={k}><span className="dim">{k}</span><span className="mono">{v}</span></div>
+                  ))}
+                </div>
+              )}
+              <div className="xp-nav">
+                <button className="btn" onClick={() => step(-1)} aria-label="Sistema anterior">←</button>
+                <span className="dim">{sorted.indexOf(selectedSystem) + 1} / {sorted.length}</span>
+                <button className="btn" onClick={() => step(1)} aria-label="Sistema siguiente">→</button>
+              </div>
+            </aside>
+
+            <aside className="xp-panel xp-right">
+              <p className="kick">Sistemas · del más grave al menos</p>
+              {sorted.map((id) => {
+                const sys = SYSTEMS_DATA[id];
+                return (
+                  <button key={id} className={`xp-sys is-${sys.status}`} aria-pressed={selectedSystem === id} onClick={() => setSelectedSystem(id)}>
+                    <span className="xp-sys-icon" style={{ background: STATUS_FILL[sys.status] }} aria-hidden>{STATUS_ICON[sys.status]}</span>
+                    <span className="xp-sys-text">
+                      <strong>{ids.indexOf(id) + 1} · {sys.short}</strong>
+                      <small style={{ color: STATUS_FILL[sys.status] }}>{STATUS_LABEL[sys.status]} <span className="dim mono">{sys.metric}</span></small>
+                    </span>
+                  </button>
+                );
+              })}
+
+              <p className="kick" style={{ marginTop: 18 }}>Capa</p>
+              <div role="group" aria-label="Capa del cuerpo" className="xp-seg">
+                <button className="btn" aria-pressed={layer === "anatomy"} onClick={() => setLayer("anatomy")}>Músculos</button>
+                <button className="btn" aria-pressed={layer === "hologram"} onClick={() => setLayer("hologram")}>Holograma</button>
+              </div>
+              <div className="xp-actions">
+                <button className="btn" onClick={() => setHomeKey((k) => k + 1)}>⤢ Vista completa</button>
+                <button className="btn" onClick={replayScan}>↻ Repetir escaneo</button>
+              </div>
+            </aside>
+
+            <p className="xp-hint dim">Arrastra para girar · rueda para acercar · ← → para cambiar de sistema</p>
+          </>
+        )}
       </section>
+
+      {/* ---------------- Detalle ---------------- */}
+      {stage === "explore" && (
+        <section className="xp-detail">
+          <div className="xp-card">
+            <OrganViewer key={selectedSystem} system={selectedSystem} />
+          </div>
+          <div className="xp-card">
+            <p className="kick">Tendencia de 7 días · {current.short}</p>
+            <div className="chart" role="img" aria-label={`Índice de riesgo de los últimos 7 días: ${current.trend.join(", ")}`}>
+              {current.trend.map((v, i) => {
+                const st = v >= 70 ? "red" : v >= 40 ? "amber" : "green";
+                return (
+                  <div className="col" key={i}>
+                    <span className="mono" style={{ fontSize: 15 }}>{STATUS_ICON[st]} {v}</span>
+                    <div className="cb" style={{ height: v * 1.5, background: STATUS_FILL[st] }} />
+                  </div>
+                );
+              })}
+            </div>
+            <div className="days">{DAYS.map((d) => <span key={d}>{d}</span>)}</div>
+            <p className="dim" style={{ fontSize: 15, margin: "10px 0 0" }}>Índice de riesgo 0–100: ✓ menos de 40 óptimo · ▲ 40 a 69 precaución · ■ 70 o más crítico</p>
+            {SYSTEM_MODELS[selectedSystem].models.length === 0 && (
+              <p className="dim" style={{ fontSize: 15 }}>Este sistema no tiene un órgano único: se sigue con cuestionarios y el registro del reloj.</p>
+            )}
+          </div>
+        </section>
+      )}
+
       <p className="src">Fuentes: NASA-STD-3001 y los cinco riesgos del Programa de Investigación Humana de la NASA. Datos simulados para el prototipo; no es un dispositivo médico.</p>
       <p className="src">
         Modelos 3D (Sketchfab):{" "}
