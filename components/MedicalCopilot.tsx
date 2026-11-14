@@ -103,7 +103,7 @@ export function MedicalCopilot() {
             Cirujano de Vuelo Autónomo (AI)
           </h2>
           <p className="text-xs text-slate-400">
-            Gemini 2.5 Flash // Telemetría Inyectada en Tiempo Real
+            Gemini 3 Flash // Telemetría Inyectada en Tiempo Real
           </p>
         </div>
         <span className="px-2.5 py-1 rounded bg-cyan-950/80 border border-cyan-700 text-[11px] text-cyan-300 uppercase tracking-wider">
