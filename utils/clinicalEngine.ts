@@ -1,109 +1,35 @@
-import {
-  ClinicalEvaluationResult,
-  SeverityLevel,
-  TelemetryState,
-} from '@/types/telemetry';
-
-const CLINICAL_THRESHOLDS = {
-  RENAL: {
-    CISTATINA_C_MAX: 1.15,
-    CALCIO_IONICO_MAX: 1.32,
-  },
-  RADIATION: {
-    NLR_MAX: 3.5,
-    ACCUMULATED_MAX: 50,
-  },
-  CO2: {
-    LEVEL_MAX: 3500,
-    SPO2_MIN_FOR_MASKED_HYPERCAPNIA: 96,
-  },
-} as const;
+import { Biomarkers, ClinicalAlerts, Environment } from '../types/telemetry';
 
 /**
- * Calcula el índice Neutrófilos / Linfocitos (NLR) de forma segura.
+ * Motor Clínico Determinista Edge-First (Protocolos Médicos Espaciales NASA).
+ * Función pura que evalúa biomarcadores y variables ambientales para detectar:
+ * 1. Sarcopenia / Nefrolitiasis por Gravedad Alterada (Renal)
+ * 2. Inmunosupresión inducida por Radiación Espacial (NLR + Linfopenia)
+ * 3. Hipercapnia silenciosa en Entorno Hostil (CO2 elevado con SpO2 conservada)
  */
-export const calculateNLR = (neutrofilos: number, linfocitos: number): number => {
-  if (linfocitos <= 0) {
-    return 0;
-  }
-  return Number((neutrofilos / linfocitos).toFixed(2));
-};
+export function evaluateTelemetry(
+  bio: Biomarkers,
+  env: Environment
+): Omit<ClinicalAlerts, 'isEmergency'> {
+  const safeCreatinina = bio.creatinina > 0 ? bio.creatinina : 0.01;
+  const safeLinfocitos = bio.linfocitos > 0 ? bio.linfocitos : 1;
 
-/**
- * Determina el nivel global de severidad clínica en base a las alertas activas.
- */
-export const resolveSeverity = (
-  alerts: Pick<
-    TelemetryState,
-    'isEmergency' | 'isRenalWarning' | 'isRadiationWarning' | 'isCo2Warning'
-  >
-): SeverityLevel => {
-  const { isEmergency, isRenalWarning, isRadiationWarning, isCo2Warning } = alerts;
-
-  const activeWarningsCount = [
-    isRenalWarning,
-    isRadiationWarning,
-    isCo2Warning,
-  ].filter(Boolean).length;
-
-  if (isEmergency || activeWarningsCount >= 2) {
-    return 'CRITICAL';
-  }
-
-  if (activeWarningsCount === 1) {
-    return 'WARNING';
-  }
-
-  return 'OPTIMAL';
-};
-
-/**
- * Motor clínico determinista Edge-First.
- * Evalúa las métricas biométricas y ambientales de acuerdo con protocolos médicos espaciales.
- */
-export const evaluateTelemetry = (
-  data: Partial<TelemetryState>
-): ClinicalEvaluationResult => {
-  const {
-    cistatinaC = 0,
-    calcioIonico = 0,
-    neutrofilos = 0,
-    linfocitos = 1,
-    radiationAccumulated = 0,
-    co2Level = 0,
-    spO2 = 0,
-    isEmergency = false,
-  } = data;
-
-  // 1. Regla Renal (Sarcopenia / Nefrolitiasis por Microgravedad)
+  // 1. Gravedad Alterada (Renal)
   const isRenalWarning =
-    cistatinaC > CLINICAL_THRESHOLDS.RENAL.CISTATINA_C_MAX &&
-    calcioIonico > CLINICAL_THRESHOLDS.RENAL.CALCIO_IONICO_MAX;
+    (bio.cistatinaC > 1.15 && bio.cistatinaC / safeCreatinina > 1.2) ||
+    bio.calcioIonico > 1.32;
 
-  // 2. Regla Radiación (Inmunosupresión inducida por radiación espacial)
-  const nlr = calculateNLR(neutrofilos, linfocitos);
+  // 2. Radiación (Inmunosupresión)
+  const nlr = bio.neutrofilos / safeLinfocitos;
   const isRadiationWarning =
-    nlr > CLINICAL_THRESHOLDS.RADIATION.NLR_MAX &&
-    radiationAccumulated > CLINICAL_THRESHOLDS.RADIATION.ACCUMULATED_MAX;
+    nlr > 3.5 && bio.linfocitos < 1200 && env.radiationAccumulated > 50;
 
-  // 3. Regla CO2 (Entorno Hostil / Hipercapnia silenciosa con SpO2 normal)
-  const isCo2Warning =
-    co2Level > CLINICAL_THRESHOLDS.CO2.LEVEL_MAX &&
-    spO2 >= CLINICAL_THRESHOLDS.CO2.SPO2_MIN_FOR_MASKED_HYPERCAPNIA;
-
-  const severity = resolveSeverity({
-    isEmergency,
-    isRenalWarning,
-    isRadiationWarning,
-    isCo2Warning,
-  });
+  // 3. Entorno Hostil (CO2)
+  const isCo2Warning = env.co2Level > 3500 && bio.spO2 >= 96;
 
   return {
-    isEmergency,
     isRenalWarning,
     isRadiationWarning,
     isCo2Warning,
-    nlr,
-    severity,
   };
-};
+}
