@@ -91,6 +91,8 @@ export const useTelemetryStore = create<TelemetryState>()(
 
           case 'SOLAR_STORM':
             scenarioOverrides = {
+              // Evento de partículas solares: la Regla 2 evalúa la tasa actual.
+              radiationRate: 120,
               radiationAccumulated: 80,
               neutrofilos: 4500,
               linfocitos: 800,

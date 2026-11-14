@@ -1,35 +1,148 @@
-import { Biomarkers, ClinicalAlerts, Environment } from '../types/telemetry';
+import type {
+  AlertSeverity,
+  Biomarkers,
+  ClinicalAlerts,
+  Environment,
+  TelemetryData,
+} from '../types/telemetry';
 
 /**
- * Motor Clínico Determinista Edge-First (Protocolos Médicos Espaciales NASA).
- * Función pura que evalúa biomarcadores y variables ambientales para detectar:
- * 1. Sarcopenia / Nefrolitiasis por Gravedad Alterada (Renal)
- * 2. Inmunosupresión inducida por Radiación Espacial (NLR + Linfopenia)
- * 3. Hipercapnia silenciosa en Entorno Hostil (CO2 elevado con SpO2 conservada)
+ * Motor Clínico Determinista Edge-First — Matriz RIDGE.
+ *
+ * Funciones puras, sin I/O ni dependencia de la Tierra: se ejecutan a bordo en
+ * cada tick de telemetría (latencia cero). El contrato `ClinicalAlerts` expone
+ * tres banderas automáticas más la emergencia manual:
+ *
+ *   R — Radiation       → isRadiationWarning (Regla 2)
+ *   G — Gravity         → isRenalWarning     (Regla 1)
+ *   E — Hostile Env.    → isCo2Warning       (Regla 3)
+ *   I / D — Isolation y Distance no tienen bandera en el contrato: se abordan
+ *   con las contramedidas de bienestar y la arquitectura offline-first.
+ */
+
+/** Umbrales clínicos de cada regla. Única fuente de verdad para motor y UI. */
+export const RIDGE_THRESHOLDS = {
+  renal: {
+    /** Creatinina normal o baja (mg/dL): enmascara el daño en microgravedad */
+    maxCreatinina: 1.1,
+    /** Cistatina C elevada (mg/L) */
+    minCistatinaC: 1.15,
+    /** Calcio iónico elevado (mmol/L): resorción ósea */
+    minCalcioIonico: 1.25,
+  },
+  radiation: {
+    /** Tasa de dosis actual (µSv/h) */
+    minRadiationRate: 50.0,
+    /** Linfopenia (cél/µL) */
+    maxLinfocitos: 1000,
+    /** Ratio neutrófilos / linfocitos */
+    minNlr: 3.0,
+  },
+  co2: {
+    /** Hipercapnia ambiental (ppm) */
+    minCo2Level: 3500,
+    /** SpO2 conservada (%): el CO2 no se manifiesta en el pulsioxímetro */
+    minSpO2: 96,
+  },
+} as const;
+
+type SensorReadings = Biomarkers & Environment;
+type AutomaticAlerts = Omit<ClinicalAlerts, 'isEmergency'>;
+
+/** Una lectura sólo participa en una regla si es un número finito. */
+const isReading = (value: number): boolean => Number.isFinite(value);
+
+/**
+ * Ratio neutrófilos / linfocitos (NLR).
+ * Devuelve `Infinity` con linfocitos en 0 y neutrófilos presentes (linfopenia
+ * absoluta), y `NaN` si ninguna lectura es interpretable.
+ */
+export function computeNlr(
+  bio: Pick<Biomarkers, 'neutrofilos' | 'linfocitos'>
+): number {
+  return bio.neutrofilos / bio.linfocitos;
+}
+
+/** Regla 1 — Nefropatía oculta (gravedad alterada). */
+export function isHiddenNephropathy(bio: Biomarkers): boolean {
+  const t = RIDGE_THRESHOLDS.renal;
+  if (![bio.creatinina, bio.cistatinaC, bio.calcioIonico].every(isReading)) {
+    return false;
+  }
+  return (
+    bio.creatinina <= t.maxCreatinina &&
+    bio.cistatinaC > t.minCistatinaC &&
+    bio.calcioIonico > t.minCalcioIonico
+  );
+}
+
+/** Regla 2 — Inmunosupresión por radiación. */
+export function isRadiationImmunosuppression(
+  bio: Biomarkers,
+  env: Environment
+): boolean {
+  const t = RIDGE_THRESHOLDS.radiation;
+  if (![env.radiationRate, bio.linfocitos, bio.neutrofilos].every(isReading)) {
+    return false;
+  }
+  const nlr = computeNlr(bio);
+  return (
+    env.radiationRate > t.minRadiationRate &&
+    bio.linfocitos < t.maxLinfocitos &&
+    nlr > t.minNlr
+  );
+}
+
+/** Regla 3 — Bolsillo de CO2 (hipercapnia con SpO2 conservada). */
+export function isCo2Pocket(bio: Biomarkers, env: Environment): boolean {
+  const t = RIDGE_THRESHOLDS.co2;
+  if (![env.co2Level, bio.spO2].every(isReading)) {
+    return false;
+  }
+  return env.co2Level > t.minCo2Level && bio.spO2 >= t.minSpO2;
+}
+
+/**
+ * Evalúa las reglas automáticas. `isEmergency` queda fuera porque es un
+ * override manual (Code Red) que el motor nunca debe apagar por sí mismo.
  */
 export function evaluateTelemetry(
   bio: Biomarkers,
   env: Environment
-): Omit<ClinicalAlerts, 'isEmergency'> {
-  const safeCreatinina = bio.creatinina > 0 ? bio.creatinina : 0.01;
-  const safeLinfocitos = bio.linfocitos > 0 ? bio.linfocitos : 1;
-
-  // 1. Gravedad Alterada (Renal)
-  const isRenalWarning =
-    (bio.cistatinaC > 1.15 && bio.cistatinaC / safeCreatinina > 1.2) ||
-    bio.calcioIonico > 1.32;
-
-  // 2. Radiación (Inmunosupresión)
-  const nlr = bio.neutrofilos / safeLinfocitos;
-  const isRadiationWarning =
-    nlr > 3.5 && bio.linfocitos < 1200 && env.radiationAccumulated > 50;
-
-  // 3. Entorno Hostil (CO2)
-  const isCo2Warning = env.co2Level > 3500 && bio.spO2 >= 96;
-
+): AutomaticAlerts {
   return {
-    isRenalWarning,
-    isRadiationWarning,
-    isCo2Warning,
+    isRenalWarning: isHiddenNephropathy(bio),
+    isRadiationWarning: isRadiationImmunosuppression(bio, env),
+    isCo2Warning: isCo2Pocket(bio, env),
   };
+}
+
+/**
+ * Devuelve el conjunto completo de `ClinicalAlerts` conservando el estado
+ * actual de la emergencia manual.
+ */
+export function evaluateClinicalAlerts(
+  readings: SensorReadings,
+  isEmergency: boolean
+): ClinicalAlerts {
+  return { isEmergency, ...evaluateTelemetry(readings, readings) };
+}
+
+/**
+ * Severidad global para la UI:
+ *   CRITICAL — emergencia manual activa.
+ *   WARNING  — al menos una regla RIDGE disparada.
+ *   OPTIMAL  — sin alertas.
+ */
+export function getAlertSeverity(alerts: ClinicalAlerts): AlertSeverity {
+  if (alerts.isEmergency) return 'CRITICAL';
+  if (alerts.isRenalWarning || alerts.isRadiationWarning || alerts.isCo2Warning) {
+    return 'WARNING';
+  }
+  return 'OPTIMAL';
+}
+
+/** Atajo para componentes que ya tienen el estado completo del store. */
+export function getTelemetrySeverity(data: TelemetryData): AlertSeverity {
+  return getAlertSeverity(data);
 }
