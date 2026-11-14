@@ -3,7 +3,7 @@
 import GodModePanel from '../components/GodModePanel';
 import MedicalCopilot from '../components/MedicalCopilot';
 import SensorSimulator from '../components/SensorSimulator';
-import WellnessMissionPanel from '../components/WellnessMissionPanel';
+import MissionCenter from '../components/mission/MissionCenter';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 import type { AlertSeverity } from '../types/telemetry';
 import {
@@ -214,7 +214,7 @@ export default function DevTelemetryDashboard() {
           </div>
         </div>
 
-        <WellnessMissionPanel />
+        <MissionCenter />
       </div>
     </main>
   );
