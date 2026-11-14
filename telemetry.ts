@@ -56,6 +56,8 @@ export interface ClinicalAlerts {
 
 /** Contrato completo del Store Global de Telemetría (Estado + Acciones) */
 export interface TelemetryState extends Biomarkers, Environment, ClinicalAlerts {
+  /** Interruptor que pausa la inyección automática de SensorSimulator cuando hay un escenario manual activo */
+  isManualOverride: boolean;
   /** Fusiona lecturas parciales de sensores y recalcula automáticamente las alertas clínicas */
   updateSensors: (data: Partial<Biomarkers & Environment>) => void;
   /** Activa manualmente el protocolo de emergencia crítica (isEmergency = true) */
@@ -64,11 +66,13 @@ export interface TelemetryState extends Biomarkers, Environment, ClinicalAlerts 
   simulateScenario: (scenario: SimulationScenario) => void;
 }
 
-/** Tipo utilitario que representa únicamente los datos puros sin métodos del store */
+/** Tipo utilitario que representa únicamente los datos clínicos puros sin métodos ni banderas internas del simulador */
 export type TelemetryData = Omit<
   TelemetryState,
-  'updateSensors' | 'triggerCodeRed' | 'simulateScenario'
->;
+  'updateSensors' | 'triggerCodeRed' | 'simulateScenario' | 'isManualOverride'
+> & {
+  isManualOverride?: boolean;
+};
 
 /**
  * Estado inicial nominal de un astronauta sano en condiciones óptimas de misión.
@@ -98,6 +102,9 @@ export const mockInitialState: Omit<
   isRenalWarning: false,
   isRadiationWarning: false,
   isCo2Warning: false,
+
+  // Control de Simulación
+  isManualOverride: false,
 };
 
 /** Alias en UPPER_SNAKE_CASE para importación estándar de constantes */

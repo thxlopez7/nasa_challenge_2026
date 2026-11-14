@@ -1,30 +1,69 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ScenarioFrame = Record<string, any>;
+
 export function SensorSimulator(): null {
+  const updateSensors = useTelemetryStore((state) => state.updateSensors);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [scenarioData, setScenarioData] = useState<any[]>([]);
+  const tickIndex = useRef<number>(0);
+
   useEffect(() => {
-    const intervalId = setInterval(() => {
-      const { heartRate, co2Level, updateSensors } =
-        useTelemetryStore.getState();
+    let isMounted = true;
 
-      const hrNoise = Math.floor(Math.random() * 5) - 2; // [-2, +2] bpm
-      const co2Noise = (Math.floor(Math.random() * 5) - 2) * 5; // [-10, +10] ppm
-
-      const nextHeartRate = Math.max(45, Math.min(185, heartRate + hrNoise));
-      const nextCo2Level = Math.max(350, Math.min(8000, co2Level + co2Noise));
-
-      updateSensors({
-        heartRate: nextHeartRate,
-        co2Level: nextCo2Level,
+    fetch('/data/scenario_ridge_critical.json')
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(
+            `Error al cargar el dataset: HTTP ${res.status} (${res.statusText})`
+          );
+        }
+        return res.json();
+      })
+      .then((data: ScenarioFrame[]) => {
+        if (isMounted && Array.isArray(data)) {
+          tickIndex.current = 0;
+          setScenarioData(data);
+        }
+      })
+      .catch((error: unknown) => {
+        console.error(
+          '[SensorSimulator] Fallo cargando /data/scenario_ridge_critical.json:',
+          error
+        );
       });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (scenarioData.length === 0) {
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      const { isManualOverride } = useTelemetryStore.getState();
+      if (isManualOverride) return; // Pausa la inyección de datos si estamos en un escenario manual
+
+      const currentData = scenarioData[tickIndex.current];
+
+      if (currentData) {
+        updateSensors(currentData);
+      }
+
+      tickIndex.current = (tickIndex.current + 1) % scenarioData.length;
     }, 1000);
 
     return () => {
       clearInterval(intervalId);
     };
-  }, []);
+  }, [scenarioData, updateSensors]);
 
   return null;
 }
