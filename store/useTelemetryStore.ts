@@ -139,7 +139,10 @@ export const useTelemetryStore = create<TelemetryState>()(
     }),
     {
       name: 'exovitals-core-storage',
-      storage: createJSONStorage(() => localStorage),
+      // `window` sólo existe en el navegador: en el render del servidor esto
+      // lanza, zustand lo captura y no persiste, sin tocar el localStorage
+      // experimental de Node 25+.
+      storage: createJSONStorage(() => window.localStorage),
     }
   )
 );
