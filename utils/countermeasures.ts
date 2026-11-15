@@ -142,7 +142,7 @@ export function deriveDailyCountermeasures(input: {
               : `Maintenance ARED session: 3×10 multi-joint lifts calibrated for ${gravityLabel}.`,
       why:
         lang === 'es'
-          ? `Frena pérdida ósea trabécular/cortical y sarcopenia; evita liberación adicional de Ca²⁺ (${biomarkers.calcioIonico.toFixed(2)} mmol/L).`
+          ? `Frena pérdida ósea trabecular/cortical y sarcopenia; evita liberación adicional de Ca²⁺ (${biomarkers.calcioIonico.toFixed(2)} mmol/L).`
           : `Curbs trabecular/cortical bone loss and sarcopenia while stabilizing ionized Ca²⁺ (${biomarkers.calcioIonico.toFixed(2)} mmol/L).`,
       xpReward: stepXp('RESISTIVE'),
     },

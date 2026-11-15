@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useT } from '../../i18n/I18nContext';
+import { formatDecimal } from '../../utils/formatters';
 import type { TranslationDict } from '../../i18n/es';
 import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Siren } from 'lucide-react';
 import { useMissionStore } from '../../store/useMissionStore';
@@ -56,6 +57,9 @@ const thresholdText = (d: VitalDef, t: TranslationDict) =>
 /* ------------------------------------------------------------------ */
 
 function VitalCard({ def, samples, t }: { def: VitalDef; samples: VitalSample[]; t: TranslationDict }) {
+  const { lang } = useT();
+  const fmt = (v: number) => formatDecimal(v, def.digits, lang);
+  const unit = def.key === 'heartRate' ? t.dashboardExtra.bpmUnit : def.unit;
   const recent = samples.slice(-LIVE_WINDOW_S);
   const now = recent[recent.length - 1];
   if (!now) return null;
@@ -80,18 +84,18 @@ function VitalCard({ def, samples, t }: { def: VitalDef; samples: VitalSample[];
         )}
       </div>
       <p className="text-3xl font-thin tabular-nums text-slate-100">
-        {value.toFixed(def.digits)} <span className="text-sm text-slate-500">{def.unit}</span>
+        {fmt(value)} <span className="text-sm text-slate-500">{unit}</span>
       </p>
-      <Trend t={t} dir={dir} text={t.evolution.deltaIn(`${delta >= 0 ? '+' : ''}${delta.toFixed(def.digits)}`, COMPARE_S)} />
+      <Trend t={t} dir={dir} text={t.evolution.deltaIn(`${delta >= 0 ? '+' : ''}${fmt(delta)}`, COMPARE_S)} />
       <MiniChart
         points={points}
         tone={tone}
         threshold={def.threshold}
         thresholdLabel={thresholdText(def, t)}
-        unit={def.unit}
+        unit={unit}
         digits={def.digits}
         live
-        ariaLabel={t.evolution.cardAria(metricLabel(def, t), LIVE_WINDOW_S, `${value.toFixed(def.digits)} ${def.unit}`)}
+        ariaLabel={t.evolution.cardAria(metricLabel(def, t), LIVE_WINDOW_S, `${fmt(value)} ${unit}`)}
         waitingText={t.evolution.waiting}
       />
       <p className="text-[10px] text-slate-500">{t.evolution.threshold} · {thresholdText(def, t)}</p>
@@ -121,6 +125,8 @@ function DailyChart({ meta, records, live, t }: {
   live: number;
   t: TranslationDict;
 }) {
+  const { lang } = useT();
+  const unit = meta.key === 'heartRate' ? t.dashboardExtra.bpmUnit : meta.unit;
   const label = t.evolution.metrics[meta.key];
   const days = records
     .map((r) => ({ r, v: dailyValue(r, meta.key) }))
@@ -141,10 +147,10 @@ function DailyChart({ meta, records, live, t }: {
     <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 space-y-1">
       <p className="text-xs uppercase tracking-wider text-slate-400">{label}</p>
       <p className="text-xl font-thin tabular-nums">
-        {live.toFixed(meta.digits)} <span className="text-xs text-slate-500">{meta.unit} {t.evolution.today}</span>
+        {formatDecimal(live, meta.digits, lang)} <span className="text-xs text-slate-500">{unit} {t.evolution.today}</span>
       </p>
       {weekAgo !== undefined && (
-        <Trend t={t} dir={dir} text={t.evolution.vsWeek(weekAgo.toFixed(meta.digits))} />
+        <Trend t={t} dir={dir} text={t.evolution.vsWeek(formatDecimal(weekAgo, meta.digits, lang))} />
       )}
       <MiniChart
         points={points}
@@ -190,7 +196,7 @@ export function useLiveVitalsRecorder(resetKey?: string) {
  * en crisis vital, las tarjetas afectadas se ponen en rojo y laten.
  */
 export function LiveEvolution() {
-  const { t: dict } = useT();
+  const { t: dict, lang } = useT();
   const samples = useVitalsHistory((s) => s.samples);
   const records = useMissionStore((s) => s.records);
   const t = useTelemetryStore();
@@ -226,7 +232,7 @@ export function LiveEvolution() {
             <p className="font-black uppercase tracking-wider text-red-100">{e.crisis}</p>
             <p className="text-sm text-red-100/90">
               {critical.length > 0
-                ? e.crisisList(critical.map((d) => `${metricLabel(d, dict)} ${t[d.key].toFixed(d.digits)} ${d.unit}`).join(' · '))
+                ? e.crisisList(critical.map((d) => `${metricLabel(d, dict)} ${formatDecimal(t[d.key], d.digits, lang)} ${d.key === 'heartRate' ? dict.dashboardExtra.bpmUnit : d.unit}`).join(' · '))
                 : e.crisisScore(SCORE_CRISIS)}
             </p>
           </div>

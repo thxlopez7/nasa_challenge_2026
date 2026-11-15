@@ -9,8 +9,6 @@ import {
   Lock,
   Rocket,
   Sparkles,
-  TrendingUp,
-  Trophy,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { DayKey, Mission, MissionProfileId } from '../../types/mission';
@@ -43,7 +41,6 @@ import { demoDaysFor } from '../../utils/demoHistory';
 import DailyEvaluation from './DailyEvaluation';
 import MissionCalendar from './MissionCalendar';
 import TrendChart from './TrendChart';
-import TodayCountermeasures from './TodayCountermeasures';
 
 type Tab = 'today' | 'calendar' | 'trends' | 'achievements';
 type Toast =
@@ -54,8 +51,6 @@ type Toast =
 const TAB_DEFS: { id: Tab; icon: LucideIcon }[] = [
   { id: 'today', icon: ClipboardCheck },
   { id: 'calendar', icon: CalendarDays },
-  { id: 'trends', icon: TrendingUp },
-  { id: 'achievements', icon: Award },
 ];
 
 const TOAST_STYLE: Record<Toast['tone'], string> = {
@@ -145,10 +140,9 @@ function MissionSetup({ today, preferred }: { today: DayKey; preferred?: Mission
 
 /* ------------------------------------------------------------------ */
 
-function MissionHeader({ mission, today, totalXp }: {
+function MissionHeader({ mission, today }: {
   mission: Mission;
   today: DayKey;
-  totalXp: number;
 }) {
   const { lang, t } = useT();
   const records = useMissionStore((s) => s.records);
@@ -156,7 +150,6 @@ function MissionHeader({ mission, today, totalXp }: {
   const total = totalDays(profile);
   const day = Math.min(Math.max(1, missionDayOf(mission, today)), total);
   const { phase, dayInPhase } = phaseOfDay(profile, day);
-  const { rank, next, progress } = getLocalizedRankFor(totalXp, lang);
   const week = missionWeekOf(day);
   const weekDone = Math.min(weekProgress(records, week), WEEKLY_TARGET_DAYS);
   const streak = weeklyStreak(records, week);
@@ -195,28 +188,7 @@ function MissionHeader({ mission, today, totalXp }: {
 
       {/* Rango y meta semanal */}
       <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <p className="inline-flex items-center gap-2 font-bold text-slate-100">
-            <Trophy className="h-4 w-4 text-amber-500" aria-hidden />
-            {rank.title}
-          </p>
-          <span className="text-xs text-slate-500">{t.missionUi.header.rankPrefix} {rank.level}</span>
-        </div>
-        <div
-          role="progressbar"
-          aria-label={t.missionUi.header.progressRankAria}
-          aria-valuenow={Math.round(progress * 100)}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          className="h-2 rounded-full bg-slate-800 overflow-hidden"
-        >
-          <div className="h-full bg-cyan-400 transition-[width] duration-700" style={{ width: `${progress * 100}%` }} />
-        </div>
-        <p className="text-[11px] text-slate-500 tabular-nums">
-          {formatNumber(totalXp, lang)} XP
-          {next ? ` · ${formatNumber(next.minXp - totalXp, lang)} ${t.missionUi.header.xpNextPrefix} ${next.title}` : ` · ${t.missionUi.header.xpMaxSuffix}`}
-        </p>
-        <div className="pt-1">
+        <div>
           <div className="flex items-center justify-between text-xs">
             <span className="text-slate-300">{t.missionUi.header.weekGoalPrefix} {week}</span>
             <span className="text-slate-500 tabular-nums">{weekDone}/{WEEKLY_TARGET_DAYS} {t.missionUi.header.daysUnit}</span>
@@ -353,16 +325,10 @@ export function MissionCenter({ preferredProfile }: { preferredProfile?: Mission
     };
     const before = read();
     action();
-    const after = read();
     const s = useMissionStore.getState();
 
     const next: Toast[] = [];
-    if (after.xp > before.xp) {
-      next.push({ id: ++toastSeq.current, tone: 'xp', kind: 'xp', xpAmount: after.xp - before.xp });
-    }
-    if (after.rank.level > before.rank.level) {
-      next.push({ id: ++toastSeq.current, tone: 'rank', kind: 'rank', rankLevel: after.rank.level });
-    }
+    // Sin notificaciones de XP ni rango: no aportan información clínica.
     if (s.mission) {
       for (const a of computeAchievements(s.mission, s.records)) {
         if (a.unlocked && !before.unlocked.has(a.id)) {
@@ -415,11 +381,6 @@ export function MissionCenter({ preferredProfile }: { preferredProfile?: Mission
         <p className="text-sm text-slate-500">{t.missionUi.loading}</p>
       ) : (
         <div className="space-y-6">
-          <TodayCountermeasures
-            mision={preferredProfile === 'LUNAR_ARTEMIS' ? 'luna' : preferredProfile === 'MARS_CONJUNCTION' ? 'marte' : undefined}
-            todayOverride={today}
-            runWithToast={run}
-          />
           {!mission ? (
             <MissionSetup today={today} preferred={preferredProfile} />
           ) : (
@@ -428,7 +389,7 @@ export function MissionCenter({ preferredProfile }: { preferredProfile?: Mission
           {mission.endedOn ? (
             <MissionEnded mission={mission} totalXp={totalXp} />
           ) : (
-            <MissionHeader mission={mission} today={today} totalXp={totalXp} />
+            <MissionHeader mission={mission} today={today} />
           )}
 
           <div role="tablist" aria-label={t.missionUi.tablistAria} className="flex gap-1 border-b border-slate-800 overflow-x-auto no-scrollbar">

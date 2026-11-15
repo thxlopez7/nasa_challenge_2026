@@ -396,7 +396,11 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
                   <>
                     <StatusHero snapshot={snapshot} tiles={tiles} recommendation={nextAction} />
                     <SystemMosaic tiles={tiles} />
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+                    <div
+                      className={`grid grid-cols-1 gap-4 items-stretch ${
+                        snapshot.ruleTraces.some((tr) => tr.triggered) ? 'lg:grid-cols-2' : ''
+                      }`}
+                    >
                       <ActiveAlertsStrip
                         traces={snapshot.ruleTraces}
                         onOpenSbar={() => setSbarOpen(true)}

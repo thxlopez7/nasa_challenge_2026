@@ -2,7 +2,6 @@
 
 import {
   ArrowRight,
-  Award,
   CheckCircle2,
   Circle,
   Flame,
@@ -11,7 +10,7 @@ import {
 import { useT } from '../../i18n/I18nContext';
 import { useClinicalSnapshot } from '../../store/selectors';
 import { useCommandUiStore } from '../../store/useCommandUiStore';
-import { selectTotalXp, useMissionStore } from '../../store/useMissionStore';
+import { useMissionStore } from '../../store/useMissionStore';
 import type { EvaluationStepId } from '../../types/mission';
 import { deriveDailyCountermeasures } from '../../utils/countermeasures';
 import { formatNumber } from '../../utils/formatters';
@@ -33,7 +32,6 @@ export function TodayRoutineCard({ mision }: { mision?: MissionSlug }) {
   const mission = useMissionStore((s) => s.mission);
   const records = useMissionStore((s) => s.records);
   const session = useMissionStore((s) => s.session);
-  const totalXp = useMissionStore(selectTotalXp);
 
   const today = toDayKey(new Date());
   const sessionToday = session?.date === today ? session : null;
@@ -147,12 +145,6 @@ export function TodayRoutineCard({ mision }: { mision?: MissionSlug }) {
             <span>
               {t.command.routine.streakLabel} {formatNumber(streak, lang)}{' '}
               {t.command.routine.streakUnit}
-            </span>
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-950 px-2 py-0.5 text-[11px] text-cyan-200 font-semibold">
-            <Award className="h-3 w-3 text-cyan-400" aria-hidden />
-            <span>
-              {formatNumber(totalXp, lang)} {t.command.routine.xpLabel}
             </span>
           </span>
           <button

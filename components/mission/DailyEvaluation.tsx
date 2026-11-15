@@ -24,7 +24,6 @@ import {
   EVALUATION_STEPS,
   FULL_DAY_BONUS,
   HYDRATION_TARGET,
-  MAX_DAILY_XP,
   hasClinicalAlert,
   stepIndexOf,
 } from '../../utils/missionPlan';
@@ -389,13 +388,6 @@ function DebriefStep({ session, run }: { session: EvaluationSession; run: Run })
           </p>
         </div>
         <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-          <p className="text-[11px] uppercase text-slate-500">{t.missionUi.eval.debriefXpToday}</p>
-          <p className="text-xl font-bold tabular-nums">
-            {formatNumber(session.xp + (complete ? FULL_DAY_BONUS : 0), lang)}
-            <span className="text-sm text-slate-500"> / {formatNumber(MAX_DAILY_XP, lang)}</span>
-          </p>
-        </div>
-        <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
           <p className="text-[11px] uppercase text-slate-500">{t.missionUi.eval.debriefFullBonus}</p>
           <p className={`text-xl font-bold ${complete ? 'text-cyan-300' : 'text-slate-600'}`}>
             {complete ? `+${FULL_DAY_BONUS}` : t.missionUi.eval.debriefPending}
@@ -560,11 +552,6 @@ export function DailyEvaluation({
               </span>
               <div>
                 <p className="text-sm font-semibold text-slate-200">{s.title}</p>
-                <p className="text-xs text-slate-500">
-                  {s.xp > 0
-                    ? `+${s.xp} XP`
-                    : `${t.missionUi.eval.completeAllBonusPrefix}${FULL_DAY_BONUS} ${t.missionUi.eval.completeAllBonusSuffix}`}
-                </p>
               </div>
             </li>
           ))}

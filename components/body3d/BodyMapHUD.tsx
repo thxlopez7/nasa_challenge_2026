@@ -387,7 +387,6 @@ export function BodyMapHUD({ mision, scanRun = 0 }: { mision?: MissionSlug; scan
   const trendSeries = useSystemTrendSeries();
 
   const [selectedSystem, setSelectedSystem] = useState<SystemId>("inmune");
-  const [isSurgeonMode, setIsSurgeonMode] = useState<boolean>(false);
   const [emergencyActive, setEmergencyActive] = useState<boolean>(false);
 
   const isEmergency = snapshot.alerts.isEmergency;
@@ -478,10 +477,6 @@ export function BodyMapHUD({ mision, scanRun = 0 }: { mision?: MissionSlug; scan
       ),
     [systemsData]
   );
-  const rows = current.surgeonMetrics.split(" | ").map((m) => {
-    const i = m.indexOf(": ");
-    return i >= 0 ? [m.slice(0, i), m.slice(i + 2)] : [m, ""];
-  });
 
   // Sistemas con problemas: se marcan sobre el holograma.
   const anomalies: Anomaly[] = ids
@@ -592,22 +587,6 @@ export function BodyMapHUD({ mision, scanRun = 0 }: { mision?: MissionSlug; scan
           >
             <span>{t.bodyHud.globalStatusLabel}:</span>
             <strong>{globalStatusText}</strong>
-          </div>
-          <div role="group" aria-label="View mode" style={{ display: "flex" }}>
-            <button
-              className="btn"
-              aria-pressed={!isSurgeonMode}
-              onClick={() => setIsSurgeonMode(false)}
-            >
-              {t.bodyHud.roleCrew}
-            </button>
-            <button
-              className="btn"
-              aria-pressed={isSurgeonMode}
-              onClick={() => setIsSurgeonMode(true)}
-            >
-              {t.bodyHud.roleSurgeon}
-            </button>
           </div>
           <button
             className="sos"
@@ -757,8 +736,6 @@ export function BodyMapHUD({ mision, scanRun = 0 }: { mision?: MissionSlug; scan
                 {STATUS_ICON[current.status]} {statusLabels[current.status]} ·{" "}
                 <span className="dim mono">{current.metric}</span>
               </p>
-              {!isSurgeonMode ? (
-                <>
                   <div className="sec">
                     <h3>{t.bodyHud.whatToWatch}</h3>
                     <p>{current.crewSummary}</p>
@@ -771,18 +748,6 @@ export function BodyMapHUD({ mision, scanRun = 0 }: { mision?: MissionSlug; scan
                     <h3>{t.bodyHud.recommendedAction}</h3>
                     <p>{current.crewAction}</p>
                   </div>
-                </>
-              ) : (
-                <div className="sec">
-                  <h3>{t.bodyHud.clinicalNotes}</h3>
-                  {rows.map(([k, v]) => (
-                    <div className="mt" key={k}>
-                      <span className="dim">{k}</span>
-                      <span className="mono">{v}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
               <div className="xp-nav">
                 <button
                   className="btn"

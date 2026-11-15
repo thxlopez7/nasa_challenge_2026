@@ -3,7 +3,6 @@
 import { useCallback, useState } from 'react';
 import {
   Activity,
-  Award,
   Bone,
   CheckCircle2,
   ChevronDown,
@@ -16,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useT } from '../../i18n/I18nContext';
 import { useClinicalSnapshot } from '../../store/selectors';
-import { selectTotalXp, useMissionStore } from '../../store/useMissionStore';
+import { useMissionStore } from '../../store/useMissionStore';
 import type { DayKey, EvaluationStepId } from '../../types/mission';
 import {
   deriveDailyCountermeasures,
@@ -49,7 +48,6 @@ export function TodayCountermeasures({
   const mission = useMissionStore((s) => s.mission);
   const records = useMissionStore((s) => s.records);
   const session = useMissionStore((s) => s.session);
-  const totalXp = useMissionStore(selectTotalXp);
   const startMission = useMissionStore((s) => s.startMission);
   const startEvaluation = useMissionStore((s) => s.startEvaluation);
   const completeStep = useMissionStore((s) => s.completeStep);
@@ -145,10 +143,6 @@ export function TodayCountermeasures({
         </div>
 
         <div className="flex items-center gap-2 text-xs font-mono shrink-0">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-200">
-            <Award className="w-4 h-4 text-amber-400" aria-hidden="true" />
-            {totalXp} XP
-          </span>
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cyan-500/40 bg-cyan-500/10 text-cyan-200">
             <Flame className="w-4 h-4 text-cyan-400" aria-hidden="true" />
             {copy.streak}: {streak} {copy.days}
@@ -266,9 +260,6 @@ export function TodayCountermeasures({
                     </h3>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[11px] font-mono text-amber-300">
-                      +{item.xpReward} XP
-                    </span>
                     {compactMode && (
                       <button
                         type="button"

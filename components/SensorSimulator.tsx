@@ -24,6 +24,9 @@ export function SensorSimulator({
   const updateSensors = useTelemetryStore((state) => state.updateSensors);
   const [fetched, setFetched] = useState<ScenarioFrame[]>([]);
   const tickIndex = useRef<number>(0);
+  // La dosis acumulada nunca baja: al volver atrás en el guion se suma un desfase.
+  const doseOffset = useRef<number>(0);
+  const lastDose = useRef<number | null>(null);
   const data = frames ?? fetched;
 
   useEffect(() => {
@@ -44,7 +47,10 @@ export function SensorSimulator({
       .then((json: unknown) => {
         if (Array.isArray(json)) {
           tickIndex.current = 0;
-          setFetched(json as ScenarioFrame[]);
+          // Ida y vuelta: tras la crisis, recuperación gradual en vez de un
+          // salto brusco a la línea base al reiniciar el bucle.
+          const forward = json as ScenarioFrame[];
+          setFetched([...forward, ...forward.slice(1, -1).reverse()]);
         }
       })
       .catch((error: unknown) => {
@@ -80,6 +86,8 @@ export function SensorSimulator({
 
       if (overrideCleared || restoredToInitial) {
         tickIndex.current = 0;
+        doseOffset.current = 0;
+        lastDose.current = null;
         useScenarioStore.getState().reset();
       }
     });
@@ -92,6 +100,8 @@ export function SensorSimulator({
       return;
     }
     tickIndex.current = 0;
+    doseOffset.current = 0;
+    lastDose.current = null;
     useScenarioStore.getState().reset();
 
     const intervalId = setInterval(() => {
@@ -101,7 +111,17 @@ export function SensorSimulator({
       const currentData = data[tickIndex.current];
 
       if (currentData && typeof currentData === 'object') {
-        updateSensors(currentData);
+        let frame = currentData;
+        if (typeof frame.radiationAccumulated === 'number') {
+          let dose = frame.radiationAccumulated + doseOffset.current;
+          if (lastDose.current !== null && dose < lastDose.current) {
+            dose = lastDose.current + 0.01;
+            doseOffset.current = dose - frame.radiationAccumulated;
+          }
+          lastDose.current = dose;
+          frame = { ...frame, radiationAccumulated: Number(dose.toFixed(2)) };
+        }
+        updateSensors(frame);
         useScenarioStore.getState().tick();
       }
 
