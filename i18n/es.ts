@@ -24,6 +24,7 @@ export const es = {
     brandSubtitle: 'CDSS autónomo · Prototipo',
     sectionBody: 'Cuerpo 3D',
     sectionCommand: 'Centro de mando',
+    sectionDemo: 'Tour guiado',
     destinationLabel: 'Destino',
     replayIntro: 'Intro',
     replayIntroTitle: 'Volver a mostrar la pantalla de presentación',

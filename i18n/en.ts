@@ -26,6 +26,7 @@ export const en: TranslationDict = {
     brandSubtitle: 'Autonomous CDSS · Prototype',
     sectionBody: '3D Body',
     sectionCommand: 'Command Center',
+    sectionDemo: 'Guided Demo',
     destinationLabel: 'Destination',
     replayIntro: 'Intro',
     replayIntroTitle: 'Replay cover splash screen',

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Activity, Languages, Moon, Orbit, ScanLine, Sparkles } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { Activity, Compass, Languages, Moon, Orbit, ScanLine, Sparkles } from 'lucide-react';
 import { useIntroStore } from '../store/useIntroStore';
 import { MISSION_CHOICES, saveChoice, type MissionSlug } from '../utils/missionChoice';
 import { useT } from '../i18n/I18nContext';
@@ -12,10 +13,13 @@ const SECTION_IDS = ['cuerpo', 'mando'] as const;
 type SectionId = (typeof SECTION_IDS)[number];
 
 /**
- * Barra fija de navegación: salta entre secciones, cambia de misión (Luna / Marte)
- * y permite alternar el idioma (ES / EN) preservando la hidratación SSR.
+ * Barra fija de navegación: salta entre secciones, abre el tour guiado `/demo`,
+ * cambia de misión (Luna / Marte) y alterna el idioma (ES / EN).
  */
 export function AppNav({ mision }: { mision?: MissionSlug }) {
+  const pathname = usePathname();
+  const isPanel = pathname === '/panel';
+  const isDemo = pathname === '/demo';
   const showIntro = useIntroStore((s) => s.show);
   const { t, lang, setLang } = useT();
   const [active, setActive] = useState<SectionId>('cuerpo');
@@ -25,6 +29,7 @@ export function AppNav({ mision }: { mision?: MissionSlug }) {
   }, [mision]);
 
   useEffect(() => {
+    if (!isPanel) return;
     const els = SECTION_IDS.map((id) => document.getElementById(id)).filter(
       (el): el is HTMLElement => !!el
     );
@@ -38,7 +43,7 @@ export function AppNav({ mision }: { mision?: MissionSlug }) {
     );
     els.forEach((el) => observer.observe(el));
     return () => observer.disconnect();
-  }, []);
+  }, [isPanel]);
 
   const goTo = (id: SectionId) => {
     const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -51,24 +56,35 @@ export function AppNav({ mision }: { mision?: MissionSlug }) {
     { id: 'mando' as const, label: t.nav.sectionCommand, icon: Activity },
   ];
 
+  const missionQuery = mision ? `?mision=${mision}` : '';
+  const missionBasePath = isDemo ? '/demo' : '/panel';
+
   return (
     <nav
       aria-label="ExoVitals Navigation"
       className="sticky top-0 z-50 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-slate-800 bg-slate-950/90 backdrop-blur px-4 sm:px-6 py-2 font-mono text-xs"
     >
-      <button
-        type="button"
-        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      <Link
+        href={`/panel${missionQuery}`}
+        onClick={(e) => {
+          if (!isPanel) return;
+          e.preventDefault();
+          const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          window.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' });
+        }}
         className="min-h-[44px] inline-flex items-center gap-2 font-display font-bold uppercase tracking-[0.2em] text-slate-200 hover:text-cyan-300 transition cursor-pointer"
       >
         <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_10px_#22d3ee]" aria-hidden />
         ExoVitals
-      </button>
+      </Link>
 
-      <div className="flex gap-1">
+      <div className="flex flex-wrap items-center gap-1">
         {sectionItems.map(({ id, label, icon: Icon }) => {
-          const on = active === id;
-          return (
+          const on = isPanel && active === id;
+          const className = `min-h-[44px] inline-flex items-center gap-1.5 rounded-md px-3 py-2 transition ${
+            on ? 'bg-cyan-500/15 text-cyan-200' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
+          }`;
+          return isPanel ? (
             <a
               key={id}
               href={`#${id}`}
@@ -77,15 +93,31 @@ export function AppNav({ mision }: { mision?: MissionSlug }) {
                 goTo(id);
               }}
               aria-current={on ? 'location' : undefined}
-              className={`min-h-[44px] inline-flex items-center gap-1.5 rounded-md px-3 py-2 transition ${
-                on ? 'bg-cyan-500/15 text-cyan-200' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
-              }`}
+              className={className}
             >
               <Icon className="h-3.5 w-3.5" aria-hidden />
               {label}
             </a>
+          ) : (
+            <Link key={id} href={`/panel${missionQuery}#${id}`} className={className}>
+              <Icon className="h-3.5 w-3.5" aria-hidden />
+              {label}
+            </Link>
           );
         })}
+
+        <Link
+          href={`/demo${missionQuery}`}
+          aria-current={isDemo ? 'page' : undefined}
+          className={`min-h-[44px] inline-flex items-center gap-1.5 rounded-md px-3 py-2 transition ${
+            isDemo
+              ? 'bg-cyan-500/15 text-cyan-200'
+              : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
+          }`}
+        >
+          <Compass className="h-3.5 w-3.5" aria-hidden />
+          {t.nav.sectionDemo}
+        </Link>
       </div>
 
       <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -103,7 +135,7 @@ export function AppNav({ mision }: { mision?: MissionSlug }) {
             return (
               <Link
                 key={slug}
-                href={`/panel?mision=${slug}`}
+                href={`${missionBasePath}?mision=${slug}`}
                 scroll={false}
                 replace
                 role="radio"
