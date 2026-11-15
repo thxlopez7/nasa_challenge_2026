@@ -294,6 +294,7 @@ export function AppNav({ mision }: { mision?: MissionSlug }) {
           <button
             type="button"
             onClick={() => showIntro('title')}
+            data-ev-press
             title={t.nav.replayIntroTitle}
             className="min-h-[44px] inline-flex items-center gap-1.5 rounded-full border border-cyan-500/40 px-3 text-cyan-200 hover:bg-cyan-500/15 transition cursor-pointer"
           >
@@ -418,6 +419,7 @@ export function AppNav({ mision }: { mision?: MissionSlug }) {
                 setMobileMenuOpen(false);
                 showIntro('title');
               }}
+              data-ev-press
               title={t.nav.replayIntroTitle}
               className="min-h-[44px] inline-flex items-center justify-center gap-1.5 rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-3.5 py-1.5 text-cyan-200 hover:bg-cyan-500/20 transition cursor-pointer shrink-0"
             >

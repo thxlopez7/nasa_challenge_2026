@@ -1219,4 +1219,10 @@ export const en: TranslationDict = {
       spO2: 'Hypoxemia < 90 %',
     },
   },
+  ui: {
+    status: { nominal: 'Nominal', caution: 'Caution', critical: 'Critical' },
+    loading: 'Acquiring telemetry…',
+    sessionTrend: 'Session trend',
+    range: 'Range',
+  },
 } as const;

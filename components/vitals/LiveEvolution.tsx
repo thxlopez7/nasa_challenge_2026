@@ -214,7 +214,7 @@ export function LiveEvolution() {
   const sorted = Object.values(records).sort((a, b) => a.missionDay - b.missionDay);
 
   return (
-    <section aria-labelledby="evo-title" className="rounded-xl border border-slate-800 bg-slate-900 p-4 sm:p-6 space-y-5 sm:space-y-6">
+    <section aria-labelledby="evo-title" className="ev-glass ev-corners rounded-xl p-4 sm:p-6 space-y-5 sm:space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 id="evo-title" className="text-lg font-black uppercase tracking-wider text-cyan-400">{e.title}</h2>
