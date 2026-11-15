@@ -31,11 +31,6 @@ export const SCORE_CRISIS = 35;
 export const bandOf = (score: number): HealthBand =>
   score >= SCORE_STABLE ? 'stable' : score >= SCORE_CRISIS ? 'risk' : 'critical';
 
-export const BAND_LABEL: Record<HealthBand, string> = {
-  stable: 'Estable',
-  risk: 'En riesgo',
-  critical: 'Crisis vital',
-};
 
 /** Métricas que se siguen en vivo y por días. */
 export type VitalKey = 'heartRate' | 'spO2' | 'co2Level' | 'radiationRate' | 'linfocitos' | 'cistatinaC';

@@ -2,38 +2,38 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Activity, House, Moon, Orbit, ScanLine } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { Activity, Compass, House, Languages, Moon, Orbit, ScanLine } from 'lucide-react';
+import { useIntroStore } from '../store/useIntroStore';
 import { useActiveProfile } from '../store/useProfileStore';
 import CrewAvatar from './profile/CrewAvatar';
-import { useIntroStore } from '../store/useIntroStore';
 import { MISSION_CHOICES, saveChoice, type MissionSlug } from '../utils/missionChoice';
+import { useT } from '../i18n/I18nContext';
 
 const SLUGS: MissionSlug[] = ['luna', 'marte'];
-
-const SECTIONS = [
-  { id: 'cuerpo', label: 'Cuerpo 3D', icon: ScanLine },
-  { id: 'mando', label: 'Centro de mando', icon: Activity },
-] as const;
-type SectionId = (typeof SECTIONS)[number]['id'];
+const SECTION_IDS = ['cuerpo', 'mando'] as const;
+type SectionId = (typeof SECTION_IDS)[number];
 
 /**
- * Barra fija de la página única: salta entre secciones (marcando la que se
- * está viendo) y permite cambiar de misión (Luna / Marte) sin perder el
- * progreso de cada destino.
+ * Barra fija de navegación: salta entre secciones, abre el tour guiado `/demo`,
+ * cambia de misión (Luna / Marte) y alterna el idioma (ES / EN).
  */
 export function AppNav({ mision }: { mision?: MissionSlug }) {
+  const pathname = usePathname();
+  const isPanel = pathname === '/panel';
+  const isDemo = pathname === '/demo';
   const showIntro = useIntroStore((s) => s.show);
   const profile = useActiveProfile();
+  const { t, lang, setLang } = useT();
   const [active, setActive] = useState<SectionId>('cuerpo');
 
-  // Recuerda la misión activa para la próxima visita.
   useEffect(() => {
     if (mision) saveChoice(mision);
   }, [mision]);
 
-  // Marca la sección visible mientras se hace scroll.
   useEffect(() => {
-    const els = SECTIONS.map((s) => document.getElementById(s.id)).filter(
+    if (!isPanel) return;
+    const els = SECTION_IDS.map((id) => document.getElementById(id)).filter(
       (el): el is HTMLElement => !!el
     );
     const observer = new IntersectionObserver(
@@ -46,7 +46,7 @@ export function AppNav({ mision }: { mision?: MissionSlug }) {
     );
     els.forEach((el) => observer.observe(el));
     return () => observer.disconnect();
-  }, []);
+  }, [isPanel]);
 
   const goTo = (id: SectionId) => {
     const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -54,24 +54,40 @@ export function AppNav({ mision }: { mision?: MissionSlug }) {
     window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#${id}`);
   };
 
+  const sectionItems = [
+    { id: 'cuerpo' as const, label: t.nav.sectionBody, icon: ScanLine },
+    { id: 'mando' as const, label: t.nav.sectionCommand, icon: Activity },
+  ];
+
+  const missionQuery = mision ? `?mision=${mision}` : '';
+  const missionBasePath = isDemo ? '/demo' : '/panel';
+
   return (
     <nav
-      aria-label="Secciones de ExoVitals"
-      className="sticky top-0 z-50 flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-slate-800 bg-slate-950/85 backdrop-blur px-4 sm:px-6 py-2.5 font-mono text-xs"
+      aria-label="ExoVitals Navigation"
+      className="sticky top-0 z-50 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-slate-800 bg-slate-950/90 backdrop-blur px-4 sm:px-6 py-2 font-mono text-xs"
     >
-      <button
-        type="button"
-        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        className="inline-flex items-center gap-2 font-brand uppercase tracking-[0.2em] text-slate-200 hover:text-cyan-300 transition cursor-pointer"
+      <Link
+        href={`/panel${missionQuery}`}
+        onClick={(e) => {
+          if (!isPanel) return;
+          e.preventDefault();
+          const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          window.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' });
+        }}
+        className="min-h-[44px] inline-flex items-center gap-2 font-display font-bold uppercase tracking-[0.2em] text-slate-200 hover:text-cyan-300 transition cursor-pointer"
       >
-        <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_10px_#22d3ee]" />
+        <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_10px_#22d3ee]" aria-hidden />
         ExoVitals
-      </button>
+      </Link>
 
-      <div className="flex gap-1">
-        {SECTIONS.map(({ id, label, icon: Icon }) => {
-          const on = active === id;
-          return (
+      <div className="flex flex-wrap items-center gap-1">
+        {sectionItems.map(({ id, label, icon: Icon }) => {
+          const on = isPanel && active === id;
+          const className = `min-h-[44px] inline-flex items-center gap-1.5 rounded-md px-3 py-2 transition ${
+            on ? 'bg-cyan-500/15 text-cyan-200' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
+          }`;
+          return isPanel ? (
             <a
               key={id}
               href={`#${id}`}
@@ -80,35 +96,56 @@ export function AppNav({ mision }: { mision?: MissionSlug }) {
                 goTo(id);
               }}
               aria-current={on ? 'location' : undefined}
-              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 transition ${
-                on ? 'bg-cyan-500/15 text-cyan-200' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
-              }`}
+              className={className}
             >
               <Icon className="h-3.5 w-3.5" aria-hidden />
               {label}
             </a>
+          ) : (
+            <Link key={id} href={`/panel${missionQuery}#${id}`} className={className}>
+              <Icon className="h-3.5 w-3.5" aria-hidden />
+              {label}
+            </Link>
           );
         })}
+
+        <Link
+          href={`/demo${missionQuery}`}
+          aria-current={isDemo ? 'page' : undefined}
+          className={`min-h-[44px] inline-flex items-center gap-1.5 rounded-md px-3 py-2 transition ${
+            isDemo
+              ? 'bg-cyan-500/15 text-cyan-200'
+              : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
+          }`}
+        >
+          <Compass className="h-3.5 w-3.5" aria-hidden />
+          {t.nav.sectionDemo}
+        </Link>
       </div>
 
-      <div className="ml-auto flex items-center gap-2">
-        <span className="hidden md:inline text-slate-500">Misión</span>
-        <div role="radiogroup" aria-label="Elegir misión" className="flex rounded-full border border-slate-700 p-0.5">
+      <div className="ml-auto flex flex-wrap items-center gap-2">
+        <span className="hidden lg:inline text-slate-400">{t.nav.destinationLabel}</span>
+        <div
+          role="radiogroup"
+          aria-label={t.nav.destinationLabel}
+          className="flex rounded-full border border-slate-700 p-0.5"
+        >
           {SLUGS.map((slug) => {
             const choice = MISSION_CHOICES[slug];
             const Icon = slug === 'luna' ? Moon : Orbit;
             const on = mision === slug;
+            const missionText = slug === 'luna' ? t.common.moon : t.common.mars;
             return (
               <Link
                 key={slug}
-                href={`/panel?mision=${slug}`}
+                href={`${missionBasePath}?mision=${slug}`}
                 scroll={false}
                 replace
                 role="radio"
                 aria-checked={on}
                 title={choice.tagline}
                 onClick={() => saveChoice(slug)}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition ${
+                className={`min-h-[38px] inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition ${
                   on
                     ? slug === 'marte'
                       ? 'bg-orange-500/20 text-orange-100'
@@ -117,30 +154,63 @@ export function AppNav({ mision }: { mision?: MissionSlug }) {
                 }`}
               >
                 <Icon className="h-3.5 w-3.5" aria-hidden />
-                {choice.label}
+                {missionText}
               </Link>
             );
           })}
         </div>
+
+        <div
+          role="group"
+          aria-label={t.nav.languageLabel}
+          className="flex items-center rounded-full border border-slate-700 p-0.5"
+        >
+          <Languages className="h-3.5 w-3.5 text-slate-400 mx-1.5 hidden sm:inline" aria-hidden />
+          <button
+            type="button"
+            onClick={() => setLang('es')}
+            aria-pressed={lang === 'es'}
+            className={`min-h-[38px] min-w-[40px] rounded-full px-2.5 py-1 font-bold transition cursor-pointer ${
+              lang === 'es'
+                ? 'bg-cyan-500/25 text-cyan-200'
+                : 'text-slate-400 hover:text-slate-100'
+            }`}
+          >
+            {t.nav.languageToggleEs}
+          </button>
+          <button
+            type="button"
+            onClick={() => setLang('en')}
+            aria-pressed={lang === 'en'}
+            className={`min-h-[38px] min-w-[40px] rounded-full px-2.5 py-1 font-bold transition cursor-pointer ${
+              lang === 'en'
+                ? 'bg-cyan-500/25 text-cyan-200'
+                : 'text-slate-400 hover:text-slate-100'
+            }`}
+          >
+            {t.nav.languageToggleEn}
+          </button>
+        </div>
+
         {profile && (
           <button
             type="button"
             onClick={() => showIntro('profiles')}
-            title="Cambiar de tripulante"
-            className="inline-flex items-center gap-2 rounded-full border border-slate-700 py-0.5 pl-0.5 pr-3 text-slate-300 hover:border-slate-400 hover:text-white transition cursor-pointer"
+            title={t.nav.switchCrew}
+            className="min-h-[44px] inline-flex items-center gap-2 rounded-full border border-slate-700 py-0.5 pl-0.5 pr-3 text-slate-300 hover:border-slate-400 hover:text-white transition cursor-pointer"
           >
-            <CrewAvatar profile={profile} className="h-6 w-6 rounded-full" />
+            <CrewAvatar profile={profile} className="h-7 w-7 rounded-full" />
             <span className="hidden sm:inline">{profile.name}</span>
           </button>
         )}
         <button
           type="button"
           onClick={() => showIntro('title')}
-          title="Volver al inicio de la experiencia"
-          className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/40 px-3 py-1 text-cyan-200 hover:bg-cyan-500/15 transition cursor-pointer"
+          title={t.nav.replayIntroTitle}
+          className="min-h-[44px] inline-flex items-center gap-1.5 rounded-full border border-cyan-500/40 px-3 text-cyan-200 hover:bg-cyan-500/15 transition cursor-pointer"
         >
           <House className="h-3.5 w-3.5" aria-hidden />
-          Inicio
+          {t.nav.home}
         </button>
       </div>
     </nav>

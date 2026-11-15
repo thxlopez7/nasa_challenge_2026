@@ -7,7 +7,7 @@ export const DEMO_PROFILES: CrewProfile[] = [
   {
     id: 'demo-critico',
     name: 'Elena Ríos',
-    role: 'Comandante',
+    role: 'commander',
     avatar: 'marte',
     photo: '/images/crew/elena-rios.webp',
     age: 44,
@@ -24,7 +24,7 @@ export const DEMO_PROFILES: CrewProfile[] = [
   {
     id: 'demo-estable',
     name: 'Tomás Vega',
-    role: 'Especialista de misión',
+    role: 'missionSpecialist',
     avatar: 'luna',
     photo: '/images/crew/tomas-vega.webp',
     age: 36,

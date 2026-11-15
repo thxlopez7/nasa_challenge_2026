@@ -54,7 +54,10 @@ export function IntroGate() {
   if (!visible) return null;
 
   const onChooseMission = (slug: MissionSlug) => {
-    router.replace(`/panel?mision=${slug}`, { scroll: false });
+    // Conserva `?lang=` y el hash (#hoy, #registrar…) al elegir misión.
+    const params = new URLSearchParams(window.location.search);
+    params.set('mision', slug);
+    router.replace(`/panel?${params.toString()}${window.location.hash}`, { scroll: false });
     goTo('profiles');
   };
 

@@ -50,8 +50,8 @@ const MARS_SCRIPT: DemoScript = {
 const DEMO_SCRIPTS: Record<MissionProfileId, DemoScript> = {
   MARS_CONJUNCTION: MARS_SCRIPT,
   ISS_6M: MARS_SCRIPT,
-  // Misión lunar de 40 días: la demo llega a mitad de la estancia en superficie.
-  LUNAR_ARTEMIS: { days: 30, storm: [12, 13], recoveryEnd: 18, co2: 21, lowMood: [17, 24], adaptation: 5 },
+  // Misión lunar de 40 días: 39 días de historial simulado + día 40 en vivo.
+  LUNAR_ARTEMIS: { days: 40, storm: [14, 16], recoveryEnd: 22, co2: 27, lowMood: [21, 31], adaptation: 5 },
 };
 
 export const demoDaysFor = (profileId: MissionProfileId): number => DEMO_SCRIPTS[profileId].days;
@@ -144,6 +144,13 @@ export function generateDemoHistory(
       linfocitos: Math.round(linfocitos - k * 520),
       neutrofilos: Math.round(neutrofilos + k * 1600),
       cortisol: round(10 + noise(2) + (solarStorm || lowMoodPhase ? 4 : 0) + k * 14, 1),
+      // Marcadores óseos y cardiovasculares (sin deriva en el tripulante estable).
+      ctxNtxIndex: round(clamp(1.0 + (calm ? 0.05 : day * 0.0028) + noise(0.06) + k * 0.3, 0.75, 2.2), 2),
+      p1npIndex: round(clamp(1.0 - (calm ? 0.02 : day * 0.0012) + noise(0.05) - k * 0.15, 0.55, 1.4), 2),
+      aredLoadPct: Math.round(clamp(90 + noise(12) - (solarStorm ? 25 : 0) - k * 35, 30, 110)),
+      hrvRmssdMs: Math.round(clamp(46 - (calm ? 1 : day * 0.08) + noise(5) - (lowMoodPhase ? 6 : 0) - k * 14, 14, 75)),
+      orthostaticDeltaHr: Math.round(clamp(10 + (calm ? 1 : day * 0.09) + noise(3) + k * 10, 4, 40)),
+      orthostaticDeltaSys: Math.round(clamp(-4 - (calm ? 0.5 : day * 0.07) + noise(3) - k * 8, -35, 8)),
     };
     const env = {
       co2Level: Math.round(co2Pocket ? 4150 : 650 + noise(150) + k * 900),

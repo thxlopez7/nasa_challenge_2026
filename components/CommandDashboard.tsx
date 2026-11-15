@@ -1,87 +1,72 @@
 'use client';
 
-import GodModePanel from './GodModePanel';
-import MedicalCopilot from './MedicalCopilot';
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import {
+  BookOpen,
+  ClipboardPlus,
+  Clock,
+  Compass,
+  LayoutDashboard,
+  SatelliteDish,
+} from 'lucide-react';
+import { useT } from '../i18n/I18nContext';
+import { useClinicalSnapshot } from '../store/selectors';
+import {
+  type CommandTabId,
+  type LogSectionId,
+  useCommandUiStore,
+} from '../store/useCommandUiStore';
+import { useMissionStore } from '../store/useMissionStore';
+import type { EvaluationStepId, MissionProfileId } from '../types/mission';
+import { deriveDailyCountermeasures } from '../utils/countermeasures';
+import { formatDecimal, formatRelativeAgeHours } from '../utils/formatters';
+import { evaluateMeasurementSchedule } from '../utils/measurementSchedule';
+import type { MissionSlug } from '../utils/missionChoice';
+import { toDayKey } from '../utils/missionPlan';
+import {
+  deriveSystemTiles,
+  getNextAction,
+  parseCommandTabHash,
+} from '../utils/nextAction';
+import { ActiveAlertsStrip } from './command/ActiveAlertsStrip';
+import { CopilotDock } from './command/CopilotDock';
+import { DemoModeDrawer } from './command/DemoModeDrawer';
+import { EmergencyBanner, EmergencyCard } from './command/EmergencyView';
+import { GlobalStatusBar } from './command/GlobalStatusBar';
+import { NextActionBanner } from './command/NextActionBanner';
+import { RulesModal } from './command/RulesModal';
+import { SystemDetailDrawer } from './command/SystemDetailDrawer';
+import { SystemMosaic } from './command/SystemMosaic';
+import { TodayRoutineCard } from './command/TodayRoutineCard';
+import OutboxPanel from './OutboxPanel';
+import SbarReportModal from './SbarReportModal';
 import SensorSimulator from './SensorSimulator';
 import CrewPanel from './scenario/CrewPanel';
 import LiveEvolution from './vitals/LiveEvolution';
 import type { CrewProfile } from '../types/profile';
 import { scenarioScript } from '../utils/scenarios';
-import { useMissionStore } from '../store/useMissionStore';
-import { useMemo } from 'react';
+import BehavioralCheckIn from './mission/BehavioralCheckIn';
 import MissionCenter from './mission/MissionCenter';
-import { useTelemetryStore } from '../store/useTelemetryStore';
-import type { AlertSeverity } from '../types/telemetry';
-import {
-  RIDGE_THRESHOLDS as T,
-  computeNlr,
-  getAlertSeverity,
-} from '../utils/clinicalEngine';
-import { MISSION_CHOICES, type MissionSlug } from '../utils/missionChoice';
+import QuickMeasurementPanel from './mission/QuickMeasurementPanel';
+import TodayCountermeasures from './mission/TodayCountermeasures';
 
-const SEVERITY_BADGE: Record<AlertSeverity, { label: string; styles: string }> = {
-  OPTIMAL: {
-    label: 'Óptimo',
-    styles: 'border-cyan-500/60 bg-cyan-500/10 text-cyan-300',
-  },
-  WARNING: {
-    label: 'Advertencia',
-    styles: 'border-amber-500/70 bg-amber-500/10 text-amber-300',
-  },
-  CRITICAL: {
-    label: 'Crítico',
-    styles: 'border-red-500 bg-red-500/15 text-red-300 animate-pulse',
-  },
-};
+const TAB_ORDER: CommandTabId[] = ['hoy', 'registrar', 'mision', 'tierra'];
+const LOG_SECTIONS: LogSectionId[] = ['vitals', 'poc', 'behavioral'];
 
-function fmtRatio(value: number): string {
-  if (Number.isNaN(value)) return '—';
-  if (!Number.isFinite(value)) return '∞';
-  return value.toFixed(2);
-}
-
-function RuleRow({
-  title,
-  rule,
-  active,
-  critical = false,
-}: {
-  title: string;
-  rule: string;
-  active: boolean;
-  critical?: boolean;
-}) {
-  const on = critical ? 'text-red-500' : 'text-amber-500';
-  return (
-    <div
-      className={`flex items-center justify-between gap-4 rounded-lg border p-4 transition-colors ${
-        active
-          ? critical
-            ? 'border-red-500/70 bg-red-500/10'
-            : 'border-amber-500/70 bg-amber-500/10'
-          : 'border-slate-800 bg-slate-950/60'
-      }`}
-    >
-      <div className="min-w-0">
-        <p className="text-sm font-semibold text-slate-100">{title}</p>
-        <p className="text-xs text-slate-400 font-mono mt-0.5">{rule}</p>
-      </div>
-      <span
-        className={`shrink-0 text-sm font-bold uppercase ${
-          active ? on : 'text-cyan-500'
-        }`}
-      >
-        {active ? 'Activa' : 'Normal'}
-      </span>
-    </div>
-  );
-}
-
-/** Centro de mando: telemetría, motor RIDGE, God Mode, copiloto y Centro de misión. */
 export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; profile?: CrewProfile }) {
-  // Cada tripulante reproduce el guion de su escenario (o el dataset en vivo).
-  // Hoy arranca desde las lecturas del último día registrado del tripulante.
+  const { t, lang } = useT();
+  const snapshot = useClinicalSnapshot(mision);
+
   const records = useMissionStore((s) => s.records);
+
+  // Cada tripulante reproduce el guion de su escenario (o el dataset en vivo);
+  // hoy arranca desde las lecturas de su último día registrado.
   const scenario = profile?.scenario;
   const script = useMemo(() => {
     if (!scenario || scenario === 'live') return undefined;
@@ -90,154 +75,463 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
       .sort((a, b) => b.missionDay - a.missionDay)[0];
     return scenarioScript(scenario, last?.vitals);
   }, [scenario, records]);
+  const session = useMissionStore((s) => s.session);
 
-  const {
-    heartRate,
-    spO2,
-    cistatinaC,
-    creatinina,
-    calcioIonico,
-    linfocitos,
-    neutrofilos,
-    co2Level,
-    radiationRate,
-    radiationAccumulated,
-    isEmergency,
-    isRenalWarning,
-    isRadiationWarning,
-    isCo2Warning,
-  } = useTelemetryStore();
+  const activeTab = useCommandUiStore((s) => s.activeTab);
+  const setActiveTab = useCommandUiStore((s) => s.setActiveTab);
+  const activeLogSection = useCommandUiStore((s) => s.activeLogSection);
+  const setActiveLogSection = useCommandUiStore((s) => s.setActiveLogSection);
+  const setDemoDrawerOpen = useCommandUiStore((s) => s.setDemoDrawerOpen);
+  const toggleDemoDrawer = useCommandUiStore((s) => s.toggleDemoDrawer);
+  const setRulesModalOpen = useCommandUiStore((s) => s.setRulesModalOpen);
+  const showFullPanelInEmergency = useCommandUiStore(
+    (s) => s.showFullPanelInEmergency
+  );
 
-  const nlr = computeNlr({ neutrofilos, linfocitos });
-  const severity = getAlertSeverity({
-    isEmergency,
-    isRenalWarning,
-    isRadiationWarning,
-    isCo2Warning,
-  });
-  const badge = SEVERITY_BADGE[severity];
+  const [sbarOpen, setSbarOpen] = useState(false);
+  const [nowMs, setNowMs] = useState<number | null>(null);
+  const commandRootRef = useRef<HTMLDivElement | null>(null);
+  const hasInitializedHashRef = useRef(false);
+  const userChangedTabRef = useRef(false);
+  const tabRefs = useRef<Partial<Record<CommandTabId, HTMLButtonElement | null>>>(
+    {}
+  );
+
+  const selectTabWithSync = (tab: CommandTabId) => {
+    userChangedTabRef.current = true;
+    setActiveTab(tab);
+  };
+
+  // Tick 60s for freshness calculations without Date.now() during SSR
+  useEffect(() => {
+    const t0 = window.setTimeout(() => setNowMs(Date.now()), 0);
+    const interval = window.setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => {
+      window.clearTimeout(t0);
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  // Initialize hash (#mando -> #hoy), ?demo=1, and subscribe to hashchange + Shift+D
+  useEffect(() => {
+    const applyHashFromUrl = () => {
+      const rawHash = window.location.hash.replace(/^#/, '').trim().toLowerCase();
+      const parsed = parseCommandTabHash(window.location.hash);
+      setActiveTab(parsed);
+      if (rawHash === 'mando') {
+        window.history.replaceState(
+          null,
+          '',
+          `${window.location.pathname}${window.location.search}#hoy`
+        );
+      } else if (
+        rawHash === 'hoy' ||
+        rawHash === 'registrar' ||
+        rawHash === 'mision' ||
+        rawHash === 'tierra'
+      ) {
+        commandRootRef.current?.scrollIntoView({ block: 'start' });
+      }
+    };
+
+    applyHashFromUrl();
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('demo') === '1') {
+      setDemoDrawerOpen(true);
+    }
+
+    const onHashChange = () => {
+      applyHashFromUrl();
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.shiftKey &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        e.key.toLowerCase() === 'd'
+      ) {
+        const target = e.target as HTMLElement | null;
+        const tag = target?.tagName;
+        if (
+          tag === 'INPUT' ||
+          tag === 'TEXTAREA' ||
+          tag === 'SELECT' ||
+          target?.isContentEditable
+        ) {
+          return;
+        }
+        e.preventDefault();
+        toggleDemoDrawer();
+      }
+    };
+
+    window.addEventListener('hashchange', onHashChange);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('hashchange', onHashChange);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [setActiveTab, setDemoDrawerOpen, toggleDemoDrawer]);
+
+  // Keep URL hash in sync whenever user changes tab or deep-links into a non-default tab
+  useEffect(() => {
+    if (!hasInitializedHashRef.current) {
+      // Espera a que el store refleje la pestaña del deep-link antes de reescribir
+      // el hash; si no, el primer render (pestaña por defecto) pisaría #registrar.
+      if (activeTab === parseCommandTabHash(window.location.hash)) {
+        hasInitializedHashRef.current = true;
+      }
+      return;
+    }
+    const rawHash = window.location.hash.replace(/^#/, '').trim().toLowerCase();
+    if (!rawHash && activeTab === 'hoy' && !userChangedTabRef.current) return;
+    const expectedHash = `#${activeTab}`;
+    if (window.location.hash.toLowerCase() !== expectedHash) {
+      window.history.replaceState(
+        null,
+        '',
+        `${window.location.pathname}${window.location.search}${expectedHash}`
+      );
+    }
+  }, [activeTab]);
+
+  const effectiveNowMs = nowMs ?? 0;
+  const todayKey = useMemo(
+    () => (nowMs !== null ? toDayKey(new Date(nowMs)) : toDayKey(new Date())),
+    [nowMs]
+  );
+
+  const pendingCountermeasureTitle = useMemo(() => {
+    const plan = deriveDailyCountermeasures({
+      biomarkers: snapshot.biomarkers,
+      environment: snapshot.environment,
+      alerts: snapshot.alerts,
+      missionProfileId: snapshot.missionProfileId,
+      lang,
+    });
+    const sessionToday = session?.date === todayKey ? session : null;
+    const completedSet = new Set<EvaluationStepId>([
+      ...(sessionToday?.completedSteps ?? []),
+      ...(records[todayKey]?.completedSteps ?? []),
+    ]);
+    const nextPending = plan.items.find(
+      (item) => item.priority !== 'hold' && !completedSet.has(item.stepId)
+    );
+    return nextPending?.title ?? null;
+  }, [
+    lang,
+    records,
+    session,
+    snapshot.alerts,
+    snapshot.biomarkers,
+    snapshot.environment,
+    snapshot.missionProfileId,
+    todayKey,
+  ]);
+
+  const nextAction = useMemo(
+    () =>
+      getNextAction(
+        snapshot,
+        {
+          pendingCountermeasureTitle,
+          nowMs: effectiveNowMs,
+        },
+        lang
+      ),
+    [effectiveNowMs, lang, pendingCountermeasureTitle, snapshot]
+  );
+
+  const tiles = useMemo(
+    () => deriveSystemTiles(snapshot, lang, effectiveNowMs),
+    [effectiveNowMs, lang, snapshot]
+  );
+
+  const schedule = useMemo(() => {
+    if (nowMs === null) return [];
+    return evaluateMeasurementSchedule(
+      snapshot.indicatorMeta,
+      nowMs,
+      snapshot.behavioralCheckIn?.updatedAt
+    );
+  }, [nowMs, snapshot.behavioralCheckIn?.updatedAt, snapshot.indicatorMeta]);
+
+  const isEmergencyActive =
+    snapshot.alerts.isEmergency || snapshot.escalationLevel === 'emergency';
+
+  const preferredProfile: MissionProfileId | undefined =
+    mision === 'marte'
+      ? 'MARS_CONJUNCTION'
+      : mision === 'luna'
+        ? 'LUNAR_ARTEMIS'
+        : undefined;
+
+  const tabsMeta: Array<{
+    id: CommandTabId;
+    label: string;
+    Icon: typeof LayoutDashboard;
+  }> = [
+    { id: 'hoy', label: t.command.tabs.today, Icon: LayoutDashboard },
+    { id: 'registrar', label: t.command.tabs.log, Icon: ClipboardPlus },
+    { id: 'mision', label: t.command.tabs.mission, Icon: Compass },
+    { id: 'tierra', label: t.command.tabs.earth, Icon: SatelliteDish },
+  ];
+
+  const handleTabKeyDown = (
+    e: ReactKeyboardEvent<HTMLButtonElement>,
+    idx: number
+  ) => {
+    let nextIdx: number | null = null;
+    if (e.key === 'ArrowRight') nextIdx = (idx + 1) % TAB_ORDER.length;
+    else if (e.key === 'ArrowLeft')
+      nextIdx = (idx - 1 + TAB_ORDER.length) % TAB_ORDER.length;
+    else if (e.key === 'Home') nextIdx = 0;
+    else if (e.key === 'End') nextIdx = TAB_ORDER.length - 1;
+
+    if (nextIdx !== null) {
+      e.preventDefault();
+      const targetTab = TAB_ORDER[nextIdx];
+      selectTabWithSync(targetTab);
+      tabRefs.current[targetTab]?.focus();
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans p-4 sm:p-6 lg:p-10">
+    <div
+      ref={commandRootRef}
+      className="min-h-[calc(100vh-4rem)] bg-slate-950 text-slate-100 font-mono px-3 py-2.5 sm:px-5 sm:py-3"
+    >
       <SensorSimulator key={profile?.id ?? 'live'} frames={script?.frames} loop={script?.loop ?? true} />
 
-      <div className="max-w-7xl mx-auto space-y-8">
-        {profile && <CrewPanel profile={profile} />}
-        <LiveEvolution key={profile?.id ?? 'live'} />
-        <header className="border-b border-slate-800 pb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-widest text-cyan-500">
-              NASA Space Apps Challenge 2026 // Edge-First CDSS
-            </p>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">
-              EXOVITALS — MISSION MEDICAL COMMAND
-            </h1>
+      <div className="max-w-[1440px] mx-auto space-y-2.5">
+        {/* Global compact telemetry + comms + Demo drawer gear bar */}
+        <GlobalStatusBar snapshot={snapshot} />
+
+        {/* Persistent Code Red / Emergency Banner across all 4 tabs */}
+        {isEmergencyActive && <EmergencyBanner />}
+
+        {/* Primary 4-tab Command Navigation */}
+        <nav aria-label={t.command.tabs.tablistAria}>
+          <div
+            role="tablist"
+            aria-label={t.command.tabs.tablistAria}
+            className="flex flex-wrap items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/75 p-1"
+          >
+            {tabsMeta.map(({ id, label, Icon }, idx) => {
+              const selected = activeTab === id;
+              return (
+                <button
+                  key={id}
+                  ref={(el) => {
+                    tabRefs.current[id] = el;
+                  }}
+                  type="button"
+                  role="tab"
+                  id={`tab-${id}`}
+                  aria-selected={selected}
+                  aria-controls={`panel-${id}`}
+                  tabIndex={selected ? 0 : -1}
+                  onClick={() => selectTabWithSync(id)}
+                  onKeyDown={(e) => handleTabKeyDown(e, idx)}
+                  className={`min-h-[44px] inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold uppercase tracking-wider cursor-pointer transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
+                    selected
+                      ? 'bg-cyan-500 text-slate-950 shadow-sm'
+                      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                  }`}
+                >
+                  <Icon className="h-4 w-4 shrink-0" aria-hidden />
+                  <span>{label}</span>
+                </button>
+              );
+            })}
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <span
-              className={`inline-flex items-center px-3 py-1.5 rounded border text-xs font-bold uppercase tracking-wider ${badge.styles}`}
-            >
-              Estado: {badge.label}
-            </span>
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-slate-900 border border-slate-800 text-xs text-cyan-400">
-              <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
-              1 Hz TELEMETRY STREAM
-            </span>
-          </div>
-        </header>
+        </nav>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-          <div className="lg:col-span-2 space-y-6">
-            {/* Telemetría en vivo */}
-            <section className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
-              <h2 className="text-lg font-bold text-cyan-400 uppercase tracking-wider">
-                Telemetría en vivo
-              </h2>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-4">
-                  <p className="text-xs text-slate-400 uppercase">Heart Rate</p>
-                  <p className="text-4xl font-thin mt-1 tabular-nums">
-                    {heartRate} <span className="text-sm text-slate-400">bpm</span>
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">SpO2: {spO2}%</p>
-                </div>
-
-                <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-4">
-                  <p className="text-xs text-slate-400 uppercase">Nivel CO2</p>
-                  <p className="text-4xl font-thin mt-1 tabular-nums">
-                    {co2Level} <span className="text-sm text-slate-400">ppm</span>
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Umbral: &gt; {T.co2.minCo2Level} ppm
-                  </p>
-                </div>
-
-                <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-4">
-                  <p className="text-xs text-slate-400 uppercase">Cistatina C</p>
-                  <p className="text-4xl font-thin mt-1 tabular-nums">
-                    {cistatinaC.toFixed(2)}{' '}
-                    <span className="text-sm text-slate-400">mg/L</span>
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Cr: {creatinina.toFixed(2)} · Ca²⁺: {calcioIonico.toFixed(2)}
-                  </p>
-                </div>
-
-                <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-4">
-                  <p className="text-xs text-slate-400 uppercase">Radiación</p>
-                  <p className="text-4xl font-thin mt-1 tabular-nums">
-                    {radiationRate}{' '}
-                    <span className="text-sm text-slate-400">µSv/h</span>
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Linf: {linfocitos} · NLR: {fmtRatio(nlr)} · {radiationAccumulated} mSv
-                  </p>
-                </div>
+        {/* Workspace + Sticky Collapsible Copilot Column */}
+        <div className="flex flex-col xl:flex-row gap-3 items-start">
+          <div className="flex-1 min-w-0 w-full">
+            {activeTab === 'hoy' && (
+              <div
+                role="tabpanel"
+                id="panel-hoy"
+                aria-labelledby="tab-hoy"
+                className="space-y-2.5"
+              >
+                {isEmergencyActive && !showFullPanelInEmergency ? (
+                  <EmergencyCard snapshot={snapshot} mision={mision} />
+                ) : (
+                  <>
+                    {profile && <CrewPanel profile={profile} />}
+                    <NextActionBanner recommendation={nextAction} />
+                    <SystemMosaic tiles={tiles} />
+                    <LiveEvolution key={profile?.id ?? 'live'} />
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 items-stretch">
+                      <ActiveAlertsStrip
+                        traces={snapshot.ruleTraces}
+                        onOpenSbar={() => setSbarOpen(true)}
+                      />
+                      <TodayRoutineCard mision={mision} />
+                    </div>
+                  </>
+                )}
               </div>
-            </section>
+            )}
 
-            {/* Motor clínico RIDGE */}
-            <section className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
-              <h2 className="text-lg font-bold text-cyan-400 uppercase tracking-wider">
-                Motor clínico (RIDGE)
-              </h2>
+            {activeTab === 'registrar' && (
+              <div
+                role="tabpanel"
+                id="panel-registrar"
+                aria-labelledby="tab-registrar"
+                className="space-y-3"
+              >
+                <div className="rounded-xl border border-slate-800 bg-slate-900/90 px-4 py-3 space-y-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h2 className="text-sm font-bold uppercase tracking-wider text-cyan-400">
+                        {t.command.logTab.title}
+                      </h2>
+                      <p className="text-xs text-slate-400">
+                        {t.command.logTab.subtitle}
+                      </p>
+                    </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <RuleRow
-                  title="R1 · Nefropatía oculta"
-                  rule={`Cr ≤ ${T.renal.maxCreatinina} ∧ CisC > ${T.renal.minCistatinaC} ∧ Ca²⁺ > ${T.renal.minCalcioIonico}`}
-                  active={isRenalWarning}
-                />
-                <RuleRow
-                  title="R2 · Inmunosupresión por radiación"
-                  rule={`Rad > ${T.radiation.minRadiationRate} µSv/h ∧ Linf < ${T.radiation.maxLinfocitos} ∧ NLR > ${T.radiation.minNlr}`}
-                  active={isRadiationWarning}
-                />
-                <RuleRow
-                  title="R3 · Bolsillo de CO2"
-                  rule={`CO2 > ${T.co2.minCo2Level} ppm ∧ SpO2 ≥ ${T.co2.minSpO2}%`}
-                  active={isCo2Warning}
-                />
-                <RuleRow
-                  title="Emergencia crítica (Code Red)"
-                  rule="Override manual del tripulante"
-                  active={isEmergency}
-                  critical
-                />
+                    <div className="flex flex-wrap gap-1.5">
+                      {LOG_SECTIONS.map((sec) => {
+                        const active = activeLogSection === sec;
+                        return (
+                          <button
+                            key={sec}
+                            type="button"
+                            aria-pressed={active}
+                            onClick={() => setActiveLogSection(sec)}
+                            className={`min-h-[44px] px-3.5 py-2 rounded-lg border text-xs font-bold uppercase tracking-wider cursor-pointer transition ${
+                              active
+                                ? 'border-cyan-400 bg-cyan-500/20 text-cyan-100'
+                                : 'border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800'
+                            }`}
+                          >
+                            {t.command.logTab.tabs[sec]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {schedule.length > 0 && (
+                    <div
+                      className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-800/80"
+                      aria-label={t.command.logTab.freshnessTitle}
+                    >
+                      <span className="text-[11px] font-bold uppercase text-slate-400 mr-1">
+                        {t.command.logTab.freshnessTitle}:
+                      </span>
+                      {schedule.map((item) => (
+                        <span
+                          key={item.key}
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border ${
+                            item.isStale
+                              ? 'border-amber-500/60 bg-amber-500/10 text-amber-200'
+                              : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+                          }`}
+                        >
+                          <Clock className="h-3 w-3 shrink-0" aria-hidden />
+                          <span>{item.label[lang]}:</span>
+                          <span>
+                            {item.neverMeasured || item.ageHours === null
+                              ? t.quickMeasure.pendingToday
+                              : item.isStale
+                                ? `${t.quickMeasure.stalePrefix} (${formatDecimal(item.ageHours, 1, lang)} h)`
+                                : formatRelativeAgeHours(item.ageHours, lang)}
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {activeLogSection === 'vitals' && (
+                  <QuickMeasurementPanel sectionFilter="vitals" hideSchedule />
+                )}
+                {activeLogSection === 'poc' && (
+                  <QuickMeasurementPanel sectionFilter="poc" hideSchedule />
+                )}
+                {activeLogSection === 'behavioral' && <BehavioralCheckIn />}
               </div>
-            </section>
+            )}
 
-            <GodModePanel />
+            {activeTab === 'mision' && (
+              <div
+                role="tabpanel"
+                id="panel-mision"
+                aria-labelledby="tab-mision"
+                className="space-y-4"
+              >
+                <div className="rounded-xl border border-slate-800 bg-slate-900/90 px-4 py-3">
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-cyan-400">
+                    {t.command.missionTab.title}
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    {t.command.missionTab.subtitle}
+                  </p>
+                </div>
+                <TodayCountermeasures
+                  mision={mision}
+                  todayOverride={todayKey}
+                  compactMode
+                />
+                <MissionCenter preferredProfile={preferredProfile} />
+              </div>
+            )}
+
+            {activeTab === 'tierra' && (
+              <div
+                role="tabpanel"
+                id="panel-tierra"
+                aria-labelledby="tab-tierra"
+                className="space-y-4"
+              >
+                <div className="rounded-xl border border-slate-800 bg-slate-900/90 px-4 py-3">
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-cyan-400">
+                    {t.command.earthTab.title}
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    {t.command.earthTab.subtitle}
+                  </p>
+                </div>
+                <OutboxPanel mision={mision} />
+              </div>
+            )}
           </div>
 
-          <div className="lg:col-span-1">
-            <MedicalCopilot />
-          </div>
+          <CopilotDock mision={mision} />
         </div>
 
-        <MissionCenter preferredProfile={mision ? MISSION_CHOICES[mision].profileId : undefined} />
+        {/* Compact footer: Prototype notice & Rules/Limitations Modal launcher */}
+        <footer className="border-t border-slate-800/80 pt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+          <p>{t.command.footer.prototypeDisclaimer}</p>
+          <button
+            type="button"
+            onClick={() => setRulesModalOpen(true)}
+            className="min-h-[44px] inline-flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-cyan-300 cursor-pointer transition"
+          >
+            <BookOpen className="h-3.5 w-3.5" aria-hidden />
+            <span>{t.command.footer.rulesModalBtn}</span>
+          </button>
+        </footer>
       </div>
+
+      {/* Drawers & Modals */}
+      <SystemDetailDrawer tiles={tiles} />
+      <DemoModeDrawer />
+      <RulesModal traces={snapshot.ruleTraces} />
+      <SbarReportModal
+        open={sbarOpen}
+        onClose={() => setSbarOpen(false)}
+        mision={mision}
+      />
     </div>
   );
 }

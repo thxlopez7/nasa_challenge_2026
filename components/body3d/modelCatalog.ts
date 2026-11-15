@@ -94,7 +94,7 @@ const LYMPHATIC: ModelEntry = {
   url: '/models/lymphatic.glb',
   label: 'Sistema linfático',
   credit: {
-    title: 'Lymphatisch systeem - een overzicht',
+    title: 'Sistema linfático — vista general (trad. de «Lymphatisch systeem - een overzicht»)',
     author: 'E-learning UMCG',
     source: 'https://sketchfab.com/3d-models/lymphatisch-systeem-een-overzicht-944e5e64850a454ba95717ccf5a5eece',
     license: 'CC-BY-NC-SA-4.0',

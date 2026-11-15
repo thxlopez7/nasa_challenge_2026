@@ -3,14 +3,17 @@
 import { useState } from 'react';
 import { ArrowLeft, Camera, Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 import type { AvatarId, BloodType, CrewProfile, CrewScenario } from '../../types/profile';
+import { useT } from '../../i18n/I18nContext';
+import type { TranslationDict } from '../../i18n/es';
 import { DEMO_PROFILES, useProfileStore } from '../../store/useProfileStore';
-import AstroAvatar, { AVATARS, AVATAR_IDS } from './AstroAvatar';
+import { ROLE_IDS, crewText } from './crewText';
+import AstroAvatar, { AVATAR_IDS } from './AstroAvatar';
 import CrewAvatar from './CrewAvatar';
 
-const SCENARIO_BADGE: Record<CrewScenario, { label: string; cls: string }> = {
-  critical: { label: 'Escenario crítico', cls: 'border-red-400/60 bg-red-500/15 text-red-200' },
-  stable: { label: 'Escenario estable', cls: 'border-emerald-400/60 bg-emerald-500/15 text-emerald-200' },
-  live: { label: 'Telemetría en vivo', cls: 'border-cyan-400/60 bg-cyan-500/10 text-cyan-200' },
+const SCENARIO_BADGE: Record<CrewScenario, string> = {
+  critical: 'border-red-400/60 bg-red-500/15 text-red-200',
+  stable: 'border-emerald-400/60 bg-emerald-500/15 text-emerald-200',
+  live: 'border-cyan-400/60 bg-cyan-500/10 text-cyan-200',
 };
 
 /** Recorta al centro y reduce la foto a 256×256 para guardarla en el navegador. */
@@ -36,7 +39,6 @@ function toSquareDataUrl(file: File): Promise<string> {
   });
 }
 
-const ROLES = ['Comandante', 'Piloto', 'Especialista de misión', 'Ingeniero de vuelo', 'Médico de a bordo'];
 const BLOOD: BloodType[] = ['O+', 'O−', 'A+', 'A−', 'B+', 'B−', 'AB+', 'AB−'];
 
 /* ------------------------------------------------------------------ */
@@ -46,13 +48,15 @@ function ProfileTile({
   managing,
   onPick,
   onDelete,
+  t,
 }: {
   profile: CrewProfile;
   managing: boolean;
   onPick: () => void;
   onDelete: () => void;
+  t: TranslationDict;
 }) {
-  const badge = SCENARIO_BADGE[profile.scenario];
+  const role = crewText(profile, t).role;
   const deletable = managing && !profile.demo;
   return (
     <li className="profile-tile flex flex-col items-center gap-3">
@@ -60,7 +64,7 @@ function ProfileTile({
         type="button"
         onClick={deletable ? onDelete : onPick}
         disabled={managing && profile.demo}
-        aria-label={deletable ? `Borrar el perfil de ${profile.name}` : `Entrar como ${profile.name}, ${profile.role}`}
+        aria-label={deletable ? t.profiles.deleteAria(profile.name) : t.profiles.enterAs(profile.name, role)}
         className="group relative block h-28 w-28 sm:h-36 sm:w-36 rounded-xl outline-none ring-offset-4 ring-offset-black transition hover:scale-105 focus-visible:ring-4 focus-visible:ring-white disabled:opacity-50 disabled:hover:scale-100 cursor-pointer disabled:cursor-not-allowed"
       >
         <CrewAvatar profile={profile} className="h-full w-full rounded-xl border-2 border-transparent transition group-hover:border-white" />
@@ -72,9 +76,9 @@ function ProfileTile({
       </button>
       <div className="text-center">
         <p className="text-base sm:text-lg text-slate-200 group-hover:text-white">{profile.name}</p>
-        <p className="text-xs text-slate-400">{profile.role} · {profile.agency}</p>
-        <span className={`mt-1.5 inline-block rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider ${badge.cls}`}>
-          {badge.label}
+        <p className="text-xs text-slate-400">{role} · {profile.agency}</p>
+        <span className={`mt-1.5 inline-block rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider ${SCENARIO_BADGE[profile.scenario]}`}>
+          {t.profiles.badges[profile.scenario]}
         </span>
       </div>
     </li>
@@ -88,6 +92,8 @@ const field =
 const label = 'block text-xs uppercase tracking-wider text-slate-400 mb-1';
 
 function CreateProfile({ onDone, onCancel }: { onDone: (p: CrewProfile) => void; onCancel: () => void }) {
+  const { t } = useT();
+  const f = t.profiles.form;
   const addProfile = useProfileStore((s) => s.addProfile);
   const [avatar, setAvatar] = useState<AvatarId>('oceano');
   const [photo, setPhoto] = useState<string | undefined>();
@@ -98,14 +104,14 @@ function CreateProfile({ onDone, onCancel }: { onDone: (p: CrewProfile) => void;
     e.target.value = '';
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      setError('El archivo tiene que ser una imagen.');
+      setError(f.errImage);
       return;
     }
     try {
       setPhoto(await toSquareDataUrl(file));
       setError(null);
     } catch {
-      setError('No se pudo cargar esa imagen. Prueba con otra.');
+      setError(f.errLoad);
     }
   };
 
@@ -114,7 +120,7 @@ function CreateProfile({ onDone, onCancel }: { onDone: (p: CrewProfile) => void;
     const fd = new FormData(e.currentTarget);
     const name = String(fd.get('name') ?? '').trim();
     if (!name) {
-      setError('Escribe el nombre del tripulante.');
+      setError(f.errName);
       return;
     }
     const num = (k: string, d: number) => {
@@ -130,9 +136,9 @@ function CreateProfile({ onDone, onCancel }: { onDone: (p: CrewProfile) => void;
       heightCm: num('height', 175),
       weightKg: num('weight', 70),
       bloodType: String(fd.get('blood')) as BloodType,
-      allergies: String(fd.get('allergies') ?? '').trim() || 'Ninguna',
-      history: String(fd.get('history') ?? '').trim() || 'Sin antecedentes registrados.',
-      agency: String(fd.get('agency') ?? '').trim() || 'Independiente',
+      allergies: String(fd.get('allergies') ?? '').trim() || f.defaultAllergies,
+      history: String(fd.get('history') ?? '').trim() || f.defaultHistory,
+      agency: String(fd.get('agency') ?? '').trim() || f.defaultAgency,
       scenario: String(fd.get('scenario')) as CrewScenario,
     });
     onDone(profile);
@@ -141,9 +147,9 @@ function CreateProfile({ onDone, onCancel }: { onDone: (p: CrewProfile) => void;
   return (
     <form onSubmit={submit} className="w-full max-w-2xl space-y-6 text-left" noValidate>
       <div>
-        <h2 className="font-heading font-bold text-3xl sm:text-4xl tracking-tight text-white">Nuevo tripulante</h2>
+        <h2 className="font-heading font-bold text-3xl sm:text-4xl tracking-tight text-white">{f.title}</h2>
         <p className="font-lead text-base text-slate-300 mt-1">
-          Estos datos acompañan a cualquier alerta médica que se envíe a Tierra. Se guardan en este dispositivo.
+          {f.intro}
         </p>
       </div>
 
@@ -151,7 +157,7 @@ function CreateProfile({ onDone, onCancel }: { onDone: (p: CrewProfile) => void;
         <div className="h-24 w-24 overflow-hidden rounded-xl border border-slate-600">
           {photo ? (
             // eslint-disable-next-line @next/next/no-img-element -- vista previa de una foto local
-            <img src={photo} alt="Vista previa de la foto" className="h-full w-full object-cover" />
+            <img src={photo} alt={f.photoPreviewAlt} className="h-full w-full object-cover" />
           ) : (
             <AstroAvatar id={avatar} className="h-full w-full" />
           )}
@@ -159,21 +165,21 @@ function CreateProfile({ onDone, onCancel }: { onDone: (p: CrewProfile) => void;
         <div className="space-y-2">
           <div className="flex flex-wrap gap-2">
             <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-500 px-3 py-2 text-sm text-slate-200 hover:border-white transition">
-              <Camera className="h-4 w-4" aria-hidden /> {photo ? 'Cambiar foto' : 'Subir foto'}
+              <Camera className="h-4 w-4" aria-hidden /> {photo ? f.changePhoto : f.uploadPhoto}
               <input type="file" accept="image/*" onChange={onPhoto} className="sr-only" />
             </label>
             {photo && (
               <button type="button" onClick={() => setPhoto(undefined)} className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm text-slate-400 hover:text-white transition cursor-pointer">
-                <X className="h-4 w-4" aria-hidden /> Quitar
+                <X className="h-4 w-4" aria-hidden /> {f.removePhoto}
               </button>
             )}
           </div>
-          <p className="text-xs text-slate-400">Opcional. Usa una foto tuya o de alguien que te haya dado permiso.</p>
+          <p className="text-xs text-slate-400">{f.photoHint}</p>
         </div>
       </div>
 
       <fieldset>
-        <legend className={label}>{photo ? 'Avatar (si quitas la foto)' : 'Avatar'}</legend>
+        <legend className={label}>{photo ? f.avatarLegendWithPhoto : f.avatarLegend}</legend>
         <div className="flex flex-wrap gap-3">
           {AVATAR_IDS.map((id) => (
             <button
@@ -181,7 +187,7 @@ function CreateProfile({ onDone, onCancel }: { onDone: (p: CrewProfile) => void;
               type="button"
               onClick={() => setAvatar(id)}
               aria-pressed={avatar === id}
-              aria-label={`Avatar ${AVATARS[id].label}`}
+              aria-label={t.profiles.avatarAria(t.profiles.avatars[id])}
               className={`relative h-16 w-16 rounded-lg transition cursor-pointer ${avatar === id ? 'ring-4 ring-white' : 'opacity-70 hover:opacity-100'}`}
             >
               <AstroAvatar id={id} className="h-full w-full rounded-lg" />
@@ -197,53 +203,53 @@ function CreateProfile({ onDone, onCancel }: { onDone: (p: CrewProfile) => void;
 
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="sm:col-span-2">
-          <label htmlFor="pf-name" className={label}>Nombre</label>
-          <input id="pf-name" name="name" className={field} placeholder="Nombre y apellido" autoFocus />
+          <label htmlFor="pf-name" className={label}>{f.name}</label>
+          <input id="pf-name" name="name" className={field} placeholder={f.namePlaceholder} autoFocus />
         </div>
         <div>
-          <label htmlFor="pf-role" className={label}>Rol a bordo</label>
-          <select id="pf-role" name="role" className={field} defaultValue="Especialista de misión">
-            {ROLES.map((r) => <option key={r}>{r}</option>)}
+          <label htmlFor="pf-role" className={label}>{f.role}</label>
+          <select id="pf-role" name="role" className={field} defaultValue="missionSpecialist">
+            {ROLE_IDS.map((r) => <option key={r} value={r}>{t.profiles.roles[r]}</option>)}
           </select>
         </div>
         <div>
-          <label htmlFor="pf-agency" className={label}>Agencia</label>
-          <input id="pf-agency" name="agency" className={field} placeholder="NASA, ESA, JAXA…" />
+          <label htmlFor="pf-agency" className={label}>{f.agency}</label>
+          <input id="pf-agency" name="agency" className={field} placeholder={f.agencyPlaceholder} />
         </div>
         <div className="grid grid-cols-3 gap-3 sm:col-span-2">
           <div>
-            <label htmlFor="pf-age" className={label}>Edad</label>
+            <label htmlFor="pf-age" className={label}>{f.age}</label>
             <input id="pf-age" name="age" type="number" min={18} max={80} className={field} placeholder="35" />
           </div>
           <div>
-            <label htmlFor="pf-height" className={label}>Altura (cm)</label>
+            <label htmlFor="pf-height" className={label}>{f.height}</label>
             <input id="pf-height" name="height" type="number" min={120} max={220} className={field} placeholder="175" />
           </div>
           <div>
-            <label htmlFor="pf-weight" className={label}>Peso (kg)</label>
+            <label htmlFor="pf-weight" className={label}>{f.weight}</label>
             <input id="pf-weight" name="weight" type="number" min={35} max={150} className={field} placeholder="70" />
           </div>
         </div>
         <div>
-          <label htmlFor="pf-blood" className={label}>Grupo sanguíneo</label>
+          <label htmlFor="pf-blood" className={label}>{f.blood}</label>
           <select id="pf-blood" name="blood" className={field} defaultValue="O+">
             {BLOOD.map((b) => <option key={b}>{b}</option>)}
           </select>
         </div>
         <div>
-          <label htmlFor="pf-allergies" className={label}>Alergias</label>
-          <input id="pf-allergies" name="allergies" className={field} placeholder="Ninguna" />
+          <label htmlFor="pf-allergies" className={label}>{f.allergies}</label>
+          <input id="pf-allergies" name="allergies" className={field} placeholder={f.allergiesPlaceholder} />
         </div>
         <div className="sm:col-span-2">
-          <label htmlFor="pf-history" className={label}>Antecedentes y medicación</label>
-          <textarea id="pf-history" name="history" rows={2} className={field} placeholder="Opcional" />
+          <label htmlFor="pf-history" className={label}>{f.history}</label>
+          <textarea id="pf-history" name="history" rows={2} className={field} placeholder={f.historyPlaceholder} />
         </div>
         <div className="sm:col-span-2">
-          <label htmlFor="pf-scenario" className={label}>Telemetría de la demo</label>
+          <label htmlFor="pf-scenario" className={label}>{f.scenario}</label>
           <select id="pf-scenario" name="scenario" className={field} defaultValue="live">
-            <option value="live">En vivo (dataset de sensores)</option>
-            <option value="stable">Escenario estable (molestias leves)</option>
-            <option value="critical">Escenario crítico (alerta automática a Tierra)</option>
+            <option value="live">{f.scenarioLive}</option>
+            <option value="stable">{f.scenarioStable}</option>
+            <option value="critical">{f.scenarioCritical}</option>
           </select>
         </div>
       </div>
@@ -252,10 +258,10 @@ function CreateProfile({ onDone, onCancel }: { onDone: (p: CrewProfile) => void;
 
       <div className="flex flex-wrap gap-3">
         <button type="submit" className="rounded-lg bg-white px-6 py-2.5 text-sm font-black uppercase tracking-wider text-black hover:bg-cyan-200 transition cursor-pointer">
-          Crear y entrar
+          {f.submit}
         </button>
         <button type="button" onClick={onCancel} className="rounded-lg border border-slate-500 px-6 py-2.5 text-sm uppercase tracking-wider text-slate-300 hover:border-white hover:text-white transition cursor-pointer">
-          Cancelar
+          {f.cancel}
         </button>
       </div>
     </form>
@@ -269,6 +275,8 @@ function CreateProfile({ onDone, onCancel }: { onDone: (p: CrewProfile) => void;
  * al estilo de los perfiles de una plataforma de streaming.
  */
 export function ProfilePicker({ onPick, onBack }: { onPick: (p: CrewProfile) => void; onBack: () => void }) {
+  const { t } = useT();
+  const pt = t.profiles;
   const custom = useProfileStore((s) => s.custom);
   const removeProfile = useProfileStore((s) => s.removeProfile);
   const [mode, setMode] = useState<'pick' | 'manage' | 'create'>('pick');
@@ -284,7 +292,7 @@ export function ProfilePicker({ onPick, onBack }: { onPick: (p: CrewProfile) => 
           onClick={mode === 'create' ? () => setMode('pick') : onBack}
           className="absolute left-5 top-5 inline-flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-slate-400 hover:text-white transition cursor-pointer"
         >
-          <ArrowLeft className="h-4 w-4" aria-hidden /> {mode === 'create' ? 'Perfiles' : 'Misiones'}
+          <ArrowLeft className="h-4 w-4" aria-hidden /> {mode === 'create' ? pt.backProfiles : pt.backMissions}
         </button>
 
         {mode === 'create' ? (
@@ -293,12 +301,12 @@ export function ProfilePicker({ onPick, onBack }: { onPick: (p: CrewProfile) => 
           <>
             <div className="space-y-2 profile-rise">
               <h1 className="font-heading font-bold text-4xl sm:text-6xl tracking-tight text-white">
-                {managing ? 'Administrar perfiles' : '¿Quién está a bordo?'}
+                {managing ? pt.titleManage : pt.title}
               </h1>
               <p className="font-lead text-lg text-slate-300">
                 {managing
-                  ? 'Toca un perfil creado para borrarlo. Los de la demo no se pueden borrar.'
-                  : 'Elige el tripulante. Cada uno tiene sus datos médicos y su propia misión.'}
+                  ? pt.subtitleManage
+                  : pt.subtitle}
               </p>
             </div>
 
@@ -310,6 +318,7 @@ export function ProfilePicker({ onPick, onBack }: { onPick: (p: CrewProfile) => 
                   managing={managing}
                   onPick={() => onPick(p)}
                   onDelete={() => removeProfile(p.id)}
+                  t={t}
                 />
               ))}
               {!managing && (
@@ -317,12 +326,12 @@ export function ProfilePicker({ onPick, onBack }: { onPick: (p: CrewProfile) => 
                   <button
                     type="button"
                     onClick={() => setMode('create')}
-                    aria-label="Añadir tripulante"
+                    aria-label={pt.addCrew}
                     className="flex h-28 w-28 sm:h-36 sm:w-36 items-center justify-center rounded-xl border-2 border-dashed border-slate-500 text-slate-400 transition hover:scale-105 hover:border-white hover:text-white cursor-pointer"
                   >
                     <Plus className="h-12 w-12" aria-hidden />
                   </button>
-                  <p className="text-base sm:text-lg text-slate-400">Añadir tripulante</p>
+                  <p className="text-base sm:text-lg text-slate-400">{pt.addCrew}</p>
                 </li>
               )}
             </ul>
@@ -334,7 +343,7 @@ export function ProfilePicker({ onPick, onBack }: { onPick: (p: CrewProfile) => 
                 className="profile-rise inline-flex items-center gap-2 border border-slate-500 px-6 py-2 text-sm uppercase tracking-[0.25em] text-slate-300 hover:border-white hover:text-white transition cursor-pointer"
                 style={{ animationDelay: '0.3s' }}
               >
-                {managing ? <><Check className="h-4 w-4" aria-hidden /> Listo</> : <><Pencil className="h-4 w-4" aria-hidden /> Administrar perfiles</>}
+                {managing ? <><Check className="h-4 w-4" aria-hidden /> {pt.done}</> : <><Pencil className="h-4 w-4" aria-hidden /> {pt.manage}</>}
               </button>
             )}
           </>

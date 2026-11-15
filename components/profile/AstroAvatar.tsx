@@ -2,6 +2,7 @@ import { useId } from 'react';
 import type { AvatarId } from '../../types/profile';
 
 /** Paleta de cada avatar: fondo y visor del casco. */
+/** Nombre interno (los visibles están en `t.profiles.avatars`). */
 export const AVATARS: Record<AvatarId, { label: string; bg: [string, string]; visor: [string, string] }> = {
   nebula: { label: 'Nebulosa', bg: ['#6d28d9', '#1e1b4b'], visor: ['#c4b5fd', '#4c1d95'] },
   solar: { label: 'Solar', bg: ['#d97706', '#451a03'], visor: ['#fde68a', '#b45309'] },
@@ -18,7 +19,7 @@ export function AstroAvatar({ id, className = '' }: { id: AvatarId; className?: 
   const uid = useId().replace(/:/g, '');
   const a = AVATARS[id];
   return (
-    <svg viewBox="0 0 120 120" className={className} role="img" aria-label={`Avatar ${a.label}`}>
+    <svg viewBox="0 0 120 120" className={className} aria-hidden>
       <defs>
         <linearGradient id={`bg-${uid}`} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor={a.bg[0]} />

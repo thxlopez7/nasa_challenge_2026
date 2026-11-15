@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useT } from '../../i18n/I18nContext';
+import type { TranslationDict } from '../../i18n/es';
 import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Siren } from 'lucide-react';
 import { useMissionStore } from '../../store/useMissionStore';
 import { useScenarioStore } from '../../store/useScenarioStore';
@@ -9,7 +11,6 @@ import { useVitalsHistory, type VitalSample } from '../../store/useVitalsHistory
 import type { DayRecord } from '../../types/mission';
 import { formatDay } from '../../utils/missionPlan';
 import {
-  BAND_LABEL,
   TOLERANCE,
   VITALS,
   bandOf,
@@ -35,10 +36,10 @@ const BAND_STYLE = {
 const clock = (t: number) =>
   new Date(t).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-function Trend({ dir, text }: { dir: -1 | 0 | 1; text: string }) {
+function Trend({ dir, text, t }: { dir: -1 | 0 | 1; text: string; t: TranslationDict }) {
   const Icon = dir === 1 ? ArrowUpRight : dir === -1 ? ArrowDownRight : ArrowRight;
   const cls = dir === 1 ? 'text-emerald-300' : dir === -1 ? 'text-red-300' : 'text-slate-400';
-  const word = dir === 1 ? 'mejora' : dir === -1 ? 'empeora' : 'estable';
+  const word = dir === 1 ? t.evolution.better : dir === -1 ? t.evolution.worse : t.evolution.steady;
   return (
     <span className={`inline-flex items-center gap-1 text-xs ${cls}`}>
       <Icon className="h-3.5 w-3.5" aria-hidden />
@@ -47,9 +48,14 @@ function Trend({ dir, text }: { dir: -1 | 0 | 1; text: string }) {
   );
 }
 
+/** Nombre y umbral de cada métrica en el idioma activo. */
+const metricLabel = (d: VitalDef, t: TranslationDict) => t.evolution.metrics[d.key];
+const thresholdText = (d: VitalDef, t: TranslationDict) =>
+  d.key === 'heartRate' ? t.evolution.thresholds.heartRate : d.key === 'spO2' ? t.evolution.thresholds.spO2 : d.thresholdLabel;
+
 /* ------------------------------------------------------------------ */
 
-function VitalCard({ def, samples }: { def: VitalDef; samples: VitalSample[] }) {
+function VitalCard({ def, samples, t }: { def: VitalDef; samples: VitalSample[]; t: TranslationDict }) {
   const recent = samples.slice(-LIVE_WINDOW_S);
   const now = recent[recent.length - 1];
   if (!now) return null;
@@ -66,28 +72,29 @@ function VitalCard({ def, samples }: { def: VitalDef; samples: VitalSample[] }) 
   return (
     <div className={`rounded-lg border bg-slate-950/60 p-3 space-y-1 ${border}`}>
       <div className="flex items-baseline justify-between gap-2">
-        <p className="text-xs uppercase tracking-wider text-slate-400">{def.label}</p>
+        <p className="text-xs uppercase tracking-wider text-slate-400">{metricLabel(def, t)}</p>
         {status !== 'ok' && (
           <span className={`text-[10px] font-black uppercase ${status === 'crit' ? 'text-red-300' : 'text-amber-300'}`}>
-            {status === 'crit' ? 'Crítico' : 'Fuera de rango'}
+            {status === 'crit' ? t.evolution.critical : t.evolution.outOfRange}
           </span>
         )}
       </div>
       <p className="text-3xl font-thin tabular-nums text-slate-100">
         {value.toFixed(def.digits)} <span className="text-sm text-slate-500">{def.unit}</span>
       </p>
-      <Trend dir={dir} text={`${delta >= 0 ? '+' : ''}${delta.toFixed(def.digits)} en ${COMPARE_S} s`} />
+      <Trend t={t} dir={dir} text={t.evolution.deltaIn(`${delta >= 0 ? '+' : ''}${delta.toFixed(def.digits)}`, COMPARE_S)} />
       <MiniChart
         points={points}
         tone={tone}
         threshold={def.threshold}
-        thresholdLabel={def.thresholdLabel}
+        thresholdLabel={thresholdText(def, t)}
         unit={def.unit}
         digits={def.digits}
         live
-        ariaLabel={`${def.label}: últimos ${LIVE_WINDOW_S} segundos, ahora ${value.toFixed(def.digits)} ${def.unit}`}
+        ariaLabel={t.evolution.cardAria(metricLabel(def, t), LIVE_WINDOW_S, `${value.toFixed(def.digits)} ${def.unit}`)}
+        waitingText={t.evolution.waiting}
       />
-      <p className="text-[10px] text-slate-500">Umbral · {def.thresholdLabel}</p>
+      <p className="text-[10px] text-slate-500">{t.evolution.threshold} · {thresholdText(def, t)}</p>
     </div>
   );
 }
@@ -96,11 +103,11 @@ function VitalCard({ def, samples }: { def: VitalDef; samples: VitalSample[] }) 
 
 type DailyKey = 'score' | 'heartRate' | 'linfocitos' | 'cistatinaC';
 
-const DAILY: { key: DailyKey; label: string; unit: string; digits: number; def?: VitalDef }[] = [
-  { key: 'score', label: 'Índice de salud', unit: '/100', digits: 0 },
-  { key: 'heartRate', label: 'Frecuencia cardíaca', unit: 'lpm', digits: 0, def: VITALS[0] },
-  { key: 'linfocitos', label: 'Linfocitos', unit: '/µL', digits: 0, def: VITALS[4] },
-  { key: 'cistatinaC', label: 'Cistatina C', unit: 'mg/L', digits: 2, def: VITALS[5] },
+const DAILY: { key: DailyKey; unit: string; digits: number; def?: VitalDef }[] = [
+  { key: 'score', unit: '/100', digits: 0 },
+  { key: 'heartRate', unit: 'bpm', digits: 0, def: VITALS[0] },
+  { key: 'linfocitos', unit: '/µL', digits: 0, def: VITALS[4] },
+  { key: 'cistatinaC', unit: 'mg/L', digits: 2, def: VITALS[5] },
 ];
 
 function dailyValue(r: DayRecord, key: DailyKey): number | undefined {
@@ -108,18 +115,20 @@ function dailyValue(r: DayRecord, key: DailyKey): number | undefined {
   return key === 'score' ? healthScore(r.vitals) : r.vitals[key];
 }
 
-function DailyChart({ meta, records, live }: {
+function DailyChart({ meta, records, live, t }: {
   meta: (typeof DAILY)[number];
   records: DayRecord[];
   live: number;
+  t: TranslationDict;
 }) {
+  const label = t.evolution.metrics[meta.key];
   const days = records
     .map((r) => ({ r, v: dailyValue(r, meta.key) }))
     .filter((d): d is { r: DayRecord; v: number } => d.v !== undefined)
     .slice(-DAYS);
   const points: ChartPoint[] = [
-    ...days.map(({ r, v }) => ({ label: `Día ${r.missionDay} · ${formatDay(r.date)}`, y: v })),
-    { label: 'Hoy · en vivo', y: live },
+    ...days.map(({ r, v }) => ({ label: t.evolution.dayLabel(r.missionDay, formatDay(r.date)), y: v })),
+    { label: t.evolution.todayLive, y: live },
   ];
   const weekAgo = days.length >= 7 ? days[days.length - 7].v : days[0]?.v;
   const defForDir: VitalDef =
@@ -130,12 +139,12 @@ function DailyChart({ meta, records, live }: {
 
   return (
     <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 space-y-1">
-      <p className="text-xs uppercase tracking-wider text-slate-400">{meta.label}</p>
+      <p className="text-xs uppercase tracking-wider text-slate-400">{label}</p>
       <p className="text-xl font-thin tabular-nums">
-        {live.toFixed(meta.digits)} <span className="text-xs text-slate-500">{meta.unit} hoy</span>
+        {live.toFixed(meta.digits)} <span className="text-xs text-slate-500">{meta.unit} {t.evolution.today}</span>
       </p>
       {weekAgo !== undefined && (
-        <Trend dir={dir} text={`vs hace 7 días ${weekAgo.toFixed(meta.digits)}`} />
+        <Trend t={t} dir={dir} text={t.evolution.vsWeek(weekAgo.toFixed(meta.digits))} />
       )}
       <MiniChart
         points={points}
@@ -145,7 +154,8 @@ function DailyChart({ meta, records, live }: {
         digits={meta.digits}
         live
         domain={meta.key === 'score' ? [0, 100] : undefined}
-        ariaLabel={`${meta.label}: últimos ${days.length} días y hoy en vivo`}
+        ariaLabel={t.evolution.dailyAria(label, days.length)}
+        waitingText={t.evolution.waiting}
       />
     </div>
   );
@@ -159,9 +169,11 @@ function DailyChart({ meta, records, live }: {
  * en crisis vital, las tarjetas afectadas se ponen en rojo y laten.
  */
 export function LiveEvolution() {
+  const { t: dict } = useT();
   const samples = useVitalsHistory((s) => s.samples);
   const records = useMissionStore((s) => s.records);
   const t = useTelemetryStore();
+  const e = dict.evolution;
 
   // Graba una lectura por segundo (también si el God Mode congela los datos).
   useEffect(() => {
@@ -192,11 +204,11 @@ export function LiveEvolution() {
     <section aria-labelledby="evo-title" className="rounded-xl border border-slate-800 bg-slate-900 p-6 space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 id="evo-title" className="text-lg font-black uppercase tracking-wider text-cyan-400">Evolución del tripulante</h2>
-          <p className="font-lead text-base text-slate-300">Segundo a segundo y día a día: ¿mejora o empeora?</p>
+          <h2 id="evo-title" className="text-lg font-black uppercase tracking-wider text-cyan-400">{e.title}</h2>
+          <p className="font-lead text-base text-slate-300">{e.subtitle}</p>
         </div>
         <span className={`inline-flex items-center gap-2 rounded border px-3 py-1 text-xs font-black uppercase tracking-wider ${style.cls}`}>
-          <Activity className="h-4 w-4" aria-hidden /> {BAND_LABEL[band]}
+          <Activity className="h-4 w-4" aria-hidden /> {e.bands[band]}
         </span>
       </div>
 
@@ -204,11 +216,11 @@ export function LiveEvolution() {
         <div role="alert" className="vital-crisis flex items-start gap-3 rounded-lg border-2 border-red-500 bg-red-500/15 p-4">
           <Siren className="h-6 w-6 shrink-0 text-red-300" aria-hidden />
           <div>
-            <p className="font-black uppercase tracking-wider text-red-100">Crisis vital</p>
+            <p className="font-black uppercase tracking-wider text-red-100">{e.crisis}</p>
             <p className="text-sm text-red-100/90">
               {critical.length > 0
-                ? `Fuera de rango crítico: ${critical.map((d) => `${d.label} ${t[d.key].toFixed(d.digits)} ${d.unit}`).join(' · ')}.`
-                : `El índice de salud ha caído por debajo de ${SCORE_CRISIS}.`}
+                ? e.crisisList(critical.map((d) => `${metricLabel(d, dict)} ${t[d.key].toFixed(d.digits)} ${d.unit}`).join(' · '))
+                : e.crisisScore(SCORE_CRISIS)}
             </p>
           </div>
         </div>
@@ -217,38 +229,37 @@ export function LiveEvolution() {
       {/* Índice de salud en vivo */}
       <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
         <div className="space-y-1">
-          <p className="text-xs uppercase tracking-wider text-slate-400">Índice de salud</p>
+          <p className="text-xs uppercase tracking-wider text-slate-400">{e.scoreLabel}</p>
           <p className="text-6xl font-thin tabular-nums text-white">
             {score}<span className="text-xl text-slate-500">/100</span>
           </p>
-          <Trend dir={scoreDir} text={`${scoreDelta >= 0 ? '+' : ''}${scoreDelta} en ${COMPARE_S} s`} />
-          <p className="text-[11px] text-slate-500">
-            ≥ {SCORE_STABLE} estable · {SCORE_CRISIS}–{SCORE_STABLE - 1} en riesgo · &lt; {SCORE_CRISIS} crisis vital
-          </p>
+          <Trend t={dict} dir={scoreDir} text={e.deltaIn(`${scoreDelta >= 0 ? '+' : ''}${scoreDelta}`, COMPARE_S)} />
+          <p className="text-[11px] text-slate-500">{e.scoreLegend(SCORE_STABLE, SCORE_CRISIS)}</p>
         </div>
         <MiniChart
           points={recent.map((s) => ({ label: clock(s.t), y: s.score }))}
           tone={style.tone}
           threshold={SCORE_CRISIS}
-          thresholdLabel={`Crisis < ${SCORE_CRISIS}`}
+          thresholdLabel={`< ${SCORE_CRISIS}`}
           unit="/100"
           digits={0}
           height={120}
           live
           area
           domain={[0, 100]}
-          ariaLabel={`Índice de salud de los últimos ${LIVE_WINDOW_S} segundos: ${score} de 100`}
+          ariaLabel={e.scoreAria(LIVE_WINDOW_S, score)}
+          waitingText={e.waiting}
         />
       </div>
 
       {/* Signos vitales en vivo */}
       <div>
         <h3 className="mb-3 text-sm font-black uppercase tracking-wider text-slate-300">
-          En vivo · últimos {LIVE_WINDOW_S / 60} min
+          {e.liveTitle(LIVE_WINDOW_S / 60)}
         </h3>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {VITALS.map((d) => (
-            <VitalCard key={d.key} def={d} samples={samples} />
+            <VitalCard key={d.key} def={d} samples={samples} t={dict} />
           ))}
         </div>
       </div>
@@ -256,12 +267,10 @@ export function LiveEvolution() {
       {/* Día a día */}
       <div>
         <h3 className="mb-3 text-sm font-black uppercase tracking-wider text-slate-300">
-          Día a día · últimos {DAYS} días y hoy en vivo
+          {e.dailyTitle(DAYS)}
         </h3>
         {sorted.length === 0 ? (
-          <p className="text-sm text-slate-500">
-            Todavía no hay días registrados. Cierra la evaluación diaria o carga la demo del Centro de misión.
-          </p>
+          <p className="text-sm text-slate-500">{e.noDays}</p>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {DAILY.map((m) => (
@@ -270,6 +279,7 @@ export function LiveEvolution() {
                 meta={m}
                 records={sorted}
                 live={m.key === 'score' ? score : t[m.key]}
+                t={dict}
               />
             ))}
           </div>

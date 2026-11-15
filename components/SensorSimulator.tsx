@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useScenarioStore } from '../store/useScenarioStore';
-import { useTelemetryStore } from '../store/useTelemetryStore';
+import { initialState, useTelemetryStore } from '../store/useTelemetryStore';
 import type { Biomarkers, Environment } from '../types/telemetry';
 
 type ScenarioFrame = Partial<Biomarkers & Environment>;
@@ -61,6 +61,31 @@ export function SensorSimulator({
       abortController.abort();
     };
   }, [frames]);
+
+  // Al restaurar la línea base (God Mode → RESET) el guion vuelve a empezar.
+  useEffect(() => {
+    const unsubscribe = useTelemetryStore.subscribe((state, prevState) => {
+      const overrideCleared =
+        prevState.isManualOverride && !state.isManualOverride;
+      const restoredToInitial =
+        !state.isManualOverride &&
+        state.heartRate === initialState.heartRate &&
+        state.spO2 === initialState.spO2 &&
+        state.cistatinaC === initialState.cistatinaC &&
+        state.creatinina === initialState.creatinina &&
+        state.calcioIonico === initialState.calcioIonico &&
+        state.co2Level === initialState.co2Level &&
+        state.radiationRate === initialState.radiationRate &&
+        state.radiationAccumulated === initialState.radiationAccumulated;
+
+      if (overrideCleared || restoredToInitial) {
+        tickIndex.current = 0;
+        useScenarioStore.getState().reset();
+      }
+    });
+
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     if (data.length === 0) {

@@ -12,20 +12,15 @@ import {
   Thermometer,
   Wind,
 } from 'lucide-react';
+import { useT } from '../../i18n/I18nContext';
 import type { SleepNight, SleepStage } from '../../types/sleep';
+import { formatDecimal } from '../../utils/formatters';
 import {
   EPOCH_MIN,
   OUT_OF_BED_CM,
   SLEEP_THRESHOLDS as S,
-  STAGE_LABEL,
   clockAt,
 } from '../../utils/sleepSensing';
-
-const SYNC_STEPS = [
-  'Recibiendo los ecos ultrasónicos de la noche…',
-  'Separando respiración, movimiento y distancia…',
-  'Clasificando las fases del sueño…',
-] as const;
 
 const STAGES: SleepStage[] = ['AWAKE', 'REM', 'LIGHT', 'DEEP'];
 const STAGE_COLOR: Record<SleepStage, string> = {
@@ -34,8 +29,6 @@ const STAGE_COLOR: Record<SleepStage, string> = {
   LIGHT: '#06b6d4',
   DEEP: '#0e7490',
 };
-
-/* ------------------------------------------------------------------ */
 
 function Sonar({ active }: { active: boolean }) {
   return (
@@ -55,8 +48,6 @@ function Sonar({ active }: { active: boolean }) {
     </div>
   );
 }
-
-/* ------------------------------------------------------------------ */
 
 function Tile({
   icon: Icon,
@@ -91,8 +82,6 @@ function Tile({
   );
 }
 
-/* ------------------------------------------------------------------ */
-
 const W = 640;
 const PAD_L = 78;
 const PAD_R = 8;
@@ -107,6 +96,8 @@ const BR_MIN = 8;
 const BR_MAX = 24;
 
 function NightChart({ night }: { night: SleepNight }) {
+  const { t, lang } = useT();
+  const s = t.missionUi.sleep;
   const { epochs, summary } = night;
   const [hover, setHover] = useState<number | null>(null);
   const plotW = W - PAD_L - PAD_R;
@@ -119,7 +110,6 @@ function NightChart({ night }: { night: SleepNight }) {
     .map((e, i) => `${i === 0 ? 'M' : 'L'}${(x(i) + step / 2).toFixed(1)},${yBr(e.breathingRate).toFixed(1)}`)
     .join(' ');
 
-  // Marcas cada hora en punto.
   const [bh, bm] = summary.bedtime.split(':').map(Number);
   const firstTick = (60 - bm) % 60;
   const ticks: number[] = [];
@@ -137,18 +127,22 @@ function NightChart({ night }: { night: SleepNight }) {
   return (
     <figure className="space-y-2">
       <figcaption className="text-sm font-semibold text-slate-200">
-        Fases del sueño y respiración
+        {s.chartTitle}
         <span className="block text-xs font-normal text-slate-500">
-          Pasa el cursor para ver cada tramo de {EPOCH_MIN} minutos.
+          {s.chartHint} {EPOCH_MIN} {s.minutesUnit}
         </span>
       </figcaption>
       <div className="relative">
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label={`Hipnograma: ${summary.deepPct}% de sueño profundo y ${summary.remPct}% REM; respiración media ${summary.breathingRate} respiraciones por minuto.`}>
-          {/* Filas del hipnograma */}
-          {STAGES.map((s, r) => (
-            <g key={s}>
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          className="w-full h-auto"
+          role="img"
+          aria-label={`${s.chartTitle}: ${summary.deepPct}% ${s.stages.DEEP}, ${summary.remPct}% ${s.stages.REM}, ${formatDecimal(summary.breathingRate, 1, lang)} rpm`}
+        >
+          {STAGES.map((st, r) => (
+            <g key={st}>
               <text x={PAD_L - 8} y={HYP_TOP + r * ROW_H + ROW_H / 2 + 4} textAnchor="end" className="fill-slate-400" fontSize="11">
-                {STAGE_LABEL[s]}
+                {s.stages[st]}
               </text>
               <line x1={PAD_L} x2={W - PAD_R} y1={HYP_TOP + (r + 1) * ROW_H} y2={HYP_TOP + (r + 1) * ROW_H} stroke="#1e293b" strokeWidth="1" />
             </g>
@@ -169,9 +163,8 @@ function NightChart({ night }: { night: SleepNight }) {
             );
           })}
 
-          {/* Respiración */}
           <text x={PAD_L} y={BR_TOP - 8} className="fill-slate-400" fontSize="11">
-            Respiración (rpm) · banda normal {S.breathingRate.min}–{S.breathingRate.max}
+            {s.breathAxis} {S.breathingRate.min}–{S.breathingRate.max}
           </text>
           <rect
             x={PAD_L}
@@ -189,14 +182,12 @@ function NightChart({ night }: { night: SleepNight }) {
           ))}
           <path d={breathPath} fill="none" stroke="#22d3ee" strokeWidth="2" strokeLinejoin="round" />
 
-          {/* Eje de horas */}
           {ticks.map((m) => (
             <text key={m} x={PAD_L + (m / EPOCH_MIN) * step} y={AXIS_Y} textAnchor="middle" className="fill-slate-500" fontSize="10">
               {String((bh + Math.round((bm + m) / 60)) % 24).padStart(2, '0')}:00
             </text>
           ))}
 
-          {/* Cursor */}
           {h && hover !== null && (
             <>
               <line x1={x(hover) + step / 2} x2={x(hover) + step / 2} y1={HYP_TOP} y2={BR_TOP + BR_H} stroke="#e2e8f0" strokeWidth="1" strokeDasharray="3 3" />
@@ -220,39 +211,45 @@ function NightChart({ night }: { night: SleepNight }) {
             style={{ left: `clamp(0px, calc(${tipLeft}% - 88px), calc(100% - 176px))` }}
           >
             <p className="font-semibold text-slate-100 tabular-nums">
-              {clockAt(summary.bedtime, h.minute)} · {STAGE_LABEL[h.stage]}
+              {clockAt(summary.bedtime, h.minute)} · {s.stages[h.stage]}
             </p>
             <dl className="mt-1 grid grid-cols-[1fr_auto] gap-x-2 text-slate-400 tabular-nums">
-              <dt>Respiración</dt><dd className="text-slate-200">{h.breathingRate} rpm</dd>
-              <dt>Movimiento</dt><dd className="text-slate-200">{h.movement}/100</dd>
-              <dt>Distancia</dt>
-              <dd className="text-slate-200">{h.distanceCm > OUT_OF_BED_CM ? 'fuera del saco' : `${h.distanceCm} cm`}</dd>
-              <dt>Habitación</dt><dd className="text-slate-200">{h.roomTempC} °C</dd>
+              <dt>{s.ttBreath}</dt><dd className="text-slate-200">{formatDecimal(h.breathingRate, 1, lang)} rpm</dd>
+              <dt>{s.ttMovement}</dt><dd className="text-slate-200">{h.movement}/100</dd>
+              <dt>{s.ttDistance}</dt>
+              <dd className="text-slate-200">{h.distanceCm > OUT_OF_BED_CM ? s.outOfBedText : `${h.distanceCm} cm`}</dd>
+              <dt>{s.ttRoom}</dt><dd className="text-slate-200">{formatDecimal(h.roomTempC, 1, lang)} °C</dd>
             </dl>
           </div>
         )}
       </div>
 
       <details className="text-xs text-slate-400">
-        <summary className="cursor-pointer select-none">Ver los datos por hora</summary>
+        <summary className="cursor-pointer select-none">{s.tableToggle}</summary>
         <table className="mt-2 w-full text-left tabular-nums">
           <thead className="text-slate-500">
-            <tr><th className="py-1">Hora</th><th>Fase dominante</th><th>Resp.</th><th>Mov.</th><th>Temp.</th></tr>
+            <tr>
+              <th className="py-1">{s.colHour}</th>
+              <th>{s.colPhase}</th>
+              <th>{s.colResp}</th>
+              <th>{s.colMov}</th>
+              <th>{s.colTemp}</th>
+            </tr>
           </thead>
           <tbody>
             {Array.from({ length: Math.ceil(epochs.length / 12) }, (_, k) => {
               const slice = epochs.slice(k * 12, k * 12 + 12);
-              const counts = STAGES.map((s) => slice.filter((e) => e.stage === s).length);
+              const counts = STAGES.map((st) => slice.filter((e) => e.stage === st).length);
               const dominant = STAGES[counts.indexOf(Math.max(...counts))];
               const avg = (f: (e: (typeof slice)[number]) => number) =>
                 slice.reduce((a, e) => a + f(e), 0) / slice.length;
               return (
                 <tr key={k} className="border-t border-slate-800">
                   <td className="py-1">{clockAt(summary.bedtime, k * 60)}</td>
-                  <td>{STAGE_LABEL[dominant]}</td>
-                  <td>{avg((e) => e.breathingRate).toFixed(1)}</td>
+                  <td>{s.stages[dominant]}</td>
+                  <td>{formatDecimal(avg((e) => e.breathingRate), 1, lang)}</td>
                   <td>{Math.round(avg((e) => e.movement))}</td>
-                  <td>{avg((e) => e.roomTempC).toFixed(1)} °C</td>
+                  <td>{formatDecimal(avg((e) => e.roomTempC), 1, lang)} °C</td>
                 </tr>
               );
             })}
@@ -263,9 +260,9 @@ function NightChart({ night }: { night: SleepNight }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-
 function NightReport({ night }: { night: SleepNight }) {
+  const { t, lang } = useT();
+  const sl = t.missionUi.sleep;
   const s = night.summary;
   const end = clockAt(s.bedtime, Math.round(s.inBedHours * 60));
   const tempOut = s.roomTempC < S.roomTemp.min || s.roomTempC > S.roomTemp.max;
@@ -276,62 +273,76 @@ function NightReport({ night }: { night: SleepNight }) {
       <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Tile
           icon={Moon}
-          label="Sueño"
-          value={`${s.totalHours} h`}
-          sub={`${s.bedtime} → ${end} · eficiencia ${s.efficiency}%`}
-          alert={s.totalHours < S.minHours ? 'Sueño corto' : s.efficiency < S.minEfficiency ? 'Fragmentado' : undefined}
+          label={sl.tiles.sleep}
+          value={`${formatDecimal(s.totalHours, 1, lang)} h`}
+          sub={`${s.bedtime} → ${end} · ${sl.efficiencyPrefix} ${s.efficiency}%`}
+          alert={
+            s.totalHours < S.minHours
+              ? sl.alerts.shortSleep
+              : s.efficiency < S.minEfficiency
+                ? sl.alerts.fragmented
+                : undefined
+          }
         />
         <Tile
           icon={Wind}
-          label="Respiración"
-          value={`${s.breathingRate} rpm`}
-          sub={`normal ${S.breathingRate.min}–${S.breathingRate.max} rpm`}
-          alert={brOut ? 'Fuera de rango' : undefined}
+          label={sl.tiles.breathing}
+          value={`${formatDecimal(s.breathingRate, 1, lang)} rpm`}
+          sub={`${sl.normalPrefix} ${S.breathingRate.min}–${S.breathingRate.max} rpm`}
+          alert={brOut ? sl.alerts.outOfRange : undefined}
         />
         <Tile
           icon={Activity}
-          label="Pausas resp."
-          value={`${s.breathingPauses} /h`}
-          sub={`aviso desde ${S.maxBreathingPauses} /h`}
-          alert={s.breathingPauses >= S.maxBreathingPauses ? 'Revisar ventilación' : undefined}
+          label={sl.tiles.pauses}
+          value={`${formatDecimal(s.breathingPauses, 1, lang)} /h`}
+          sub={`${sl.warnFromPrefix} ${S.maxBreathingPauses} /h`}
+          alert={s.breathingPauses >= S.maxBreathingPauses ? sl.alerts.checkVent : undefined}
         />
         <Tile
           icon={Thermometer}
-          label="Habitación"
-          value={`${s.roomTempC} °C`}
-          sub={`mín. ${s.roomTempMinC} · máx. ${s.roomTempMaxC} °C`}
-          alert={tempOut ? `Cómodo ${S.roomTemp.min}–${S.roomTemp.max} °C` : undefined}
+          label={sl.tiles.room}
+          value={`${formatDecimal(s.roomTempC, 1, lang)} °C`}
+          sub={`${sl.minPrefix} ${formatDecimal(s.roomTempMinC, 1, lang)} · ${sl.maxPrefix} ${formatDecimal(s.roomTempMaxC, 1, lang)} °C`}
+          alert={tempOut ? `${sl.alerts.comfortablePrefix} ${S.roomTemp.min}–${S.roomTemp.max} °C` : undefined}
         />
-        <Tile icon={RefreshCw} label="Movimiento" value={`${s.movementIndex}/100`} sub={`${s.awakenings} despertares`} />
-        <Tile icon={BedDouble} label="Salidas del saco" value={`${s.outOfBed}`} sub={`se durmió en ${s.latencyMin} min`} />
-        <Tile icon={Ruler} label="Proximidad" value={`${s.distanceCm} cm`} sub="pecho ↔ sensor" />
-        <Tile icon={Moon} label="Fases" value={`${s.deepPct}% · ${s.remPct}%`} sub="profundo · REM" />
+        <Tile
+          icon={RefreshCw}
+          label={sl.tiles.movement}
+          value={`${s.movementIndex}/100`}
+          sub={`${s.awakenings} ${sl.awakeningsSuffix}`}
+        />
+        <Tile
+          icon={BedDouble}
+          label={sl.tiles.bedExits}
+          value={`${s.outOfBed}`}
+          sub={`${sl.latencyPrefix} ${s.latencyMin} min`}
+        />
+        <Tile icon={Ruler} label={sl.tiles.proximity} value={`${s.distanceCm} cm`} sub={sl.proximitySub} />
+        <Tile icon={Moon} label={sl.tiles.phases} value={`${s.deepPct}% · ${s.remPct}%`} sub={sl.phasesSub} />
       </dl>
       <NightChart night={night} />
     </div>
   );
 }
 
-/* ------------------------------------------------------------------ */
-
-/**
- * Sincroniza la lectura nocturna del sensor ultrasónico. Sustituye la carga
- * manual de las horas de sueño.
- */
 export function SleepSensorPanel({
   night,
   onSync,
 }: {
   night: SleepNight | null;
-  /** Lee la noche del sensor (la genera el llamador). */
   onSync: () => void;
 }) {
+  const { t } = useT();
+  const s = t.missionUi.sleep;
   const [progress, setProgress] = useState<number | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => () => {
-    if (timer.current) clearInterval(timer.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (timer.current) clearInterval(timer.current);
+    },
+    []
+  );
 
   const sync = () => {
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -350,23 +361,22 @@ export function SleepSensorPanel({
     }, 80);
   };
 
+  const syncSteps = [s.syncSteps.s1, s.syncSteps.s2, s.syncSteps.s3];
   const syncing = progress !== null;
   const stepText = syncing
-    ? SYNC_STEPS[Math.min(SYNC_STEPS.length - 1, Math.floor(progress * SYNC_STEPS.length))]
+    ? syncSteps[Math.min(syncSteps.length - 1, Math.floor(progress * syncSteps.length))]
     : null;
 
   return (
-    <section className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 space-y-4" aria-label="Sensor de sueño ultrasónico">
+    <section
+      className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 space-y-4"
+      aria-label={s.title}
+    >
       <div className="flex flex-wrap items-center gap-4">
         <Sonar active={syncing || !night} />
         <div className="min-w-0 flex-1 space-y-1">
-          <p className="text-sm font-semibold text-slate-100">Sensor de sueño ultrasónico</p>
-          <p className="text-xs text-slate-400 max-w-prose">
-            Emite pulsos inaudibles (18–22 kHz) toda la noche y analiza su eco
-            para medir tu respiración, tus movimientos y tu distancia al
-            sensor, además de la temperatura del módulo. No tienes que
-            anotar tus horas de sueño.
-          </p>
+          <p className="text-sm font-semibold text-slate-100">{s.title}</p>
+          <p className="text-xs text-slate-400 max-w-prose">{s.desc}</p>
           {syncing && (
             <div className="space-y-1 pt-1" role="status">
               <p className="text-xs text-cyan-300">{stepText}</p>
@@ -382,12 +392,12 @@ export function SleepSensorPanel({
             onClick={sync}
             className={
               night
-                ? 'inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 text-xs font-semibold hover:bg-slate-800 transition cursor-pointer'
-                : 'inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 text-sm font-bold hover:bg-cyan-400 transition cursor-pointer'
+                ? 'inline-flex items-center gap-2 min-h-[40px] px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 text-xs font-semibold hover:bg-slate-800 transition cursor-pointer'
+                : 'inline-flex items-center gap-2 min-h-[44px] px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 text-sm font-bold hover:bg-cyan-400 transition cursor-pointer'
             }
           >
             <RefreshCw className="h-4 w-4" aria-hidden />
-            {night ? 'Volver a sincronizar' : 'Sincronizar noche'}
+            {night ? s.resyncBtn : s.syncBtn}
           </button>
         )}
       </div>

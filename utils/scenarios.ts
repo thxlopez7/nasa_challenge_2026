@@ -7,7 +7,11 @@ import type { CrewScenario } from '../types/profile';
  */
 
 export type ScenarioFrame = Partial<Biomarkers & Environment>;
-type Full = Required<ScenarioFrame>;
+/** Parámetros que guionizan los escenarios (el resto de sensores sigue su curso). */
+type ScriptKey =
+  | 'heartRate' | 'spO2' | 'cistatinaC' | 'creatinina' | 'calcioIonico' | 'linfocitos'
+  | 'neutrofilos' | 'cortisol' | 'co2Level' | 'radiationRate' | 'radiationAccumulated';
+type Full = Record<ScriptKey, number>;
 
 const NOMINAL: Full = {
   heartRate: 72,
@@ -52,7 +56,7 @@ const DIGITS: Record<keyof Full, number> = {
 /** Ruido pequeño y determinista para que las curvas no sean rectas. */
 const wobble = (t: number, k: number) => Math.sin(t * 1.7 + k * 3.1) * 0.5 + Math.sin(t * 0.43 + k) * 0.5;
 
-const KEYS = Object.keys(NOMINAL) as (keyof Full)[];
+const KEYS = Object.keys(NOMINAL) as ScriptKey[];
 
 /**
  * Guion crítico: parte de las lecturas del último día registrado (para que
@@ -146,73 +150,30 @@ export function scenarioScript(
 /* Bitácora de eventos del escenario                                   */
 /* ------------------------------------------------------------------ */
 
+/** Textos de cada evento: viven en el diccionario (`t.scenarioText`). */
+export type ScenarioEventId =
+  | 'headache' | 'dizziness' | 'nasal'
+  | 'solar' | 'lymph' | 'co2' | 'tachy' | 'hypoxemia';
+
 export interface ScenarioEvent {
+  id: ScenarioEventId;
   /** Segundo del escenario en el que ocurre */
   at: number;
   level: 'info' | 'warning' | 'critical';
-  title: string;
-  detail: string;
-  /** Qué hacer (para la tripulación) */
-  action?: string;
 }
 
 export const SCENARIO_EVENTS: Record<Exclude<CrewScenario, 'live'>, ScenarioEvent[]> = {
   stable: [
-    {
-      at: 12,
-      level: 'info',
-      title: 'Cefalea leve · 3/10',
-      detail: 'Los fluidos del cuerpo se desplazan hacia la cabeza en microgravedad. Es habitual los primeros días.',
-      action: 'Hidrátate, descansa la vista unos minutos y, si persiste, toma el analgésico del botiquín según el protocolo.',
-    },
-    {
-      at: 40,
-      level: 'info',
-      title: 'Mareo al girar la cabeza · 2/10',
-      detail: 'Síndrome de adaptación espacial: el oído interno se reajusta a la ingravidez.',
-      action: 'Mueve la cabeza despacio y fija la mirada en un punto de referencia del módulo.',
-    },
-    {
-      at: 75,
-      level: 'info',
-      title: 'Congestión nasal y cara hinchada',
-      detail: 'Efecto normal de la redistribución de fluidos («cara de luna»). Sin cambios en los signos vitales.',
-      action: 'No requiere tratamiento. Se registra para el seguimiento semanal.',
-    },
+    { id: 'headache', at: 12, level: 'info' },
+    { id: 'dizziness', at: 40, level: 'info' },
+    { id: 'nasal', at: 75, level: 'info' },
   ],
   critical: [
-    {
-      at: 25,
-      level: 'warning',
-      title: 'Evento de partículas solares',
-      detail: 'La radiación sube por encima de 50 µSv/h.',
-      action: 'Desplázate al refugio blindado del módulo.',
-    },
-    {
-      at: 50,
-      level: 'warning',
-      title: 'Linfocitos en descenso',
-      detail: 'Ratio neutrófilos/linfocitos por encima de 3: inmunosupresión por radiación (R2).',
-    },
-    {
-      at: 62,
-      level: 'critical',
-      title: 'Fallo del depurador de CO2',
-      detail: 'El CO2 del módulo supera 3500 ppm (R3).',
-      action: 'Activa el depurador de respaldo y colócate la mascarilla de oxígeno.',
-    },
-    {
-      at: 80,
-      level: 'critical',
-      title: 'Taquicardia y caída de la saturación',
-      detail: 'FC > 120 lpm y SpO2 < 94 %. Cistatina C y calcio elevados (R1).',
-    },
-    {
-      at: 95,
-      level: 'critical',
-      title: 'Hipoxemia grave',
-      detail: 'SpO2 < 90 %. El tripulante deja de responder a las comprobaciones.',
-    },
+    { id: 'solar', at: 25, level: 'warning' },
+    { id: 'lymph', at: 50, level: 'warning' },
+    { id: 'co2', at: 62, level: 'critical' },
+    { id: 'tachy', at: 80, level: 'critical' },
+    { id: 'hypoxemia', at: 95, level: 'critical' },
   ],
 };
 
@@ -226,50 +187,28 @@ export function isLifeThreatening(v: TelemetryData): boolean {
   return v.isEmergency || v.spO2 < 90 || v.heartRate > 140 || (rules >= 2 && (v.spO2 < 94 || v.heartRate > 120));
 }
 
+export type PresumptiveId = 'hypoxemia' | 'hypercapnia' | 'tachycardia' | 'radiation' | 'renal' | 'stress';
+
 export interface PresumptiveFinding {
-  title: string;
-  basis: string;
+  id: PresumptiveId;
   severity: 'critical' | 'warning';
 }
 
 /**
  * Diagnóstico presuntivo a partir de las lecturas. Es orientativo: lo
- * confirma o descarta el cirujano de vuelo en Tierra.
+ * confirma o descarta el cirujano de vuelo en Tierra. Los textos están en
+ * el diccionario (`t.earthAlert.dx`).
  */
 export function presumptiveDiagnosis(v: TelemetryData): PresumptiveFinding[] {
   const out: PresumptiveFinding[] = [];
-  const nlr = v.linfocitos > 0 ? v.neutrofilos / v.linfocitos : 0;
-  if (v.spO2 < 90) {
-    out.push({ title: 'Insuficiencia respiratoria aguda con hipoxemia', basis: `SpO2 ${v.spO2} %`, severity: 'critical' });
-  }
-  if (v.co2Level > 3500) {
-    out.push({ title: 'Hipercapnia por fallo del soporte vital (ECLSS)', basis: `CO2 ${v.co2Level} ppm en el módulo`, severity: v.co2Level > 5000 ? 'critical' : 'warning' });
-  }
-  if (v.heartRate > 120) {
-    out.push({ title: 'Taquicardia con posible descompensación hemodinámica', basis: `FC ${v.heartRate} lpm`, severity: v.heartRate > 140 ? 'critical' : 'warning' });
-  }
-  if (v.radiationRate > 50 && v.linfocitos < 1000) {
-    out.push({ title: 'Inmunosupresión aguda por radiación', basis: `Radiación ${v.radiationRate} µSv/h · linfocitos ${v.linfocitos}/µL · NLR ${nlr.toFixed(1)}`, severity: 'critical' });
-  }
-  if (v.isRenalWarning || v.cistatinaC > 1.15) {
-    out.push({ title: 'Lesión renal incipiente con hipercalcemia', basis: `Cistatina C ${v.cistatinaC} mg/L · Ca²⁺ ${v.calcioIonico} mmol/L · creatinina ${v.creatinina} mg/dL`, severity: 'warning' });
-  }
-  if (v.cortisol > 30) {
-    out.push({ title: 'Respuesta de estrés agudo', basis: `Cortisol ${v.cortisol} ng/mL`, severity: 'warning' });
-  }
+  if (v.spO2 < 90) out.push({ id: 'hypoxemia', severity: 'critical' });
+  if (v.co2Level > 3500) out.push({ id: 'hypercapnia', severity: v.co2Level > 5000 ? 'critical' : 'warning' });
+  if (v.heartRate > 120) out.push({ id: 'tachycardia', severity: v.heartRate > 140 ? 'critical' : 'warning' });
+  if (v.radiationRate > 50 && v.linfocitos < 1000) out.push({ id: 'radiation', severity: 'critical' });
+  if (v.isRenalWarning || v.cistatinaC > 1.15) out.push({ id: 'renal', severity: 'warning' });
+  if (v.cortisol > 30) out.push({ id: 'stress', severity: 'warning' });
   return out;
 }
 
-/** Recomendaciones que acompañan a la alerta (para el equipo médico en Tierra). */
-export const GROUND_RECOMMENDATIONS = [
-  'Confirmar el diagnóstico con el cirujano de vuelo y priorizar la vía aérea: oxígeno al 100 %.',
-  'Ordenar a la tripulación restante el traslado al refugio blindado y el cambio al depurador de CO2 de respaldo.',
-  'Preparar la pauta de hidratación y vigilar la función renal en las próximas lecturas.',
-  'Evaluar el aborto de la actividad en curso y el plan de evacuación médica.',
-];
-
-/** Retraso de la señal Tierra ↔ destino, en segundos (estimación de demo). */
-export const SIGNAL_DELAY_S: Record<'luna' | 'marte', number> = {
-  luna: 1.3,
-  marte: 12.5 * 60,
-};
+/** Claves de las recomendaciones para Tierra (`t.earthAlert.ground`). */
+export const GROUND_RECOMMENDATIONS = ['r1', 'r2', 'r3', 'r4'] as const;

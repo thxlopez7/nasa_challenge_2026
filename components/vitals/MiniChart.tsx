@@ -27,6 +27,7 @@ export function MiniChart({
   area = false,
   domain,
   ariaLabel,
+  waitingText = '…',
 }: {
   points: ChartPoint[];
   tone: ChartTone;
@@ -40,6 +41,8 @@ export function MiniChart({
   /** Rango fijo del eje vertical (si no, se ajusta a los datos y al umbral) */
   domain?: [number, number];
   ariaLabel: string;
+  /** Texto mientras no hay lecturas */
+  waitingText?: string;
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const gid = useId().replace(/:/g, '');
@@ -48,7 +51,7 @@ export function MiniChart({
   const PAD = 6;
 
   if (points.length === 0) {
-    return <div style={{ height }} className="flex items-center text-xs text-slate-600">Esperando lecturas…</div>;
+    return <div style={{ height }} className="flex items-center text-xs text-slate-600">{waitingText}</div>;
   }
 
   const ys = points.map((p) => p.y);

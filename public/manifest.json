@@ -1,0 +1,18 @@
+{
+  "name": "ExoVitals · Autonomous Spaceflight CDSS",
+  "short_name": "ExoVitals",
+  "description": "Edge-first clinical decision support software for deep-space astronaut missions (NASA Space Apps Challenge 2026).",
+  "start_url": "/panel",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#06b6d4",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

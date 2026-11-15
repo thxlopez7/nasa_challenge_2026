@@ -1,101 +1,265 @@
-/** Nivel de severidad global del estado clínico del astronauta */
+/**
+ * Contrato único de datos clínicos y telemetría de ExoVitals.
+ * Todos los stores, motores, simuladores y componentes deben importar de aquí.
+ */
+
 export type AlertSeverity = 'OPTIMAL' | 'WARNING' | 'CRITICAL';
 
-/** Escenarios de simulación de anomalías críticas para pruebas (God Mode) */
 export type SimulationScenario =
   | 'SOLAR_STORM'
   | 'CO2_LEAK'
   | 'RENAL_DAMAGE'
+  | 'BONE_LOSS'
+  | 'CARDIO_DECONDITIONING'
   | 'RESET';
 
-/** Alias de compatibilidad para módulos existentes */
-export type SeverityLevel = AlertSeverity;
+/** Alias legado mantenido para retrocompatibilidad */
 export type ScenarioType = SimulationScenario;
 
-/** Biomarcadores fisiológicos y hematológicos del astronauta */
+export type MeasurementSource = 'sensor' | 'manual';
+
+export type GlucoseContext = 'fasting' | 'postprandial';
+
+export type EscalationLevel =
+  | 'self-manage'
+  | 'notify-flight-surgeon'
+  | 'emergency';
+
+export type TrackedIndicatorKey =
+  | 'bp'
+  | 'glucose'
+  | 'temp'
+  | 'vitals'
+  | 'bloodPanel'
+  | 'radiation'
+  | 'behavioral';
+
+export interface IndicatorMeta {
+  measuredAt: string;
+  source: MeasurementSource;
+}
+
+export interface BehavioralCheckInData {
+  /** 1 = muy bajo · 5 = excelente */
+  mood: number;
+  /** 1 = muy mala · 5 = reparadora */
+  sleepQuality: number;
+  /** 1 = descansado · 5 = agotado */
+  fatigue: number;
+  /** 1 = calma · 5 = estrés máximo */
+  stress: number;
+  /** 1 = ligera · 5 = sobrecarga */
+  workload: number;
+  /** 1 = aislado · 5 = conectado */
+  socialContact: number;
+  /** PHQ-2 ítem 1 (0–3): poco interés o placer */
+  phq2Anhedonia: 0 | 1 | 2 | 3;
+  /** PHQ-2 ítem 2 (0–3): decaimiento o desesperanza */
+  phq2Dysphoria: 0 | 1 | 2 | 3;
+  /** Bandera de seguridad (pensamientos de autolesión) — activa escalamiento inmediato */
+  selfHarmFlag: boolean;
+  /** Índice compuesto 0–100 calculado determinísticamente */
+  behavioralRiskIndex: number;
+  /** Opt-in explícito para compartir este check-in con el asistente de IA */
+  sharePsychWithAi: boolean;
+  /** Marca temporal ISO de la última actualización */
+  updatedAt: string;
+}
+
+/** Variables biométricas del tripulante (núcleo + captura manual P2) */
 export interface Biomarkers {
   /** Frecuencia cardíaca en latidos por minuto (BPM) */
   heartRate: number;
-  /** Saturación periférica de oxígeno en porcentaje (%) */
+  /** Saturación arterial de oxígeno (%) */
   spO2: number;
-  /** Cistatina C sérica en miligramos por litro (mg/L) — crucial para función renal en 0G */
+  /** Cistatina C sérica (mg/L) — marcador de filtrado glomerular menos dependiente de masa muscular */
   cistatinaC: number;
-  /** Creatinina sérica en miligramos por decilitro (mg/dL) */
+  /** Creatinina sérica (mg/dL) — disminuye en atrofia muscular por microgravedad */
   creatinina: number;
-  /** Calcio iónico libre en sangre en milimoles por litro (mmol/L) */
+  /** Calcio iónico sérico (mmol/L) — se eleva por resorción ósea en 0G */
   calcioIonico: number;
-  /** Recuento absoluto de linfocitos en células por microlitro (cél/µL) */
+  /** Linfocitos totales (células/µL) */
   linfocitos: number;
-  /** Recuento absoluto de neutrófilos en células por microlitro (cél/µL) */
+  /** Neutrófilos totales (células/µL) */
   neutrofilos: number;
-  /** Nivel de cortisol sérico en nanogramos por mililitro (ng/mL) — biomarcador de estrés */
+  /** Cortisol sérico/salival (ng/mL) — indicador de estrés */
   cortisol: number;
+
+  // --- Indicadores adicionales P2 (opcionales para retrocompatibilidad con streams 11-key) ---
+  /** Presión arterial sistólica (mmHg) */
+  systolicMmHg?: number;
+  /** Presión arterial diastólica (mmHg) */
+  diastolicMmHg?: number;
+  /** Glucosa capilar (mg/dL) */
+  glucoseMgDl?: number;
+  /** Contexto metabólico de la glucosa capilar */
+  glucoseContext?: GlucoseContext;
+  /** Temperatura corporal central/timpánica (°C) */
+  bodyTempC?: number;
+
+  // --- Indicadores adicionales P6: Óseo/Muscular y Cardiovascular extendido ---
+  /** Índice bioquímico de resorción ósea CTX/NTX (ratio prototipo; basal ~1.0) — DXA no disponible a bordo */
+  ctxNtxIndex?: number;
+  /** Índice de formación ósea P1NP (ratio prototipo; basal ~1.0) — reemplazo bioquímico sin DXA */
+  p1npIndex?: number;
+  /** Adherencia / carga semanal acumulada en equipo resistivo ARED (% del objetivo) */
+  aredLoadPct?: number;
+  /** Variabilidad de frecuencia cardíaca en reposo RMSSD (ms) */
+  hrvRmssdMs?: number;
+  /** Prueba ortostática simplificada: delta FC al incorporarse (+lpm) */
+  orthostaticDeltaHr?: number;
+  /** Prueba ortostática simplificada: variación en PAS al incorporarse (mmHg) */
+  orthostaticDeltaSys?: number;
 }
 
-/** Telemetría ambiental del hábitat / traje espacial (ECLSS) */
+/** Variables ambientales del módulo presurizado / traje EVA */
 export interface Environment {
-  /** Concentración ambiental de dióxido de carbono en partes por millón (ppm) */
+  /** Nivel ambiental de CO2 en cabina (ppm) */
   co2Level: number;
-  /** Tasa de dosis de radiación ionizante actual en microsieverts por hora (µSv/h) */
+  /** Tasa instantánea de radiación ionizante (µSv/h) */
   radiationRate: number;
-  /** Dosis equivalente de radiación acumulada en la misión en milisieverts (mSv) */
+  /** Dosis acumulada de radiación ionizante en misión (mSv) */
   radiationAccumulated: number;
 }
 
-/** Banderas deterministas de alerta clínica generadas por el motor médico */
+/** Banderas booleanas de alerta clínica evaluadas en cada tick o ingesta manual */
 export interface ClinicalAlerts {
-  /** Botón rojo de colapso o emergencia médica crítica en curso */
+  /** Paro o emergencia crítica activada manualmente o por crisis vital/conductual */
   isEmergency: boolean;
-  /** Alerta de disfunción renal / sarcopenia / riesgo de nefrolitiasis en microgravedad */
+  /** Alerta de nefropatía oculta e hipercalcemia */
   isRenalWarning: boolean;
-  /** Alerta de inmunosupresión aguda inducida por radiación espacial (NLR elevado + linfopenia) */
+  /** Alerta de inmunosupresión por radiación espacial (NLR elevado + linfopenia) */
   isRadiationWarning: boolean;
-  /** Alerta de entorno hostil por hipercapnia local (CO2 elevado con SpO2 conservada) */
+  /** Alerta de entorno hostil por acumulación de CO2 con SpO2 conservada */
   isCo2Warning: boolean;
+}
+
+export interface ManualVitalsPatch {
+  systolicMmHg?: number;
+  diastolicMmHg?: number;
+  glucoseMgDl?: number;
+  glucoseContext?: GlucoseContext;
+  bodyTempC?: number;
+  heartRate?: number;
+  spO2?: number;
+  cistatinaC?: number;
+  creatinina?: number;
+  calcioIonico?: number;
+  linfocitos?: number;
+  neutrofilos?: number;
+  cortisol?: number;
+  ctxNtxIndex?: number;
+  p1npIndex?: number;
+  aredLoadPct?: number;
+  hrvRmssdMs?: number;
+  orthostaticDeltaHr?: number;
+  orthostaticDeltaSys?: number;
+  measuredAt?: string;
+}
+
+export interface BehavioralCheckInInput {
+  mood: number;
+  sleepQuality: number;
+  fatigue: number;
+  stress: number;
+  workload: number;
+  socialContact: number;
+  phq2Anhedonia: 0 | 1 | 2 | 3;
+  phq2Dysphoria: 0 | 1 | 2 | 3;
+  selfHarmFlag: boolean;
+  sharePsychWithAi: boolean;
+  updatedAt?: string;
 }
 
 /** Contrato completo del Store Global de Telemetría (Estado + Acciones) */
 export interface TelemetryState extends Biomarkers, Environment, ClinicalAlerts {
-  /** Interruptor que pausa la inyección automática de SensorSimulator cuando hay un escenario manual activo */
+  /** Interruptor que pausa la inyección automática de SensorSimulator */
   isManualOverride: boolean;
-  /** Fusiona lecturas parciales de sensores y recalcula automáticamente las alertas clínicas */
+  /** Marca temporal ISO del último dato recibido */
+  measuredAt?: string;
+  /** Origen principal del último lote vital */
+  source?: MeasurementSource;
+  /** Metadatos de frescura y origen por grupo de indicadores */
+  indicatorMeta?: Partial<Record<TrackedIndicatorKey, IndicatorMeta>>;
+  /** Registro conductual diario del astronauta */
+  behavioralCheckIn?: BehavioralCheckInData;
+  /** Opt-in explícito de privacidad psicológica hacia IA */
+  sharePsychWithAi?: boolean;
+  /** Nivel de escalamiento recomendado para el tripulante */
+  escalationLevel?: EscalationLevel;
+  /** Simulación manual de pérdida de enlace Tierra–nave */
+  simulateOffline?: boolean;
+
+  /** Fusiona lecturas parciales de sensores y recalcula alertas clínicas */
   updateSensors: (data: Partial<Biomarkers & Environment>) => void;
-  /** Activa manualmente el protocolo de emergencia crítica (isEmergency = true) */
+  /** Registra signos vitales manuales validados con marca temporal y origen manual */
+  logManualVitals: (patch: ManualVitalsPatch) => void;
+  /** Registra check-in conductual y PHQ-2, recalculando índice de riesgo y escalamiento */
+  submitBehavioralCheckIn: (input: BehavioralCheckInInput) => void;
+  /** Cambia la autorización de compartir datos conductuales con IA */
+  setSharePsychWithAi: (share: boolean) => void;
+  /** Activa o desactiva la simulación de pérdida de enlace */
+  setSimulateOffline: (offline: boolean) => void;
+  /** Activa manualmente el protocolo de emergencia crítica */
   triggerCodeRed: () => void;
   /** Inyecta un escenario de simulación predefinido o restaura los valores nominales */
   simulateScenario: (scenario: SimulationScenario) => void;
 }
 
-/** Tipo utilitario que representa únicamente los datos clínicos puros sin métodos ni banderas internas del simulador */
+/** Datos clínicos puros sin métodos ni banderas internas del simulador */
 export type TelemetryData = Omit<
   TelemetryState,
-  'updateSensors' | 'triggerCodeRed' | 'simulateScenario' | 'isManualOverride'
+  | 'updateSensors'
+  | 'logManualVitals'
+  | 'submitBehavioralCheckIn'
+  | 'setSharePsychWithAi'
+  | 'setSimulateOffline'
+  | 'triggerCodeRed'
+  | 'simulateScenario'
+  | 'isManualOverride'
 > & {
   isManualOverride?: boolean;
 };
 
 /**
- * Estado inicial nominal de un astronauta sano en condiciones óptimas de misión.
- * Permite al equipo de UI maquetar componentes y gráficas sin depender de Zustand.
+ * Estado inicial nominal determinístico (sin marcas temporales dinámicas en SSR
+ * para evitar hydration mismatch).
  */
 export const mockInitialState: Omit<
   TelemetryState,
-  'updateSensors' | 'triggerCodeRed' | 'simulateScenario'
+  | 'updateSensors'
+  | 'logManualVitals'
+  | 'submitBehavioralCheckIn'
+  | 'setSharePsychWithAi'
+  | 'setSimulateOffline'
+  | 'triggerCodeRed'
+  | 'simulateScenario'
 > = {
   // Biomarkers
-  heartRate: 72, // BPM
-  spO2: 99, // %
-  cistatinaC: 0.8, // mg/L
-  creatinina: 1.1, // mg/dL
-  calcioIonico: 1.1, // mmol/L
-  linfocitos: 1500, // cél/µL
-  neutrofilos: 3000, // cél/µL
-  cortisol: 10, // ng/mL
+  heartRate: 72,
+  spO2: 99,
+  cistatinaC: 0.8,
+  creatinina: 1.1,
+  calcioIonico: 1.1,
+  linfocitos: 1500,
+  neutrofilos: 3000,
+  cortisol: 10,
+  systolicMmHg: 118,
+  diastolicMmHg: 76,
+  glucoseMgDl: 92,
+  glucoseContext: 'fasting',
+  bodyTempC: 36.7,
+  ctxNtxIndex: 1.02,
+  p1npIndex: 0.98,
+  aredLoadPct: 92,
+  hrvRmssdMs: 46,
+  orthostaticDeltaHr: 11,
+  orthostaticDeltaSys: -4,
 
   // Environment
-  co2Level: 600, // ppm
-  radiationRate: 15.5, // µSv/h
-  radiationAccumulated: 45, // mSv
+  co2Level: 600,
+  radiationRate: 15.5,
+  radiationAccumulated: 45,
 
   // ClinicalAlerts
   isEmergency: false,
@@ -103,9 +267,13 @@ export const mockInitialState: Omit<
   isRadiationWarning: false,
   isCo2Warning: false,
 
-  // Control de Simulación
+  // Metadatos y escalamiento (determinísticos para SSR)
   isManualOverride: false,
+  simulateOffline: false,
+  source: 'sensor',
+  sharePsychWithAi: false,
+  escalationLevel: 'self-manage',
+  indicatorMeta: {},
 };
 
-/** Alias en UPPER_SNAKE_CASE para importación estándar de constantes */
 export const MOCK_INITIAL_STATE = mockInitialState;
