@@ -81,8 +81,8 @@ const SYSTEM_META: Record<
 
 // Color + forma + texto: nunca solo color
 const STATUS_ICON: Record<StatusColor, string> = { green: "✓", amber: "▲", red: "■" };
-// Paleta EXOVITALS: cian nominal, ámbar precaución, rojo crítico (+ forma y texto).
-const STATUS_FILL: Record<StatusColor, string> = { green: "#00E5FF", amber: "#FFB703", red: "#FF3B4E" };
+// Paleta EXOVITALS: verde nominal (ev-green), ámbar vigilar, rojo crítico; cian queda para acciones.
+const STATUS_FILL: Record<StatusColor, string> = { green: "#2EE6A6", amber: "#FFB703", red: "#FF3B4E" };
 const ORDER: StatusColor[] = ["red", "amber", "green"];
 
 const GLOBAL_CSS = `
