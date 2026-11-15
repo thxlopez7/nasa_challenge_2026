@@ -120,7 +120,6 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
     };
 
     applyHashFromUrl();
-    hasInitializedHashRef.current = true;
 
     const params = new URLSearchParams(window.location.search);
     if (params.get('demo') === '1') {
@@ -164,7 +163,14 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
 
   // Keep URL hash in sync whenever user changes tab or deep-links into a non-default tab
   useEffect(() => {
-    if (!hasInitializedHashRef.current) return;
+    if (!hasInitializedHashRef.current) {
+      // Espera a que el store refleje la pestaña del deep-link antes de reescribir
+      // el hash; si no, el primer render (pestaña por defecto) pisaría #registrar.
+      if (activeTab === parseCommandTabHash(window.location.hash)) {
+        hasInitializedHashRef.current = true;
+      }
+      return;
+    }
     const rawHash = window.location.hash.replace(/^#/, '').trim().toLowerCase();
     if (!rawHash && activeTab === 'hoy' && !userChangedTabRef.current) return;
     const expectedHash = `#${activeTab}`;

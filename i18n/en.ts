@@ -2,6 +2,7 @@ import type { TranslationDict } from './es';
 
 export const en: TranslationDict = {
   common: {
+    documentTitle: 'ExoVitals · Autonomous Flight Medicine',
     prototypeBadge: 'PROTOTYPE · SIMULATED DATA · NOT A MEDICAL DEVICE',
     loading: 'Loading…',
     loading3dBody: 'Loading 3D body…',

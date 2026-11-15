@@ -68,6 +68,18 @@ export function resolveTranslationKey(
   return esFallback ?? fallback ?? path;
 }
 
+/** Refleja el idioma activo en `?lang=` sin perder el resto de la query ni el hash. */
+function syncLangUrlParam(lang: SupportedLang): void {
+  try {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('lang') === lang) return;
+    url.searchParams.set('lang', lang);
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+  } catch {
+    // Entornos sin history/URL: ignorar
+  }
+}
+
 export function setAppLanguage(lang: SupportedLang): void {
   if (currentLang === lang) {
     if (typeof document !== 'undefined') {
@@ -83,6 +95,7 @@ export function setAppLanguage(lang: SupportedLang): void {
       // Modo privado / sin localStorage: ignorar
     }
     document.documentElement.lang = lang;
+    syncLangUrlParam(lang);
   }
   listeners.forEach((l) => l());
 }
@@ -127,6 +140,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof document !== 'undefined') {
       document.documentElement.lang = lang;
+      document.title = DICTS[lang].common.documentTitle;
     }
   }, [lang]);
 

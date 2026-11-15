@@ -1,5 +1,6 @@
 export const es = {
   common: {
+    documentTitle: 'ExoVitals · Medicina de vuelo autónoma',
     prototypeBadge: 'PROTOTIPO · DATOS SIMULADOS · NO ES UN DISPOSITIVO MÉDICO',
     loading: 'Cargando…',
     loading3dBody: 'Cargando cuerpo 3D…',
