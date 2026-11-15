@@ -50,8 +50,13 @@ const BANNER_STYLE: Record<
 
 export function NextActionBanner({
   recommendation,
+  embedded = false,
+  label,
 }: {
   recommendation: NextActionRecommendation;
+  /** Dentro de StatusHero: sin caja propia, solo fila de acción. */
+  embedded?: boolean;
+  label?: string;
 }) {
   const { t } = useT();
   const setActiveTab = useCommandUiStore((s) => s.setActiveTab);
@@ -94,17 +99,20 @@ export function NextActionBanner({
   return (
     <section
       aria-label={t.command.nextAction.label}
-      className={`rounded-xl border px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 ${style.wrap}`}
+      className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 ${
+        embedded ? '' : `rounded-xl border px-3.5 py-2.5 ${style.wrap}`
+      }`}
     >
       <div className="flex items-start sm:items-center gap-2.5 min-w-0">
-        <Icon className="h-5 w-5 shrink-0 mt-0.5 sm:mt-0" aria-hidden />
-        <div className="min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
+        <Icon className="h-5 w-5 shrink-0 mt-0.5 sm:mt-0 text-slate-300" aria-hidden />
+        <div className="min-w-0 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+          {label && <span className="cc-eyebrow">{label}</span>}
           <span
             className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${style.badge}`}
           >
             {t.command.nextAction[style.badgeKey]}
           </span>
-          <p className="text-xs sm:text-sm font-semibold leading-snug truncate">
+          <p className="text-sm sm:text-base font-medium text-slate-100 leading-snug">
             {recommendation.title}
           </p>
         </div>
@@ -113,7 +121,7 @@ export function NextActionBanner({
       <button
         type="button"
         onClick={handleAction}
-        className={`min-h-[44px] shrink-0 inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-xs font-bold uppercase tracking-wider cursor-pointer transition ${style.cta}`}
+        className={`min-h-[44px] shrink-0 inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold cursor-pointer transition shadow-[0_0_0_1px_rgba(255,255,255,0.08)] ${style.cta}`}
       >
         <span>{recommendation.ctaLabel}</span>
         <ArrowRight className="h-3.5 w-3.5" aria-hidden />

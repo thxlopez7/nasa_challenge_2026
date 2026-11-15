@@ -455,3 +455,19 @@ describe('Command Center Tabs, NextAction, Mosaic & UI Store (Fase B)', () => {
     expect(useCommandUiStore.getState().emergencyChecklist.s1).toBe(false);
   });
 });
+
+describe('deriveOverallLevel', () => {
+  const base = { globalSeverity: 'OPTIMAL' as const, escalationLevel: 'routine', alerts: { isEmergency: false } };
+  it('separa nominal, vigilancia, aviso y crítico', async () => {
+    const { deriveOverallLevel } = await import('../utils/nextAction');
+    const s = base as unknown as Parameters<typeof deriveOverallLevel>[0];
+    expect(deriveOverallLevel(s, [{ status: 'green' }])).toBe('nominal');
+    expect(deriveOverallLevel(s, [{ status: 'amber' }])).toBe('watch');
+    expect(deriveOverallLevel({ ...s, globalSeverity: 'WARNING' }, [])).toBe('warning');
+    expect(deriveOverallLevel(s, [{ status: 'red' }])).toBe('critical');
+    // Código Rojo automático (SpO₂ < 90) aunque la severidad del motor sea WARNING.
+    expect(
+      deriveOverallLevel({ ...s, globalSeverity: 'WARNING', escalationLevel: 'emergency' } as typeof s, [])
+    ).toBe('critical');
+  });
+});

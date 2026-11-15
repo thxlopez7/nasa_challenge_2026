@@ -164,18 +164,11 @@ function DailyChart({ meta, records, live, t }: {
 /* ------------------------------------------------------------------ */
 
 /**
- * Evolución del tripulante: índice de salud y signos vitales segundo a
- * segundo, y la tendencia día a día con el día de hoy en vivo. Cuando entra
- * en crisis vital, las tarjetas afectadas se ponen en rojo y laten.
+ * Graba una lectura por segundo (también si el God Mode congela los datos).
+ * Vive en el Centro de mando para que la historia siga corriendo aunque la
+ * gráfica esté en otra pestaña.
  */
-export function LiveEvolution() {
-  const { t: dict } = useT();
-  const samples = useVitalsHistory((s) => s.samples);
-  const records = useMissionStore((s) => s.records);
-  const t = useTelemetryStore();
-  const e = dict.evolution;
-
-  // Graba una lectura por segundo (también si el God Mode congela los datos).
+export function useLiveVitalsRecorder(resetKey?: string) {
   useEffect(() => {
     const { push, clear } = useVitalsHistory.getState();
     clear();
@@ -188,7 +181,21 @@ export function LiveEvolution() {
       window.clearInterval(id);
       unsub();
     };
-  }, []);
+  }, [resetKey]);
+}
+
+/**
+ * Evolución del tripulante: índice de salud y signos vitales segundo a
+ * segundo, y la tendencia día a día con el día de hoy en vivo. Cuando entra
+ * en crisis vital, las tarjetas afectadas se ponen en rojo y laten.
+ */
+export function LiveEvolution() {
+  const { t: dict } = useT();
+  const samples = useVitalsHistory((s) => s.samples);
+  const records = useMissionStore((s) => s.records);
+  const t = useTelemetryStore();
+  const e = dict.evolution;
+
 
   const score = healthScore(t);
   const band = bandOf(score);
@@ -201,11 +208,11 @@ export function LiveEvolution() {
   const sorted = Object.values(records).sort((a, b) => a.missionDay - b.missionDay);
 
   return (
-    <section aria-labelledby="evo-title" className="ev-glass ev-corners rounded-xl p-6 space-y-6">
+    <section aria-labelledby="evo-title" className="ev-glass ev-corners rounded-xl p-4 sm:p-6 space-y-5 sm:space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 id="evo-title" className="text-lg font-black uppercase tracking-wider text-cyan-400">{e.title}</h2>
-          <p className="font-lead text-base text-slate-300">{e.subtitle}</p>
+          <p className="font-lead text-sm sm:text-base text-slate-300">{e.subtitle}</p>
         </div>
         <span className={`inline-flex items-center gap-2 rounded border px-3 py-1 text-xs font-black uppercase tracking-wider ${style.cls}`}>
           <Activity className="h-4 w-4" aria-hidden /> {e.bands[band]}
@@ -213,7 +220,7 @@ export function LiveEvolution() {
       </div>
 
       {band === 'critical' && (
-        <div role="alert" className="vital-crisis flex items-start gap-3 rounded-lg border-2 border-red-500 bg-red-500/15 p-4">
+        <div role="alert" className="vital-crisis flex items-start gap-3 rounded-lg border-2 border-red-500 bg-red-500/15 p-3.5 sm:p-4">
           <Siren className="h-6 w-6 shrink-0 text-red-300" aria-hidden />
           <div>
             <p className="font-black uppercase tracking-wider text-red-100">{e.crisis}</p>
@@ -230,8 +237,8 @@ export function LiveEvolution() {
       <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
         <div className="space-y-1">
           <p className="text-xs uppercase tracking-wider text-slate-400">{e.scoreLabel}</p>
-          <p className="text-6xl font-thin tabular-nums text-white">
-            {score}<span className="text-xl text-slate-500">/100</span>
+          <p className="text-4xl sm:text-6xl font-thin tabular-nums text-white">
+            {score}<span className="text-lg sm:text-xl text-slate-500">/100</span>
           </p>
           <Trend t={dict} dir={scoreDir} text={e.deltaIn(`${scoreDelta >= 0 ? '+' : ''}${scoreDelta}`, COMPARE_S)} />
           <p className="text-[11px] text-slate-500">{e.scoreLegend(SCORE_STABLE, SCORE_CRISIS)}</p>

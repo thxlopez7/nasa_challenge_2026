@@ -88,7 +88,7 @@ function ProfileTile({
 /* ------------------------------------------------------------------ */
 
 const field =
-  'w-full rounded-lg border border-slate-600 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none';
+  'min-h-[44px] w-full rounded-lg border border-slate-600 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none';
 const label = 'block text-xs uppercase tracking-wider text-slate-400 mb-1';
 
 function CreateProfile({ onDone, onCancel }: { onDone: (p: CrewProfile) => void; onCancel: () => void }) {
@@ -216,7 +216,7 @@ function CreateProfile({ onDone, onCancel }: { onDone: (p: CrewProfile) => void;
           <label htmlFor="pf-agency" className={label}>{f.agency}</label>
           <input id="pf-agency" name="agency" className={field} placeholder={f.agencyPlaceholder} />
         </div>
-        <div className="grid grid-cols-3 gap-3 sm:col-span-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:col-span-2">
           <div>
             <label htmlFor="pf-age" className={label}>{f.age}</label>
             <input id="pf-age" name="age" type="number" min={18} max={80} className={field} placeholder="35" />
@@ -257,10 +257,10 @@ function CreateProfile({ onDone, onCancel }: { onDone: (p: CrewProfile) => void;
       {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
 
       <div className="flex flex-wrap gap-3">
-        <button type="submit" data-ev-press className="rounded-lg bg-white px-6 py-2.5 text-sm font-black uppercase tracking-wider text-black hover:bg-cyan-200 transition cursor-pointer">
+        <button type="submit" data-ev-press className="min-h-[44px] flex-1 sm:flex-initial rounded-lg bg-white px-6 py-2.5 text-sm font-black uppercase tracking-wider text-black hover:bg-cyan-200 transition cursor-pointer">
           {f.submit}
         </button>
-        <button type="button" onClick={onCancel} className="rounded-lg border border-slate-500 px-6 py-2.5 text-sm uppercase tracking-wider text-slate-300 hover:border-white hover:text-white transition cursor-pointer">
+        <button type="button" onClick={onCancel} className="min-h-[44px] flex-1 sm:flex-initial rounded-lg border border-slate-500 px-6 py-2.5 text-sm uppercase tracking-wider text-slate-300 hover:border-white hover:text-white transition cursor-pointer">
           {f.cancel}
         </button>
       </div>
@@ -286,11 +286,11 @@ export function ProfilePicker({ onPick, onBack }: { onPick: (p: CrewProfile) => 
   return (
     <div className="profile-screen relative h-[100svh] w-full overflow-y-auto bg-[#03020b] text-white">
       <div className="profile-bg" aria-hidden />
-      <div className="relative z-10 mx-auto flex min-h-full max-w-5xl flex-col items-center justify-center gap-10 px-5 py-16 text-center">
+      <div className="relative z-10 mx-auto flex min-h-full max-w-5xl flex-col items-center justify-center gap-6 sm:gap-10 px-4 sm:px-5 pt-16 pb-10 sm:py-16 text-center">
         <button
           type="button"
           onClick={mode === 'create' ? () => setMode('pick') : onBack}
-          className="absolute left-5 top-5 inline-flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-slate-400 hover:text-white transition cursor-pointer"
+          className="min-h-[44px] absolute left-4 top-3 sm:left-5 sm:top-5 inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] sm:tracking-[0.25em] text-slate-400 hover:text-white transition cursor-pointer"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden /> {mode === 'create' ? pt.backProfiles : pt.backMissions}
         </button>
@@ -300,17 +300,17 @@ export function ProfilePicker({ onPick, onBack }: { onPick: (p: CrewProfile) => 
         ) : (
           <>
             <div className="space-y-2 profile-rise">
-              <h1 className="font-heading font-bold text-4xl sm:text-6xl tracking-tight text-white">
+              <h1 className="font-heading font-bold text-3xl sm:text-6xl tracking-tight text-white">
                 {managing ? pt.titleManage : pt.title}
               </h1>
-              <p className="font-lead text-lg text-slate-300">
+              <p className="font-lead text-base sm:text-lg text-slate-300">
                 {managing
                   ? pt.subtitleManage
                   : pt.subtitle}
               </p>
             </div>
 
-            <ul className="profile-rise flex flex-wrap items-start justify-center gap-6 sm:gap-10" style={{ animationDelay: '0.15s' }}>
+            <ul className="profile-rise grid grid-cols-2 sm:flex sm:flex-wrap items-start justify-center gap-4 sm:gap-10 w-full max-w-md sm:max-w-none" style={{ animationDelay: '0.15s' }}>
               {profiles.map((p) => (
                 <ProfileTile
                   key={p.id}
@@ -340,7 +340,7 @@ export function ProfilePicker({ onPick, onBack }: { onPick: (p: CrewProfile) => 
               <button
                 type="button"
                 onClick={() => setMode(managing ? 'pick' : 'manage')}
-                className="profile-rise inline-flex items-center gap-2 border border-slate-500 px-6 py-2 text-sm uppercase tracking-[0.25em] text-slate-300 hover:border-white hover:text-white transition cursor-pointer"
+                className="profile-rise min-h-[44px] inline-flex items-center gap-2 border border-slate-500 px-6 py-2 text-sm uppercase tracking-[0.25em] text-slate-300 hover:border-white hover:text-white transition cursor-pointer"
                 style={{ animationDelay: '0.3s' }}
               >
                 {managing ? <><Check className="h-4 w-4" aria-hidden /> {pt.done}</> : <><Pencil className="h-4 w-4" aria-hidden /> {pt.manage}</>}

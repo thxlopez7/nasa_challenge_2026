@@ -29,7 +29,7 @@ export function ActiveAlertsStrip({
     return (
       <section
         aria-label={t.command.alertsStrip.noAlertsTitle}
-        className="rounded-xl border border-emerald-500/30 bg-emerald-950/15 px-3.5 py-2.5 flex items-center justify-between gap-2.5 min-h-[56px]"
+        className="rounded-xl border bg-slate-900 p-4 flex items-start gap-3"
       >
         <div className="flex items-center gap-2.5 min-w-0">
           <CheckCircle2
@@ -37,10 +37,10 @@ export function ActiveAlertsStrip({
             aria-hidden
           />
           <div className="min-w-0">
-            <p className="text-xs font-bold text-emerald-200 truncate">
+            <p className="text-sm font-semibold text-slate-100">
               {t.command.alertsStrip.noAlertsTitle}
             </p>
-            <p className="text-[11px] text-slate-300 truncate">
+            <p className="mt-1 text-sm text-slate-400 leading-relaxed">
               {t.command.alertsStrip.noAlertsDetail}
             </p>
           </div>

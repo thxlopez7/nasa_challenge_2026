@@ -43,9 +43,9 @@ import DiagnosticPanel from './DiagnosticPanel';
 type Run = (action: () => void) => void;
 
 const PRIMARY =
-  'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 text-sm font-bold hover:bg-cyan-400 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed';
+  'min-h-[44px] inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 text-sm font-bold hover:bg-cyan-400 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed';
 const SECONDARY =
-  'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-slate-700 text-slate-300 text-sm font-semibold hover:bg-slate-800 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed';
+  'min-h-[44px] inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-slate-700 text-slate-300 text-sm font-semibold hover:bg-slate-800 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed';
 
 /** Lee la telemetría actual como datos puros (sin acciones del store). */
 function snapshotTelemetry(): TelemetryData {
@@ -175,7 +175,7 @@ function ScaleInput({
             type="button"
             onClick={() => onChange(n)}
             aria-pressed={value === n}
-            className={`h-10 w-10 rounded-lg border text-sm font-bold transition cursor-pointer ${
+            className={`min-h-[44px] min-w-[44px] rounded-lg border text-sm font-bold transition cursor-pointer ${
               value === n
                 ? 'border-cyan-400 bg-cyan-500/20 text-cyan-200'
                 : 'border-slate-700 text-slate-400 hover:bg-slate-800'

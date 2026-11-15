@@ -198,9 +198,9 @@ export function SystemDetailDrawer({ tiles }: { tiles: SystemTileData[] }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="system-drawer-title"
-        className="w-full max-w-xl bg-slate-900 border-l border-slate-800 h-full overflow-y-auto shadow-2xl flex flex-col"
+        className="w-full max-w-xl bg-slate-900 border-l border-slate-800 h-[100dvh] overflow-y-auto shadow-2xl flex flex-col"
       >
-        <div className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-5 py-4 flex items-center justify-between gap-3">
+        <div className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-4 sm:px-5 py-3.5 sm:py-4 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span
