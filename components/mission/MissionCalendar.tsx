@@ -177,7 +177,7 @@ function NavButton({ dir, disabled, onClick, label }: {
     onClick={onClick}
     disabled={disabled}
     aria-label={label}
-    className="h-8 w-8 rounded-lg border border-slate-700 text-slate-300 flex items-center justify-center hover:bg-slate-800 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+    className="min-h-[44px] min-w-[44px] rounded-lg border border-slate-700 text-slate-300 flex items-center justify-center hover:bg-slate-800 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
   >
     {dir === 'prev' ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
   </button>
@@ -259,7 +259,7 @@ export function MissionCalendar({
               role="tab"
               aria-selected={view === v}
               onClick={() => setView(v)}
-              className={`px-3 py-1.5 rounded-md text-sm font-semibold cursor-pointer ${
+              className={`min-h-[40px] px-3 py-1.5 rounded-md text-sm font-semibold cursor-pointer ${
                 view === v ? 'bg-cyan-500/15 text-cyan-200' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -286,7 +286,7 @@ export function MissionCalendar({
             <NavButton dir="next" disabled={week >= totalWeeks} onClick={() => setWeek(week + 1)} label={t.missionUi.cal.weekNext} />
           </div>
 
-          <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-7 gap-2">
             {weekDays.map((d) => {
               const date = dateOfMissionDay(mission, d);
               const kind = kindOf(date, today, records);
@@ -302,7 +302,7 @@ export function MissionCalendar({
                   onClick={() => setSelected(d)}
                   aria-pressed={selected === d}
                   aria-label={`${t.missionUi.cal.dayPrefix} ${d}, ${formattedDate}: ${cellLabel}`}
-                  className={`rounded-lg border p-2 text-left transition cursor-pointer min-w-0 ${
+                  className={`min-h-[68px] rounded-lg border p-2.5 sm:p-2 text-left transition cursor-pointer min-w-0 ${
                     selected === d ? 'border-cyan-400 bg-cyan-500/5' : 'border-slate-800 hover:border-slate-600'
                   }`}
                 >
@@ -311,9 +311,9 @@ export function MissionCalendar({
                   <div className={`mt-2 h-1.5 rounded-full ${CELL_STYLE[kind].fill}`} aria-hidden />
                   <p className={`mt-2 text-[11px] inline-flex items-center gap-1 ${done ? 'text-slate-200' : 'text-slate-500'}`}>
                     <Icon className="h-3 w-3 shrink-0" aria-hidden />
-                    <span className="truncate hidden sm:inline">{cellLabel}</span>
+                    <span className="truncate">{cellLabel}</span>
                   </p>
-                  {r && <p className="text-[11px] text-slate-500 tabular-nums hidden sm:block">{formatNumber(r.xp, lang)} XP</p>}
+                  {r && <p className="text-[11px] text-slate-500 tabular-nums">{formatNumber(r.xp, lang)} XP</p>}
                 </button>
               );
             })}

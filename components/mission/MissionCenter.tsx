@@ -431,7 +431,7 @@ export function MissionCenter({ preferredProfile }: { preferredProfile?: Mission
             <MissionHeader mission={mission} today={today} totalXp={totalXp} />
           )}
 
-          <div role="tablist" aria-label={t.missionUi.tablistAria} className="flex gap-1 border-b border-slate-800 overflow-x-auto">
+          <div role="tablist" aria-label={t.missionUi.tablistAria} className="flex gap-1 border-b border-slate-800 overflow-x-auto no-scrollbar">
             {TAB_DEFS.filter((tabItem) => !(mission.endedOn && tabItem.id === 'today')).map((tabItem) => {
               const Icon = tabItem.icon;
               const active = tab === tabItem.id || (mission.endedOn && tab === 'today' && tabItem.id === 'calendar');
@@ -442,11 +442,11 @@ export function MissionCenter({ preferredProfile }: { preferredProfile?: Mission
                   role="tab"
                   aria-selected={!!active}
                   onClick={() => setTab(tabItem.id)}
-                  className={`inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold border-b-2 -mb-px whitespace-nowrap cursor-pointer ${
+                  className={`min-h-[44px] inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold border-b-2 -mb-px whitespace-nowrap cursor-pointer ${
                     active ? 'border-cyan-400 text-cyan-200' : 'border-transparent text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  <Icon className="h-4 w-4" aria-hidden /> {t.missionUi.tabs[tabItem.id]}
+                  <Icon className="h-4 w-4 shrink-0" aria-hidden /> {t.missionUi.tabs[tabItem.id]}
                 </button>
               );
             })}
@@ -484,14 +484,14 @@ export function MissionCenter({ preferredProfile }: { preferredProfile?: Mission
             )}
           </div>
 
-          <div className="flex flex-wrap gap-4 pt-2 border-t border-slate-800 text-xs">
+          <div className="flex flex-wrap gap-3 pt-2 border-t border-slate-800 text-xs">
             {!mission.endedOn && (
               <button
                 type="button"
                 onClick={() => {
                   if (window.confirm(t.missionUi.confirmAbort)) abortMission(today);
                 }}
-                className="text-slate-500 hover:text-amber-300 cursor-pointer"
+                className="min-h-[44px] inline-flex items-center px-2 text-slate-500 hover:text-amber-300 cursor-pointer"
               >
                 {t.missionUi.abortBtn}
               </button>
@@ -501,7 +501,7 @@ export function MissionCenter({ preferredProfile }: { preferredProfile?: Mission
               onClick={() => {
                 if (window.confirm(t.missionUi.confirmReset)) resetAll();
               }}
-              className="text-slate-500 hover:text-red-300 cursor-pointer"
+              className="min-h-[44px] inline-flex items-center px-2 text-slate-500 hover:text-red-300 cursor-pointer"
             >
               {t.missionUi.resetBtn}
             </button>
@@ -511,7 +511,7 @@ export function MissionCenter({ preferredProfile }: { preferredProfile?: Mission
         </div>
       )}
 
-      <div aria-live="polite" className="pointer-events-none fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
+      <div aria-live="polite" className="pointer-events-none fixed right-4 bottom-20 xl:bottom-4 z-50 flex flex-col items-end gap-2">
         {toasts.map((toast) => (
           <div
             key={toast.id}

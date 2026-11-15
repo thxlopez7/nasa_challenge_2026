@@ -149,7 +149,7 @@ export function CopilotDock({ mision }: { mision?: MissionSlug }) {
             role="dialog"
             aria-modal="true"
             aria-label={t.command.copilotDock.panelLabel}
-            className="w-full max-w-md bg-slate-950 border-l border-slate-800 h-full overflow-y-auto p-4 flex flex-col gap-3 shadow-2xl"
+            className="w-full max-w-md bg-slate-950 border-l border-slate-800 h-[100dvh] overflow-y-auto p-3.5 sm:p-4 flex flex-col gap-3 shadow-2xl"
           >
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">

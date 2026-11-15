@@ -224,17 +224,40 @@ const GLOBAL_CSS = `
 .xp-detail{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:24px}
 .xp-card{padding:16px;border:1px solid #1c2733;background:rgba(255,255,255,.015)}
 @media(max-width:900px){
-  .xp-hint{bottom:auto;top:calc(72vh - 46px);font-size:12px}
-  .hud{padding:20px 16px 32px}.stripe{margin:-20px -16px 20px}
+  .xp-hint{bottom:auto;top:calc(58svh - 46px);font-size:12px}
+  .hud{padding:18px 16px 28px}.stripe{margin:-18px -16px 18px}
   .xp-stage{height:auto;overflow:visible;border:0;background:none}
   .xp-stage::before,.xp-stage::after{display:none}
-  .xp-canvas{position:relative;height:72vh;border:1px solid #1c2733;background:radial-gradient(ellipse at 50% 42%,#0e1f2d 0%,var(--bg) 75%)}
-  .xp-grid{height:72vh;bottom:auto}
+  .xp-canvas{position:relative;height:clamp(360px,58svh,520px);border:1px solid #1c2733;background:radial-gradient(ellipse at 50% 42%,#0e1f2d 0%,var(--bg) 75%)}
+  .xp-grid{height:clamp(360px,58svh,520px);bottom:auto}
   .xp-panel{position:relative;top:auto;bottom:auto;left:auto;right:auto;width:auto;margin-top:12px}
   .xp-hint{display:none}
   .xp-phase{left:12px;top:12px;transform:none;font-size:13px;padding:5px 10px}
-  .xp-skip{top:52px;right:12px;min-height:36px;font-size:14px}
+  .xp-skip{top:52px;right:12px;min-height:40px;font-size:14px}
   .xp-detail{grid-template-columns:1fr}
+}
+@media(max-width:640px){
+  .hud{padding:14px 12px 24px;font-size:16px}
+  .stripe{margin:-14px -12px 14px;height:6px}
+  .top{gap:12px}
+  .top h1{font-size:clamp(26px,7vw,36px)}
+  .dek{font-size:16px;margin-top:8px;padding-top:8px}
+  .kick{font-size:15px}
+  .btn{min-height:44px;padding:0 12px;font-size:15px}
+  .sos{width:100%;min-height:48px;font-size:18px;padding:0 16px}
+  .xp-stage{margin-top:14px}
+  .xp-canvas,.xp-grid{height:clamp(300px,48svh,420px)}
+  .body3d-lead{width:24px}
+  .body3d-label{left:37px;padding:2px 6px;max-width:128px;overflow:hidden;text-overflow:ellipsis}
+  .body3d-marker.is-left .body3d-label{right:37px}
+  .body3d-label strong{font-size:13px}
+  .body3d-label em{font-size:11px}
+  .xp-title{font-size:26px}
+  .xp-summary p{font-size:20px}
+  .xp-cta{min-height:48px;font-size:18px}
+  .organ3d-canvas{height:clamp(240px,36svh,320px)}
+  .chart{gap:4px;height:150px}
+  .days{gap:4px;font-size:12px}
 }`;
 
 const STEPS = [
@@ -307,18 +330,18 @@ function EmergencyProtocol({ onExit }: { onExit: () => void }) {
         ))}
       </div>
 
-      <div className="grid md:grid-cols-12 gap-5 flex-1">
-        <section className="md:col-span-7 bg-[#14171c] border-2 border-rose-500 rounded-sm p-6 flex flex-col gap-4">
-          <span className="text-base font-bold text-[#ffe600]">Paso {step + 1} de {STEPS.length} · {s.tag}</span>
-          <h2 className="text-4xl font-black leading-tight">{s.title}</h2>
-          <p className="text-xl leading-relaxed">{s.action}</p>
+      <div className="grid md:grid-cols-12 gap-4 sm:gap-5 flex-1">
+        <section className="md:col-span-7 bg-[#14171c] border-2 border-rose-500 rounded-sm p-4 sm:p-6 flex flex-col gap-3 sm:gap-4">
+          <span className="text-sm sm:text-base font-bold text-[#ffe600]">Paso {step + 1} de {STEPS.length} · {s.tag}</span>
+          <h2 className="text-2xl sm:text-4xl font-black leading-tight">{s.title}</h2>
+          <p className="text-base sm:text-xl leading-relaxed">{s.action}</p>
           <div className="flex flex-col gap-2 mt-auto">
             {s.checks.map((c, i) => {
               const k = `${step}-${i}`;
               return (
                 <button key={k} role="checkbox" aria-checked={!!checked[k]}
                   onClick={() => setChecked((prev) => ({ ...prev, [k]: !prev[k] }))}
-                  className={`min-h-14 text-left px-4 rounded-sm border text-lg ${checked[k] ? "bg-emerald-900/50 border-emerald-500" : "bg-[#0b0d11] border-[#3d4552]"}`}>
+                  className={`min-h-12 sm:min-h-14 text-left px-3 sm:px-4 py-2 rounded-sm border text-base sm:text-lg ${checked[k] ? "bg-emerald-900/50 border-emerald-500" : "bg-[#0b0d11] border-[#3d4552]"}`}>
                   {checked[k] ? "✓" : "○"} {c}
                 </button>
               );
@@ -326,18 +349,18 @@ function EmergencyProtocol({ onExit }: { onExit: () => void }) {
           </div>
         </section>
 
-        <aside className="md:col-span-5 bg-[#14171c] border border-[#2b3039] rounded-sm p-6 flex flex-col items-center justify-center gap-4 text-center">
+        <aside className="md:col-span-5 bg-[#14171c] border border-[#2b3039] rounded-sm p-4 sm:p-6 flex flex-col items-center justify-center gap-3 sm:gap-4 text-center">
           {step === 3 ? (
             <>
-              <div className="beat w-44 h-44 rounded-full bg-rose-600 flex items-center justify-center text-5xl font-black" aria-hidden="true">■</div>
-              <div className="text-3xl font-black">100–120 / min</div>
-              <p className="text-lg">Profundidad 5–6 cm. Deja que el pecho suba entre compresiones.</p>
-              <p className="font-mono text-xl text-amber-300">Relevo en {Math.floor(swap / 60)}:{String(swap % 60).padStart(2, "0")}</p>
+              <div className="beat w-28 h-28 sm:w-44 sm:h-44 rounded-full bg-rose-600 flex items-center justify-center text-4xl sm:text-5xl font-black" aria-hidden="true">■</div>
+              <div className="text-2xl sm:text-3xl font-black">100–120 / min</div>
+              <p className="text-base sm:text-lg">Profundidad 5–6 cm. Deja que el pecho suba entre compresiones.</p>
+              <p className="font-mono text-lg sm:text-xl text-amber-300">Relevo en {Math.floor(swap / 60)}:{String(swap % 60).padStart(2, "0")}</p>
             </>
           ) : (
             <>
               <span className="text-sm text-[#b9bbb3]">Qué necesitas en este paso</span>
-              <div className={`px-6 py-5 rounded-sm text-2xl font-black ${s.chip}`}>{s.kit}</div>
+              <div className={`px-4 sm:px-6 py-4 sm:py-5 rounded-sm text-xl sm:text-2xl font-black ${s.chip}`}>{s.kit}</div>
             </>
           )}
         </aside>

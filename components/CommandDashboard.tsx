@@ -9,6 +9,7 @@ import {
 } from 'react';
 import {
   BookOpen,
+  ChevronDown,
   ClipboardPlus,
   Clock,
   Compass,
@@ -39,7 +40,7 @@ import { CopilotDock } from './command/CopilotDock';
 import { DemoModeDrawer } from './command/DemoModeDrawer';
 import { EmergencyBanner, EmergencyCard } from './command/EmergencyView';
 import { GlobalStatusBar } from './command/GlobalStatusBar';
-import { NextActionBanner } from './command/NextActionBanner';
+import { StatusHero } from './command/StatusHero';
 import { RulesModal } from './command/RulesModal';
 import { SystemDetailDrawer } from './command/SystemDetailDrawer';
 import { SystemMosaic } from './command/SystemMosaic';
@@ -48,7 +49,7 @@ import OutboxPanel from './OutboxPanel';
 import SbarReportModal from './SbarReportModal';
 import SensorSimulator from './SensorSimulator';
 import CrewPanel from './scenario/CrewPanel';
-import LiveEvolution from './vitals/LiveEvolution';
+import LiveEvolution, { useLiveVitalsRecorder } from './vitals/LiveEvolution';
 import type { CrewProfile } from '../types/profile';
 import { scenarioScript } from '../utils/scenarios';
 import BehavioralCheckIn from './mission/BehavioralCheckIn';
@@ -56,12 +57,41 @@ import MissionCenter from './mission/MissionCenter';
 import QuickMeasurementPanel from './mission/QuickMeasurementPanel';
 import TodayCountermeasures from './mission/TodayCountermeasures';
 
+/** Sección plegable de la pestaña Seguimiento: resume sin esconder datos. */
+function TrackingSection({
+  title,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <details
+      open={defaultOpen}
+      className="group rounded-xl border border-[var(--cc-line)] bg-[var(--cc-panel)]/60 [&_summary::-webkit-details-marker]:hidden"
+    >
+      <summary className="flex min-h-[52px] cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-base font-semibold text-slate-100 hover:bg-white/[0.03] rounded-xl">
+        <span>{title}</span>
+        <ChevronDown
+          className="h-5 w-5 shrink-0 text-slate-400 transition-transform group-open:rotate-180"
+          aria-hidden
+        />
+      </summary>
+      <div className="space-y-4 px-3 pb-3 sm:px-4 sm:pb-4">{children}</div>
+    </details>
+  );
+}
+
 const TAB_ORDER: CommandTabId[] = ['hoy', 'registrar', 'mision', 'tierra'];
 const LOG_SECTIONS: LogSectionId[] = ['vitals', 'poc', 'behavioral'];
 
 export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; profile?: CrewProfile }) {
   const { t, lang } = useT();
   const snapshot = useClinicalSnapshot(mision);
+  // Un tripulante nuevo empieza su historia en vivo desde cero.
+  useLiveVitalsRecorder(profile?.id ?? 'live');
 
   const records = useMissionStore((s) => s.records);
 
@@ -302,13 +332,13 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
   return (
     <div
       ref={commandRootRef}
-      className="min-h-[calc(100vh-4rem)] bg-slate-950 text-slate-100 font-mono px-3 py-2.5 sm:px-5 sm:py-3"
+      className="cc min-h-[calc(100dvh-3.5rem)] px-3 pt-3 pb-24 sm:px-6 sm:pt-5 sm:pb-24 xl:pb-6"
     >
       <SensorSimulator key={profile?.id ?? 'live'} frames={script?.frames} loop={script?.loop ?? true} />
 
-      <div className="max-w-[1440px] mx-auto space-y-2.5">
+      <div className="max-w-[1440px] mx-auto space-y-4">
         {/* Global compact telemetry + comms + Demo drawer gear bar */}
-        <GlobalStatusBar snapshot={snapshot} />
+        <GlobalStatusBar snapshot={snapshot} tiles={tiles} />
 
         {/* Persistent Code Red / Emergency Banner across all 4 tabs */}
         {isEmergencyActive && <EmergencyBanner />}
@@ -318,7 +348,7 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
           <div
             role="tablist"
             aria-label={t.command.tabs.tablistAria}
-            className="flex flex-wrap items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/75 p-1"
+            className="grid grid-cols-4 sm:flex sm:flex-wrap items-center gap-1 border-b border-[var(--cc-line)]"
           >
             {tabsMeta.map(({ id, label, Icon }, idx) => {
               const selected = activeTab === id;
@@ -336,14 +366,14 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
                   tabIndex={selected ? 0 : -1}
                   onClick={() => selectTabWithSync(id)}
                   onKeyDown={(e) => handleTabKeyDown(e, idx)}
-                  className={`min-h-[44px] inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold uppercase tracking-wider cursor-pointer transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
+                  className={`-mb-px min-h-[48px] inline-flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 border-b-2 px-1.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold cursor-pointer transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 rounded-t-md min-w-0 ${
                     selected
-                      ? 'bg-cyan-500 text-slate-950 shadow-sm'
-                      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                      ? 'border-cyan-400 text-white bg-cyan-500/5 sm:bg-transparent'
+                      : 'border-transparent text-slate-400 hover:text-slate-100 hover:border-slate-600'
                   }`}
                 >
                   <Icon className="h-4 w-4 shrink-0" aria-hidden />
-                  <span>{label}</span>
+                  <span className="truncate">{label}</span>
                 </button>
               );
             })}
@@ -351,30 +381,29 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
         </nav>
 
         {/* Workspace + Sticky Collapsible Copilot Column */}
-        <div className="flex flex-col xl:flex-row gap-3 items-start">
+        <div className="flex flex-col xl:flex-row gap-4 items-start">
           <div className="flex-1 min-w-0 w-full">
             {activeTab === 'hoy' && (
               <div
                 role="tabpanel"
                 id="panel-hoy"
                 aria-labelledby="tab-hoy"
-                className="space-y-2.5"
+                className="space-y-4"
               >
                 {isEmergencyActive && !showFullPanelInEmergency ? (
                   <EmergencyCard snapshot={snapshot} mision={mision} />
                 ) : (
                   <>
-                    {profile && <CrewPanel profile={profile} />}
-                    <NextActionBanner recommendation={nextAction} />
+                    <StatusHero snapshot={snapshot} tiles={tiles} recommendation={nextAction} />
                     <SystemMosaic tiles={tiles} />
-                    <LiveEvolution key={profile?.id ?? 'live'} />
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 items-stretch">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
                       <ActiveAlertsStrip
                         traces={snapshot.ruleTraces}
                         onOpenSbar={() => setSbarOpen(true)}
                       />
                       <TodayRoutineCard mision={mision} />
                     </div>
+                    {profile && <CrewPanel profile={profile} />}
                   </>
                 )}
               </div>
@@ -390,15 +419,15 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
                 <div className="rounded-xl border border-slate-800 bg-slate-900/90 px-4 py-3 space-y-2.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <h2 className="text-sm font-bold uppercase tracking-wider text-cyan-400">
+                      <h2 className="text-xl font-semibold text-slate-50">
                         {t.command.logTab.title}
                       </h2>
-                      <p className="text-xs text-slate-400">
+                      <p className="text-sm text-slate-400">
                         {t.command.logTab.subtitle}
                       </p>
                     </div>
 
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-1.5 w-full sm:w-auto">
                       {LOG_SECTIONS.map((sec) => {
                         const active = activeLogSection === sec;
                         return (
@@ -407,7 +436,7 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
                             type="button"
                             aria-pressed={active}
                             onClick={() => setActiveLogSection(sec)}
-                            className={`min-h-[44px] px-3.5 py-2 rounded-lg border text-xs font-bold uppercase tracking-wider cursor-pointer transition ${
+                            className={`min-h-[44px] px-3.5 py-2 rounded-lg border text-xs font-bold uppercase tracking-wider cursor-pointer transition text-center ${
                               active
                                 ? 'border-cyan-400 bg-cyan-500/20 text-cyan-100'
                                 : 'border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800'
@@ -467,22 +496,29 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
                 role="tabpanel"
                 id="panel-mision"
                 aria-labelledby="tab-mision"
-                className="space-y-4"
+                className="space-y-3"
               >
-                <div className="rounded-xl border border-slate-800 bg-slate-900/90 px-4 py-3">
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-cyan-400">
+                <div className="px-1 pt-1">
+                  <h2 className="text-xl font-semibold text-slate-50">
                     {t.command.missionTab.title}
                   </h2>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-sm text-slate-400">
                     {t.command.missionTab.subtitle}
                   </p>
                 </div>
-                <TodayCountermeasures
-                  mision={mision}
-                  todayOverride={todayKey}
-                  compactMode
-                />
-                <MissionCenter preferredProfile={preferredProfile} />
+                <TrackingSection title={t.command.missionTab.sectionTrends} defaultOpen>
+                  <LiveEvolution key={profile?.id ?? 'live'} />
+                </TrackingSection>
+                <TrackingSection title={t.command.missionTab.sectionCountermeasures}>
+                  <TodayCountermeasures
+                    mision={mision}
+                    todayOverride={todayKey}
+                    compactMode
+                  />
+                </TrackingSection>
+                <TrackingSection title={t.command.missionTab.sectionHistory}>
+                  <MissionCenter preferredProfile={preferredProfile} />
+                </TrackingSection>
               </div>
             )}
 
@@ -493,11 +529,11 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
                 aria-labelledby="tab-tierra"
                 className="space-y-4"
               >
-                <div className="rounded-xl border border-slate-800 bg-slate-900/90 px-4 py-3">
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-cyan-400">
+                <div className="px-1 pt-1">
+                  <h2 className="text-xl font-semibold text-slate-50">
                     {t.command.earthTab.title}
                   </h2>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-sm text-slate-400">
                     {t.command.earthTab.subtitle}
                   </p>
                 </div>

@@ -308,8 +308,8 @@ export function MedicalCopilot({
       aria-labelledby="copilot-title"
       className={`flex flex-col ${
         compactHeight
-          ? 'h-[min(540px,calc(100vh-14.5rem))] min-h-[380px]'
-          : 'h-[620px]'
+          ? 'h-[min(540px,calc(100dvh-14.5rem))] min-h-[380px]'
+          : 'h-[calc(100dvh-5.5rem)] sm:h-[620px]'
       } bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden`}
     >
       {/* Cabecera */}
