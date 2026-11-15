@@ -82,7 +82,8 @@ const xpOf = (steps: EvaluationStepId[]) =>
  * Tendencia del historial según el tripulante:
  *   neutral  → el guion de siempre (eventos solares, CO2, bajón de ánimo).
  *   stable   → sin eventos graves: días estables.
- *   critical → los últimos 10 días empeoran poco a poco hasta la crisis de hoy.
+ *   critical → base estable; los últimos 10 días muestran solo señales tempranas
+ *               (vigilancia). La crisis ocurre hoy, en vivo, con el guion del escenario.
  */
 export type DemoTrajectory = 'neutral' | 'stable' | 'critical';
 
@@ -111,10 +112,11 @@ export function generateDemoHistory(
   for (let day = 1; day < script.days; day++) {
     const date = addDays(mission.startDate, day - 1);
     const [stormStart, stormEnd] = script.storm;
-    const calm = trajectory === 'stable';
+    const calm = trajectory !== 'neutral';
     const solarStorm = !calm && day >= stormStart && day <= stormEnd;
-    // Deterioro progresivo de los últimos 10 días (0 → 1).
-    const k = trajectory === 'critical' ? clamp((day - (script.days - 11)) / 10, 0, 1) : 0;
+    // Señales tempranas en los últimos 10 días (0 → 0,25): suben a "vigilar"
+    // sin llegar a crítico, para que la crisis se vea ocurrir hoy.
+    const k = trajectory === 'critical' ? 0.25 * clamp((day - (script.days - 11)) / 10, 0, 1) : 0;
     const recovery =
       day > stormEnd && day <= script.recoveryEnd
         ? (script.recoveryEnd - day) / (script.recoveryEnd - stormEnd)
