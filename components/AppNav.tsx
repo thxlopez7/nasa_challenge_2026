@@ -86,7 +86,7 @@ export function AppNav({ current, mision }: { current: 'panel' | 'cuerpo'; misio
           })}
         </div>
         <Link
-          href="/?intro"
+          href="/"
           title="Ver la intro otra vez"
           aria-label="Ver la intro otra vez"
           className="rounded-full p-1.5 text-slate-500 hover:text-cyan-300 hover:bg-slate-800 transition"

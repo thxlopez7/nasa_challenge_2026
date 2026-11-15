@@ -25,7 +25,6 @@ export function parseMissionSlug(value: unknown): MissionSlug | undefined {
 }
 
 const CHOICE_KEY = 'exovitals-mission-choice';
-const INTRO_KEY = 'exovitals-intro-seen';
 
 /** Última misión elegida (persistente en este navegador). */
 export function readChoice(): MissionSlug | undefined {
@@ -39,23 +38,8 @@ export function readChoice(): MissionSlug | undefined {
 export function saveChoice(slug: MissionSlug): void {
   try {
     window.localStorage.setItem(CHOICE_KEY, slug);
-    window.sessionStorage.setItem(INTRO_KEY, '1');
   } catch {
     /* almacenamiento bloqueado: la app sigue funcionando con la URL */
-  }
-}
-
-/**
- * La intro ya se vio en esta sesión y hay misión elegida → se salta.
- * `/?intro` la fuerza.
- */
-export function introSkipTarget(): MissionSlug | undefined {
-  try {
-    if (new URLSearchParams(window.location.search).has('intro')) return undefined;
-    if (window.sessionStorage.getItem(INTRO_KEY) !== '1') return undefined;
-    return readChoice();
-  } catch {
-    return undefined;
   }
 }
 

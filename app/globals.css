@@ -105,6 +105,39 @@ body {
   filter: drop-shadow(0 0 30px rgba(34, 211, 238, 0.45));
 }
 
+/* Escena de fondo: aparece con el salto warp. */
+.cover-scene {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 1.4s ease;
+}
+.cover-scene.is-visible {
+  opacity: 1;
+}
+
+/* Rótulos de la cinemática: entran, se sostienen y se van. */
+.cover-card {
+  animation: cover-card 2.6s ease-in-out both;
+}
+
+/* «Elige tu misión» parpadea como un «press start». */
+.cover-blink {
+  animation: cover-blink 1.6s ease-in-out infinite;
+}
+
+@keyframes cover-card {
+  0% { opacity: 0; letter-spacing: -0.02em; filter: blur(8px); transform: scale(0.96); }
+  25% { opacity: 1; filter: blur(0); transform: scale(1); }
+  78% { opacity: 1; filter: blur(0); }
+  100% { opacity: 0; filter: blur(6px); transform: scale(1.04); }
+}
+
+@keyframes cover-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
 /* Tipografía con profundidad: el título gira levemente en 3D con el
    puntero y cada letra está a una distancia distinta de la cámara. */
 .cover-type {
