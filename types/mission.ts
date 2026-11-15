@@ -10,7 +10,7 @@ import type { SleepSummary } from './sleep';
 /** Fecha local en formato YYYY-MM-DD */
 export type DayKey = string;
 
-export type MissionProfileId = 'ISS_6M' | 'MARS_CONJUNCTION';
+export type MissionProfileId = 'ISS_6M' | 'LUNAR_ARTEMIS' | 'MARS_CONJUNCTION';
 export type MissionPhaseId = 'LEO' | 'TRANSIT_OUT' | 'SURFACE' | 'TRANSIT_BACK';
 
 export interface MissionPhase {

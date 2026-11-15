@@ -37,6 +37,31 @@ export const MISSION_PROFILES: Record<MissionProfileId, MissionProfile> = {
       },
     ],
   },
+  LUNAR_ARTEMIS: {
+    id: 'LUNAR_ARTEMIS',
+    name: 'Luna · campamento base Artemis',
+    summary: 'Tránsito corto, estancia en el polo sur lunar y regreso: ~6 semanas.',
+    phases: [
+      {
+        id: 'TRANSIT_OUT',
+        name: 'Tránsito a la Luna',
+        days: 5,
+        description: 'Microgravedad y paso por los cinturones de radiación de Van Allen.',
+      },
+      {
+        id: 'SURFACE',
+        name: 'Superficie lunar (polo sur)',
+        days: 30,
+        description: 'Gravedad de 0,16 g, polvo lunar abrasivo y ~1,3 s de retraso en las comunicaciones.',
+      },
+      {
+        id: 'TRANSIT_BACK',
+        name: 'Regreso a la Tierra',
+        days: 5,
+        description: 'Reentrada y readaptación a 1 g tras la estancia lunar.',
+      },
+    ],
+  },
   MARS_CONJUNCTION: {
     id: 'MARS_CONJUNCTION',
     name: 'Marte · clase conjunción',
@@ -312,6 +337,7 @@ export function computeAchievements(
   const maxDay = list.reduce((m, r) => Math.max(m, r.missionDay), 0);
   const hasPhase = (id: string) => list.some((r) => r.phaseId === id);
   const isMars = profile.id === 'MARS_CONJUNCTION';
+  const isMoon = profile.id === 'LUNAR_ARTEMIS';
 
   let firstWeek = false;
   for (let w = 1; w <= missionWeekOf(Math.max(1, maxDay)); w++) {
@@ -359,6 +385,23 @@ export function computeAchievements(
       unlocked: maxDay >= Math.ceil(total / 2),
     },
   ];
+
+  if (isMoon) {
+    items.push(
+      {
+        id: 'PHASE_SURFACE',
+        title: 'Huella lunar',
+        description: 'Registra tu primer día en la superficie de la Luna.',
+        unlocked: hasPhase('SURFACE'),
+      },
+      {
+        id: 'PHASE_RETURN',
+        title: 'Rumbo a casa',
+        description: 'Registra tu primer día del regreso a la Tierra.',
+        unlocked: hasPhase('TRANSIT_BACK'),
+      }
+    );
+  }
 
   if (isMars) {
     items.push(

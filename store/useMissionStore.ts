@@ -34,7 +34,7 @@ interface MissionActions {
   startMission: (profileId: MissionProfileId, today: DayKey) => void;
   abortMission: (today: DayKey) => void;
   resetAll: () => void;
-  loadDemoHistory: (today: DayKey) => void;
+  loadDemoHistory: (today: DayKey, profileId?: MissionProfileId) => void;
   /** Cierra sesiones de días anteriores y detecta el fin de la misión */
   syncDay: (today: DayKey) => void;
 
@@ -112,8 +112,8 @@ export const useMissionStore = create<MissionState>()(
 
       resetAll: () => set({ ...emptyData }),
 
-      loadDemoHistory: (today) => {
-        const { mission, records } = generateDemoHistory(today);
+      loadDemoHistory: (today, profileId) => {
+        const { mission, records } = generateDemoHistory(today, profileId);
         set({ mission, records, session: null });
       },
 

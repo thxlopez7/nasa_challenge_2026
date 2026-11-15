@@ -14,7 +14,7 @@ interface Star {
  * hasta convertirlas en estelas (transición al entrar al panel).
  * Con movimiento reducido se dibuja una sola vez, estático.
  */
-export function Starfield({ warp }: { warp: boolean }) {
+export function Starfield({ warp, transparent = false }: { warp: boolean; transparent?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const warpRef = useRef(warp);
 
@@ -28,7 +28,7 @@ export function Starfield({ warp }: { warp: boolean }) {
     if (!canvas || !ctx) return;
 
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const COUNT = 520;
+    const COUNT = transparent ? 260 : 520;
     const DEPTH = 1000;
     let w = 0;
     let h = 0;
@@ -55,8 +55,12 @@ export function Starfield({ warp }: { warp: boolean }) {
     const draw = () => {
       const target = warpRef.current ? 38 : 0.6;
       speed += (target - speed) * 0.06;
-      ctx.fillStyle = warpRef.current ? 'rgba(2, 6, 23, 0.35)' : '#020617';
-      ctx.fillRect(0, 0, w, h);
+      if (transparent) {
+        ctx.clearRect(0, 0, w, h);
+      } else {
+        ctx.fillStyle = warpRef.current ? 'rgba(2, 6, 23, 0.35)' : '#020617';
+        ctx.fillRect(0, 0, w, h);
+      }
 
       const cx = w / 2;
       const cy = h * 0.42;
@@ -107,7 +111,7 @@ export function Starfield({ warp }: { warp: boolean }) {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', onResize);
     };
-  }, []);
+  }, [transparent]);
 
   return <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" aria-hidden />;
 }

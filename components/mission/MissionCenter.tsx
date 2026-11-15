@@ -30,7 +30,7 @@ import {
   weekProgress,
   weeklyStreak,
 } from '../../utils/missionPlan';
-import { DEMO_DAYS } from '../../utils/demoHistory';
+import { demoDaysFor } from '../../utils/demoHistory';
 import DailyEvaluation from './DailyEvaluation';
 import MissionCalendar from './MissionCalendar';
 import TrendChart from './TrendChart';
@@ -53,10 +53,10 @@ const TOAST_STYLE: Record<Toast['tone'], string> = {
 
 /* ------------------------------------------------------------------ */
 
-function MissionSetup({ today }: { today: DayKey }) {
+function MissionSetup({ today, preferred }: { today: DayKey; preferred?: MissionProfileId }) {
   const startMission = useMissionStore((s) => s.startMission);
   const loadDemoHistory = useMissionStore((s) => s.loadDemoHistory);
-  const [profileId, setProfileId] = useState<MissionProfileId>('MARS_CONJUNCTION');
+  const [profileId, setProfileId] = useState<MissionProfileId>(preferred ?? 'MARS_CONJUNCTION');
 
   return (
     <div className="space-y-6">
@@ -69,7 +69,7 @@ function MissionSetup({ today }: { today: DayKey }) {
         </p>
       </div>
 
-      <div role="radiogroup" aria-label="Perfil de misión" className="grid md:grid-cols-2 gap-3">
+      <div role="radiogroup" aria-label="Perfil de misión" className="grid md:grid-cols-3 gap-3">
         {Object.values(MISSION_PROFILES).map((p) => {
           const active = profileId === p.id;
           return (
@@ -117,10 +117,10 @@ function MissionSetup({ today }: { today: DayKey }) {
         </button>
         <button
           type="button"
-          onClick={() => loadDemoHistory(today)}
+          onClick={() => loadDemoHistory(today, profileId)}
           className="px-4 py-2.5 rounded-lg border border-slate-700 text-slate-300 text-sm font-semibold hover:bg-slate-800 transition cursor-pointer"
         >
-          Ver demo con {DEMO_DAYS} días simulados
+          Ver demo con {demoDaysFor(profileId)} días simulados
         </button>
       </div>
     </div>
@@ -274,7 +274,38 @@ function MissionEnded({ mission, totalXp }: { mission: Mission; totalXp: number 
 
 /* ------------------------------------------------------------------ */
 
-export function MissionCenter() {
+/** La portada eligió otra misión que la que está en curso. */
+function SwitchMissionBanner({ today, preferred }: { today: DayKey; preferred: MissionProfileId }) {
+  const startMission = useMissionStore((s) => s.startMission);
+  const loadDemoHistory = useMissionStore((s) => s.loadDemoHistory);
+  const target = getProfile(preferred);
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-cyan-500/40 bg-cyan-500/5 p-3 text-sm">
+      <p className="text-slate-300">
+        Elegiste <span className="font-semibold text-cyan-200">{target.name}</span>, pero tienes
+        otra misión en curso. Cambiar la reemplaza.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => startMission(preferred, today)}
+          className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 text-xs font-bold hover:bg-cyan-400 transition cursor-pointer"
+        >
+          Iniciar {target.name}
+        </button>
+        <button
+          type="button"
+          onClick={() => loadDemoHistory(today, preferred)}
+          className="px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 text-xs font-semibold hover:bg-slate-800 transition cursor-pointer"
+        >
+          Ver su demo
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function MissionCenter({ preferredProfile }: { preferredProfile?: MissionProfileId } = {}) {
   const [today, setToday] = useState<DayKey | null>(null);
   const [tab, setTab] = useState<Tab>('today');
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -369,9 +400,12 @@ export function MissionCenter() {
       {today === null ? (
         <p className="text-sm text-slate-500">Cargando misión…</p>
       ) : !mission ? (
-        <MissionSetup today={today} />
+        <MissionSetup today={today} preferred={preferredProfile} />
       ) : (
         <>
+          {preferredProfile && preferredProfile !== mission.profileId && (
+            <SwitchMissionBanner today={today} preferred={preferredProfile} />
+          )}
           {mission.endedOn ? (
             <MissionEnded mission={mission} totalXp={totalXp} />
           ) : (
