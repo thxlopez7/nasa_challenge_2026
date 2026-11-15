@@ -1,7 +1,7 @@
 "use client";
-import React, { Suspense, use, useState, useEffect, useCallback } from "react";
+import React, { Suspense, use, useState, useEffect, useCallback, useSyncExternalStore } from "react";
 import AppNav from "../../components/AppNav";
-import { parseMissionSlug, type MissionSlug } from "../../utils/missionChoice";
+import { parseMissionSlug, readChoice, type MissionSlug } from "../../utils/missionChoice";
 import dynamic from "next/dynamic";
 import type { Anomaly, BodyMarker, Layer, Stage } from "../../components/body3d/BodyExperience";
 import { ALL_CREDITS, SYSTEM_MODELS } from "../../components/body3d/modelCatalog";
@@ -346,8 +346,13 @@ const SEVERITY: Record<StatusColor, 0 | 1 | 2> = { green: 0, amber: 1, red: 2 };
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
 
 /** Lee `?mision=` (dato dinámico) dentro de un Suspense. */
+const noopSubscribe = () => () => {};
+
 function WithMission({ searchParams }: { searchParams: SearchParams }) {
-  return <BodyView mision={parseMissionSlug(use(searchParams).mision)} />;
+  const fromUrl = parseMissionSlug(use(searchParams).mision);
+  // Sin `?mision=` se usa la última misión elegida.
+  const saved = useSyncExternalStore(noopSubscribe, readChoice, () => undefined);
+  return <BodyView mision={fromUrl ?? saved} />;
 }
 
 export default function BodyMapHUD({ searchParams }: { searchParams: SearchParams }) {

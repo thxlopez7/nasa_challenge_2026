@@ -69,8 +69,10 @@ function MissionSetup({ today, preferred }: { today: DayKey; preferred?: Mission
         </p>
       </div>
 
-      <div role="radiogroup" aria-label="Perfil de misión" className="grid md:grid-cols-3 gap-3">
-        {Object.values(MISSION_PROFILES).map((p) => {
+      <div role="radiogroup" aria-label="Perfil de misión" className={`grid gap-3 ${preferred ? 'max-w-xl' : 'md:grid-cols-3'}`}>
+        {Object.values(MISSION_PROFILES)
+          .filter((p) => !preferred || p.id === preferred)
+          .map((p) => {
           const active = profileId === p.id;
           return (
             <button
@@ -274,37 +276,6 @@ function MissionEnded({ mission, totalXp }: { mission: Mission; totalXp: number 
 
 /* ------------------------------------------------------------------ */
 
-/** La portada eligió otra misión que la que está en curso. */
-function SwitchMissionBanner({ today, preferred }: { today: DayKey; preferred: MissionProfileId }) {
-  const startMission = useMissionStore((s) => s.startMission);
-  const loadDemoHistory = useMissionStore((s) => s.loadDemoHistory);
-  const target = getProfile(preferred);
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-cyan-500/40 bg-cyan-500/5 p-3 text-sm">
-      <p className="text-slate-300">
-        Elegiste <span className="font-semibold text-cyan-200">{target.name}</span>, pero tienes
-        otra misión en curso. Cambiar la reemplaza.
-      </p>
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => startMission(preferred, today)}
-          className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 text-xs font-bold hover:bg-cyan-400 transition cursor-pointer"
-        >
-          Iniciar {target.name}
-        </button>
-        <button
-          type="button"
-          onClick={() => loadDemoHistory(today, preferred)}
-          className="px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 text-xs font-semibold hover:bg-slate-800 transition cursor-pointer"
-        >
-          Ver su demo
-        </button>
-      </div>
-    </div>
-  );
-}
-
 export function MissionCenter({ preferredProfile }: { preferredProfile?: MissionProfileId } = {}) {
   const [today, setToday] = useState<DayKey | null>(null);
   const [tab, setTab] = useState<Tab>('today');
@@ -317,6 +288,12 @@ export function MissionCenter({ preferredProfile }: { preferredProfile?: Mission
   const syncDay = useMissionStore((s) => s.syncDay);
   const abortMission = useMissionStore((s) => s.abortMission);
   const resetAll = useMissionStore((s) => s.resetAll);
+  const selectProfile = useMissionStore((s) => s.selectProfile);
+
+  // El destino elegido (Luna o Marte) manda: guarda la otra misión y abre esta.
+  useEffect(() => {
+    if (today !== null && preferredProfile) selectProfile(preferredProfile);
+  }, [today, preferredProfile, selectProfile]);
 
   // Rehidrata tras montar (evita desajustes de SSR) y vigila el cambio de día.
   useEffect(() => {
@@ -403,9 +380,7 @@ export function MissionCenter({ preferredProfile }: { preferredProfile?: Mission
         <MissionSetup today={today} preferred={preferredProfile} />
       ) : (
         <>
-          {preferredProfile && preferredProfile !== mission.profileId && (
-            <SwitchMissionBanner today={today} preferred={preferredProfile} />
-          )}
+
           {mission.endedOn ? (
             <MissionEnded mission={mission} totalXp={totalXp} />
           ) : (

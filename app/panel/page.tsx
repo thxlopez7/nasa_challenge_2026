@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, use } from 'react';
+import { Suspense, use, useSyncExternalStore } from 'react';
 import AppNav from '../../components/AppNav';
 import GodModePanel from '../../components/GodModePanel';
 import MedicalCopilot from '../../components/MedicalCopilot';
@@ -13,7 +13,7 @@ import {
   computeNlr,
   getAlertSeverity,
 } from '../../utils/clinicalEngine';
-import { MISSION_CHOICES, parseMissionSlug, type MissionSlug } from '../../utils/missionChoice';
+import { MISSION_CHOICES, parseMissionSlug, readChoice, type MissionSlug } from '../../utils/missionChoice';
 
 const SEVERITY_BADGE: Record<AlertSeverity, { label: string; styles: string }> = {
   OPTIMAL: {
@@ -76,8 +76,13 @@ function RuleRow({
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
 
 /** Lee `?mision=` (dato dinámico) dentro de un Suspense. */
+const noopSubscribe = () => () => {};
+
 function WithMission({ searchParams }: { searchParams: SearchParams }) {
-  return <PanelView mision={parseMissionSlug(use(searchParams).mision)} />;
+  const fromUrl = parseMissionSlug(use(searchParams).mision);
+  // Sin `?mision=` se usa la última misión elegida.
+  const saved = useSyncExternalStore(noopSubscribe, readChoice, () => undefined);
+  return <PanelView mision={fromUrl ?? saved} />;
 }
 
 export default function DevTelemetryDashboard({ searchParams }: { searchParams: SearchParams }) {

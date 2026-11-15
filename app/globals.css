@@ -73,7 +73,10 @@ body {
   position: absolute;
   inset: -4%;
   background: url('/images/galactic-center.webp') center / cover no-repeat;
-  animation: cover-breathe 40s ease-in-out infinite alternate;
+  /* Llegada: la galaxia se acerca y se enfoca; luego respira despacio. */
+  animation:
+    cover-arrive 1.8s cubic-bezier(0.16, 1, 0.3, 1) both,
+    cover-breathe 40s ease-in-out 1.8s infinite alternate;
   filter: saturate(1.1) brightness(0.85);
 }
 
@@ -102,6 +105,35 @@ body {
   filter: drop-shadow(0 0 30px rgba(34, 211, 238, 0.45));
 }
 
+/* Tipografía con profundidad: el título gira levemente en 3D con el
+   puntero y cada letra está a una distancia distinta de la cámara. */
+.cover-type {
+  perspective: 900px;
+}
+.cover-type-inner {
+  display: block;
+  transform-style: preserve-3d;
+  transform: rotateY(calc(var(--px) * 9deg)) rotateX(calc(var(--py) * -6deg));
+}
+.cover-word {
+  transform-style: preserve-3d;
+}
+.cover-letter {
+  display: inline-block;
+  transform-style: preserve-3d;
+  transform: translate3d(
+    calc(var(--px) * var(--d) * 12px),
+    calc(var(--py) * var(--d) * 8px),
+    calc(var(--d) * 45px)
+  );
+}
+.cover-letter-face {
+  display: inline-block;
+  animation:
+    cover-letter-in 1.1s cubic-bezier(0.16, 1, 0.3, 1) both,
+    cover-float 6s ease-in-out infinite alternate;
+}
+
 .cover-rise {
   animation: cover-rise 1.1s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -114,6 +146,21 @@ body {
 .cover-leaving .cover-depth-0 { transform: scale(1.9); opacity: 0.2; }
 .cover-leaving .cover-depth-2 { transform: scale(2.4); opacity: 0; }
 .cover-leaving .cover-depth-3 { transform: scale(0.85); opacity: 0; }
+
+@keyframes cover-arrive {
+  from { transform: scale(1.45); filter: saturate(1.4) brightness(1.4) blur(10px); }
+  to { transform: scale(1); }
+}
+
+@keyframes cover-letter-in {
+  from { opacity: 0; transform: translateZ(-420px) scale(1.3); filter: blur(14px) drop-shadow(0 0 30px rgba(34, 211, 238, 0.45)); }
+  to { opacity: 1; transform: none; filter: blur(0) drop-shadow(0 0 30px rgba(34, 211, 238, 0.45)); }
+}
+
+@keyframes cover-float {
+  from { translate: 0 -3px; }
+  to { translate: 0 4px; }
+}
 
 @keyframes cover-breathe {
   from { transform: scale(1) rotate(0deg); }
