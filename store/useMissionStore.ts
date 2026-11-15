@@ -22,7 +22,7 @@ import {
   stepIndexOf,
   totalDays,
 } from '../utils/missionPlan';
-import { generateDemoHistory } from '../utils/demoHistory';
+import { generateDemoHistory, type DemoTrajectory } from '../utils/demoHistory';
 
 interface MissionData {
   mission: Mission | null;
@@ -49,7 +49,7 @@ interface MissionActions {
   startMission: (profileId: MissionProfileId, today: DayKey) => void;
   abortMission: (today: DayKey) => void;
   resetAll: () => void;
-  loadDemoHistory: (today: DayKey, profileId?: MissionProfileId) => void;
+  loadDemoHistory: (today: DayKey, profileId?: MissionProfileId, trajectory?: DemoTrajectory) => void;
   /** Cierra sesiones de días anteriores y detecta el fin de la misión */
   syncDay: (today: DayKey) => void;
 
@@ -158,8 +158,8 @@ export const useMissionStore = create<MissionState>()(
 
       resetAll: () => set({ ...emptyData }),
 
-      loadDemoHistory: (today, profileId) => {
-        const { mission, records } = generateDemoHistory(today, profileId);
+      loadDemoHistory: (today, profileId, trajectory) => {
+        const { mission, records } = generateDemoHistory(today, profileId, trajectory);
         set({ mission, records, session: null });
       },
 

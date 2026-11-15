@@ -78,9 +78,18 @@ const xpOf = (steps: EvaluationStepId[]) =>
     0
   );
 
+/**
+ * Tendencia del historial según el tripulante:
+ *   neutral  → el guion de siempre (eventos solares, CO2, bajón de ánimo).
+ *   stable   → sin eventos graves: días estables.
+ *   critical → los últimos 10 días empeoran poco a poco hasta la crisis de hoy.
+ */
+export type DemoTrajectory = 'neutral' | 'stable' | 'critical';
+
 export function generateDemoHistory(
   today: DayKey,
-  profileId: MissionProfileId = 'MARS_CONJUNCTION'
+  profileId: MissionProfileId = 'MARS_CONJUNCTION',
+  trajectory: DemoTrajectory = 'neutral'
 ): {
   mission: Mission;
   records: Record<DayKey, DayRecord>;
@@ -102,13 +111,16 @@ export function generateDemoHistory(
   for (let day = 1; day < script.days; day++) {
     const date = addDays(mission.startDate, day - 1);
     const [stormStart, stormEnd] = script.storm;
-    const solarStorm = day >= stormStart && day <= stormEnd;
+    const calm = trajectory === 'stable';
+    const solarStorm = !calm && day >= stormStart && day <= stormEnd;
+    // Deterioro progresivo de los últimos 10 días (0 → 1).
+    const k = trajectory === 'critical' ? clamp((day - (script.days - 11)) / 10, 0, 1) : 0;
     const recovery =
       day > stormEnd && day <= script.recoveryEnd
         ? (script.recoveryEnd - day) / (script.recoveryEnd - stormEnd)
         : 0;
-    const co2Pocket = day === script.co2;
-    const lowMoodPhase = day >= script.lowMood[0] && day <= script.lowMood[1];
+    const co2Pocket = !calm && day === script.co2;
+    const lowMoodPhase = !calm && day >= script.lowMood[0] && day <= script.lowMood[1];
 
     const radiationRate = solarStorm
       ? round(120 + noise(40), 1)
@@ -123,17 +135,18 @@ export function generateDemoHistory(
     );
 
     const bio = {
-      heartRate: Math.round(70 + noise(6) + (solarStorm ? 8 : 0)),
-      spO2: Math.round(clamp(98 + noise(1.2), 96, 100)),
-      cistatinaC: round(0.8 + day * 0.0026 + noise(0.03)),
+      heartRate: Math.round(70 + noise(6) + (solarStorm ? 8 : 0) + k * 18),
+      spO2: Math.round(clamp(98 + noise(1.2) - k * 3, 90, 100)),
+      // Sin deriva renal en el tripulante estable.
+      cistatinaC: round(0.8 + (calm ? 0.04 : day * 0.0026) + noise(0.03) + k * 0.32),
       creatinina: round(1.0 + noise(0.06)),
-      calcioIonico: round(1.1 + day * 0.001 + noise(0.02)),
-      linfocitos,
-      neutrofilos,
-      cortisol: round(10 + noise(2) + (solarStorm || lowMoodPhase ? 4 : 0), 1),
+      calcioIonico: round(1.1 + (calm ? 0.01 : day * 0.001) + noise(0.02) + k * 0.16),
+      linfocitos: Math.round(linfocitos - k * 520),
+      neutrofilos: Math.round(neutrofilos + k * 1600),
+      cortisol: round(10 + noise(2) + (solarStorm || lowMoodPhase ? 4 : 0) + k * 14, 1),
     };
     const env = {
-      co2Level: Math.round(co2Pocket ? 4150 : 650 + noise(150)),
+      co2Level: Math.round(co2Pocket ? 4150 : 650 + noise(150) + k * 900),
       radiationRate,
       radiationAccumulated: round(45 + accumulated, 1),
     };
@@ -149,8 +162,8 @@ export function generateDemoHistory(
     const selfReport: SelfReport = {
       sleepHours: night.totalHours,
       sleep: night,
-      mood: Math.round(clamp(4 + noise(0.8) - (lowMoodPhase ? 1.6 : 0), 1, 5)),
-      fatigue: Math.round(clamp(2.4 + noise(0.8) + (solarStorm ? 1.5 : 0), 1, 5)),
+      mood: Math.round(clamp(4 + noise(0.8) - (lowMoodPhase ? 1.6 : 0) - k * 1.8, 1, 5)),
+      fatigue: Math.round(clamp(2.4 + noise(0.8) + (solarStorm ? 1.5 : 0) + k * 2.2, 1, 5)),
     };
 
     // Los días con evento del guion siempre se registran.

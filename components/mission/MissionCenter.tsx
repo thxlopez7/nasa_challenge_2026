@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { DayKey, Mission, MissionProfileId } from '../../types/mission';
+import { useActiveProfile } from '../../store/useProfileStore';
 import { selectTotalXp, useMissionStore } from '../../store/useMissionStore';
 import {
   MISSION_PROFILES,
@@ -290,10 +291,18 @@ export function MissionCenter({ preferredProfile }: { preferredProfile?: Mission
   const resetAll = useMissionStore((s) => s.resetAll);
   const selectProfile = useMissionStore((s) => s.selectProfile);
 
+  const crew = useActiveProfile();
+  const loadDemoHistory = useMissionStore((s) => s.loadDemoHistory);
+
   // El destino elegido (Luna o Marte) manda: guarda la otra misión y abre esta.
+  // Los tripulantes de demo llegan con su historial de días según el escenario.
   useEffect(() => {
-    if (today !== null && preferredProfile) selectProfile(preferredProfile);
-  }, [today, preferredProfile, selectProfile]);
+    if (today === null || !preferredProfile) return;
+    selectProfile(preferredProfile);
+    if (crew?.demo && !useMissionStore.getState().mission) {
+      loadDemoHistory(today, preferredProfile, crew.scenario === 'critical' ? 'critical' : 'stable');
+    }
+  }, [today, preferredProfile, selectProfile, crew?.id, crew?.demo, crew?.scenario, loadDemoHistory]);
 
   // Rehidrata tras montar (evita desajustes de SSR) y vigila el cambio de día.
   useEffect(() => {

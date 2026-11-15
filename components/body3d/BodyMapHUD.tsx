@@ -1,6 +1,8 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
+import { useShallow } from "zustand/react/shallow";
+import { useTelemetryStore } from "../../store/useTelemetryStore";
 import type { Anomaly, BodyMarker, Layer, Stage } from "./BodyExperience";
 import { ALL_CREDITS, SYSTEM_MODELS } from "./modelCatalog";
 
@@ -109,6 +111,61 @@ const SCENARIO_SYSTEMS: Record<Scenario, Partial<Record<SystemId, Partial<System
     conducta: { status: "amber", metric: "Cortisol 38", crewSummary: "Estrés agudo y desorientación: deja de responder a las comprobaciones." },
   },
 };
+
+/** Lecturas que se usan para calcular el estado de cada sistema en vivo. */
+interface LiveReadings {
+  heartRate: number; spO2: number; co2Level: number; radiationRate: number;
+  linfocitos: number; neutrofilos: number; cistatinaC: number; calcioIonico: number;
+  creatinina: number; cortisol: number; isRenalWarning: boolean;
+}
+
+const GENERIC: Record<StatusColor, string> = {
+  green: "Dentro de los valores normales para la misión.",
+  amber: "Valores fuera de rango: vigilar en las próximas lecturas.",
+  red: "Valores críticos: requiere atención inmediata.",
+};
+
+/**
+ * Estado de cada sistema calculado con la telemetría en vivo, para que los
+ * cambios (y una crisis) se vean en el cuerpo en cuanto ocurren.
+ */
+function liveSystems(base: Record<SystemId, SystemData>, v: LiveReadings): Record<SystemId, SystemData> {
+  const out = { ...base };
+  const keepText = (id: SystemId, status: StatusColor) =>
+    base[id].status === status || (status !== "green" && base[id].status !== "green")
+      ? {}
+      : { crewSummary: GENERIC[status] };
+
+  const nlr = v.linfocitos > 0 ? v.neutrofilos / v.linfocitos : 0;
+  const inmune: StatusColor =
+    (v.radiationRate > 50 && v.linfocitos < 1000 && nlr > 3) || v.linfocitos < 800 ? "red"
+      : v.linfocitos < 1200 || nlr > 3 || v.radiationRate > 50 ? "amber" : "green";
+  out.inmune = {
+    ...base.inmune, status: inmune, metric: `NLR ${nlr.toFixed(1)}`, ...keepText("inmune", inmune),
+    surgeonMetrics: `Radiación: ${v.radiationRate} µSv/h | Linfocitos: ${v.linfocitos}/µL | Índice NLR: ${nlr.toFixed(1)} (Crítico > 3)`,
+  };
+
+  const cardio: StatusColor =
+    v.spO2 < 90 || v.heartRate > 130 ? "red"
+      : v.spO2 < 95 || v.heartRate > 100 || v.co2Level > 3500 ? "amber" : "green";
+  out.cardio = {
+    ...base.cardio, status: cardio, metric: `FC ${v.heartRate} · SpO2 ${v.spO2} %`, ...keepText("cardio", cardio),
+    surgeonMetrics: `FC: ${v.heartRate} lpm | SpO2: ${v.spO2}% | CO2 Cabina: ${v.co2Level} ppm`,
+  };
+
+  const oseo: StatusColor =
+    v.isRenalWarning && v.cistatinaC > 1.35 ? "red"
+      : v.isRenalWarning || v.cistatinaC > 1.15 || v.calcioIonico > 1.25 ? "amber" : "green";
+  out.oseo = {
+    ...base.oseo, status: oseo, metric: `Ca2+ ${v.calcioIonico} mmol/L`, ...keepText("oseo", oseo),
+    surgeonMetrics: `Creatinina: ${v.creatinina} mg/dL | Cistatina C: ${v.cistatinaC} mg/L | Ca2+: ${v.calcioIonico} mmol/L`,
+  };
+
+  if (v.cortisol > 25 && out.conducta.status === "green") {
+    out.conducta = { ...out.conducta, status: "amber", metric: `Cortisol ${v.cortisol}`, crewSummary: "Estrés elevado: puede afectar al sueño y la concentración." };
+  }
+  return out;
+}
 
 function systemsFor(scenario: Scenario): Record<SystemId, SystemData> {
   const out = { ...SYSTEMS_DATA };
@@ -400,7 +457,14 @@ const SEVERITY: Record<StatusColor, 0 | 1 | 2> = { green: 0, amber: 1, red: 2 };
  * primera pantalla de la página única de ExoVitals.
  */
 export function BodyMapHUD({ scanRun = 0, scenario = "live" }: { scanRun?: number; scenario?: Scenario } = {}) {
-  const SYS = systemsFor(scenario);
+  const live = useTelemetryStore(
+    useShallow((t) => ({
+      heartRate: t.heartRate, spO2: t.spO2, co2Level: t.co2Level, radiationRate: t.radiationRate,
+      linfocitos: t.linfocitos, neutrofilos: t.neutrofilos, cistatinaC: t.cistatinaC,
+      calcioIonico: t.calcioIonico, creatinina: t.creatinina, cortisol: t.cortisol, isRenalWarning: t.isRenalWarning,
+    }))
+  );
+  const SYS = liveSystems(systemsFor(scenario), live);
   const [selectedSystem, setSelectedSystem] = useState<SystemId>("inmune");
   const [isSurgeonMode, setIsSurgeonMode] = useState<boolean>(false);
   const [emergencyActive, setEmergencyActive] = useState<boolean>(false);

@@ -59,11 +59,12 @@ export function IntroGate() {
   };
 
   const onPickProfile = async (p: CrewProfile) => {
-    setActive(p.id);
-    // Cada tripulante tiene su propia misión; su telemetría empieza de cero.
+    // Cada tripulante tiene su propia misión; su telemetría empieza de cero
+    // (antes de cambiar de perfil, para no mezclar lecturas del anterior).
+    useTelemetryStore.getState().simulateScenario('RESET');
     await useMissionStore.persist.rehydrate();
     useMissionStore.getState().switchCrew(p.id);
-    useTelemetryStore.getState().simulateScenario('RESET');
+    setActive(p.id);
     hide();
   };
 

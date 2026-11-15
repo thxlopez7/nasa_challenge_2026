@@ -23,20 +23,26 @@ const NOMINAL: Full = {
   radiationAccumulated: 45,
 };
 
-/** Puntos clave (segundo → valores); entre ellos se interpola. */
+/** Puntos clave (segundo → valores objetivo); entre ellos se interpola. */
 const CRITICAL_KEYS: [number, Partial<Full>][] = [
-  [0, {}],
-  [20, { heartRate: 76 }],
+  [20, { heartRate: 90 }],
   // Evento de partículas solares: sube la radiación, caen los linfocitos.
-  [35, { radiationRate: 140, radiationAccumulated: 52, linfocitos: 1100, neutrofilos: 4200, cortisol: 18, heartRate: 88 }],
-  [50, { radiationRate: 150, radiationAccumulated: 58, linfocitos: 760, neutrofilos: 5300, cortisol: 24, heartRate: 96, co2Level: 900 }],
+  [35, { radiationRate: 140, radiationAccumulated: 52, linfocitos: 950, neutrofilos: 4600, cortisol: 22, heartRate: 94 }],
+  [50, { radiationRate: 150, radiationAccumulated: 58, linfocitos: 760, neutrofilos: 5300, cortisol: 26, heartRate: 98, co2Level: 1400 }],
   // Fallo del depurador de CO2: hipercapnia con SpO2 todavía conservada.
-  [65, { radiationRate: 150, radiationAccumulated: 62, linfocitos: 720, neutrofilos: 5400, co2Level: 4400, spO2: 97, heartRate: 108, cortisol: 28 }],
+  [65, { radiationRate: 150, radiationAccumulated: 62, linfocitos: 720, neutrofilos: 5400, co2Level: 4400, spO2: 96, heartRate: 108, cortisol: 29 }],
   // Afectación renal y primeros signos de descompensación.
-  [80, { radiationRate: 145, radiationAccumulated: 66, linfocitos: 690, neutrofilos: 5500, co2Level: 5200, spO2: 93, heartRate: 124, cistatinaC: 1.32, calcioIonico: 1.31, creatinina: 1.05, cortisol: 32 }],
-  [95, { radiationRate: 140, radiationAccumulated: 70, linfocitos: 650, neutrofilos: 5600, co2Level: 6100, spO2: 86, heartRate: 142, cistatinaC: 1.41, calcioIonico: 1.33, creatinina: 1.08, cortisol: 38 }],
-  [110, { radiationRate: 135, radiationAccumulated: 73, linfocitos: 620, neutrofilos: 5700, co2Level: 6400, spO2: 82, heartRate: 150, cistatinaC: 1.46, calcioIonico: 1.35, creatinina: 1.09, cortisol: 41 }],
+  [80, { radiationRate: 145, radiationAccumulated: 66, linfocitos: 690, neutrofilos: 5500, co2Level: 5200, spO2: 93, heartRate: 124, cistatinaC: 1.38, calcioIonico: 1.32, creatinina: 1.05, cortisol: 33 }],
+  [95, { radiationRate: 140, radiationAccumulated: 70, linfocitos: 650, neutrofilos: 5600, co2Level: 6100, spO2: 86, heartRate: 142, cistatinaC: 1.45, calcioIonico: 1.34, creatinina: 1.08, cortisol: 38 }],
+  [110, { radiationRate: 135, radiationAccumulated: 73, linfocitos: 620, neutrofilos: 5700, co2Level: 6400, spO2: 82, heartRate: 150, cistatinaC: 1.5, calcioIonico: 1.36, creatinina: 1.09, cortisol: 41 }],
 ];
+
+/** En qué dirección empeora cada parámetro. */
+const WORSE_UP: Record<keyof Full, boolean> = {
+  heartRate: true, spO2: false, cistatinaC: true, creatinina: true, calcioIonico: true,
+  linfocitos: false, neutrofilos: true, cortisol: true, co2Level: true, radiationRate: true,
+  radiationAccumulated: true,
+};
 
 const DIGITS: Record<keyof Full, number> = {
   heartRate: 0, spO2: 0, cistatinaC: 2, creatinina: 2, calcioIonico: 2, linfocitos: 0,
@@ -46,12 +52,24 @@ const DIGITS: Record<keyof Full, number> = {
 /** Ruido pequeño y determinista para que las curvas no sean rectas. */
 const wobble = (t: number, k: number) => Math.sin(t * 1.7 + k * 3.1) * 0.5 + Math.sin(t * 0.43 + k) * 0.5;
 
-function fromKeys(keys: [number, Partial<Full>][]): ScenarioFrame[] {
-  // Rellena cada punto clave con los valores del anterior.
-  const filled: [number, Full][] = [];
-  let acc = { ...NOMINAL };
-  for (const [t, v] of keys) {
-    acc = { ...acc, ...v };
+const KEYS = Object.keys(NOMINAL) as (keyof Full)[];
+
+/**
+ * Guion crítico: parte de las lecturas del último día registrado (para que
+ * hoy continúe la tendencia) y empeora hasta la crisis. Ningún parámetro
+ * "mejora" por el camino: cada objetivo se toma solo si es peor que el actual.
+ */
+function criticalFrames(base: Full): ScenarioFrame[] {
+  const filled: [number, Full][] = [[0, base]];
+  let acc = { ...base };
+  for (const [t, target] of CRITICAL_KEYS) {
+    const next = { ...acc };
+    for (const k of KEYS) {
+      const v = target[k];
+      if (v === undefined) continue;
+      next[k] = WORSE_UP[k] ? Math.max(acc[k], v) : Math.min(acc[k], v);
+    }
+    acc = next;
     filled.push([t, acc]);
   }
   const last = filled[filled.length - 1][0];
@@ -62,38 +80,67 @@ function fromKeys(keys: [number, Partial<Full>][]): ScenarioFrame[] {
     const [t0, a] = i > 0 ? filled[i - 1] : filled[i];
     const k = t1 === t0 ? 1 : (t - t0) / (t1 - t0);
     const f = {} as Full;
-    (Object.keys(NOMINAL) as (keyof Full)[]).forEach((key, n) => {
-      const base = a[key] + (b[key] - a[key]) * k;
-      const jitter =
-        key === 'heartRate' ? wobble(t, n) * 2 : key === 'co2Level' ? wobble(t, n) * 40 : 0;
-      f[key] = Number((base + jitter).toFixed(DIGITS[key]));
+    KEYS.forEach((key, n) => {
+      const value = a[key] + (b[key] - a[key]) * k;
+      const jitter = key === 'heartRate' ? wobble(t, n) * 2 : key === 'co2Level' ? wobble(t, n) * 40 : 0;
+      f[key] = Number((value + jitter).toFixed(DIGITS[key]));
     });
     frames.push(f);
   }
   return frames;
 }
 
-/** Escenario estable: lecturas normales con pequeñas variaciones (en bucle). */
-function stableFrames(): ScenarioFrame[] {
+const clampTo = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+/** Escenario estable: oscila alrededor de un punto sano (en bucle). */
+function stableFrames(base: Full): ScenarioFrame[] {
+  const c = {
+    heartRate: clampTo(base.heartRate, 62, 78),
+    spO2: clampTo(base.spO2, 97, 99),
+    cistatinaC: clampTo(base.cistatinaC, 0.78, 0.92),
+    calcioIonico: clampTo(base.calcioIonico, 1.08, 1.16),
+    linfocitos: clampTo(base.linfocitos, 1350, 1700),
+    neutrofilos: clampTo(base.neutrofilos, 2700, 3300),
+    cortisol: clampTo(base.cortisol, 9, 13),
+    co2Level: clampTo(base.co2Level, 600, 850),
+  };
   return Array.from({ length: 120 }, (_, t) => ({
-    heartRate: Math.round(70 + Math.sin(t / 9) * 4 + wobble(t, 1) * 2),
-    spO2: Math.round(98 + Math.sin(t / 23)),
-    cistatinaC: Number((0.84 + Math.sin(t / 40) * 0.03).toFixed(2)),
+    heartRate: Math.round(c.heartRate + Math.sin(t / 9) * 4 + wobble(t, 1) * 2),
+    spO2: Math.round(c.spO2 + Math.sin(t / 23) * 0.6),
+    cistatinaC: Number((c.cistatinaC + Math.sin(t / 40) * 0.02).toFixed(2)),
     creatinina: 1.0,
-    calcioIonico: Number((1.12 + Math.sin(t / 50) * 0.02).toFixed(2)),
-    linfocitos: Math.round(1480 + Math.sin(t / 30) * 40),
-    neutrofilos: Math.round(3000 + Math.sin(t / 27) * 80),
-    cortisol: Number((11 + Math.sin(t / 35)).toFixed(1)),
-    co2Level: Math.round(720 + Math.sin(t / 15) * 120 + wobble(t, 2) * 30),
+    calcioIonico: Number((c.calcioIonico + Math.sin(t / 50) * 0.01).toFixed(2)),
+    linfocitos: Math.round(c.linfocitos + Math.sin(t / 30) * 40),
+    neutrofilos: Math.round(c.neutrofilos + Math.sin(t / 27) * 80),
+    cortisol: Number((c.cortisol + Math.sin(t / 35)).toFixed(1)),
+    co2Level: Math.round(c.co2Level + Math.sin(t / 15) * 80 + wobble(t, 2) * 30),
     radiationRate: Number((0.45 + Math.sin(t / 20) * 0.1).toFixed(2)),
-    radiationAccumulated: Number((45 + t * 0.002).toFixed(1)),
+    radiationAccumulated: Number(((base.radiationAccumulated ?? 45) + t * 0.002).toFixed(1)),
   }));
 }
 
-export const SCENARIO_FRAMES: Record<Exclude<CrewScenario, 'live'>, { frames: ScenarioFrame[]; loop: boolean }> = {
-  critical: { frames: fromKeys(CRITICAL_KEYS), loop: false },
-  stable: { frames: stableFrames(), loop: true },
-};
+/**
+ * Guion de telemetría del escenario. `baseline` son las lecturas del último
+ * día registrado: el día de hoy arranca desde ahí.
+ */
+export function scenarioScript(
+  scenario: Exclude<CrewScenario, 'live'>,
+  baseline?: ScenarioFrame
+): { frames: ScenarioFrame[]; loop: boolean } {
+  const base: Full = { ...NOMINAL };
+  if (baseline) {
+    for (const k of KEYS) {
+      const v = baseline[k];
+      if (typeof v === 'number' && Number.isFinite(v)) base[k] = v;
+    }
+    // Lo ambiental del día anterior no se arrastra: hoy empieza normal.
+    base.radiationRate = Math.min(base.radiationRate, scenario === 'critical' ? 30 : 0.5);
+    base.co2Level = Math.min(base.co2Level, scenario === 'critical' ? 1400 : 850);
+  }
+  return scenario === 'critical'
+    ? { frames: criticalFrames(base), loop: false }
+    : { frames: stableFrames(base), loop: true };
+}
 
 /* ------------------------------------------------------------------ */
 /* Bitácora de eventos del escenario                                   */

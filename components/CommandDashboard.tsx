@@ -4,8 +4,11 @@ import GodModePanel from './GodModePanel';
 import MedicalCopilot from './MedicalCopilot';
 import SensorSimulator from './SensorSimulator';
 import CrewPanel from './scenario/CrewPanel';
+import LiveEvolution from './vitals/LiveEvolution';
 import type { CrewProfile } from '../types/profile';
-import { SCENARIO_FRAMES } from '../utils/scenarios';
+import { scenarioScript } from '../utils/scenarios';
+import { useMissionStore } from '../store/useMissionStore';
+import { useMemo } from 'react';
 import MissionCenter from './mission/MissionCenter';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 import type { AlertSeverity } from '../types/telemetry';
@@ -77,7 +80,16 @@ function RuleRow({
 /** Centro de mando: telemetría, motor RIDGE, God Mode, copiloto y Centro de misión. */
 export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; profile?: CrewProfile }) {
   // Cada tripulante reproduce el guion de su escenario (o el dataset en vivo).
-  const script = profile && profile.scenario !== 'live' ? SCENARIO_FRAMES[profile.scenario] : undefined;
+  // Hoy arranca desde las lecturas del último día registrado del tripulante.
+  const records = useMissionStore((s) => s.records);
+  const scenario = profile?.scenario;
+  const script = useMemo(() => {
+    if (!scenario || scenario === 'live') return undefined;
+    const last = Object.values(records)
+      .filter((r) => r.vitals)
+      .sort((a, b) => b.missionDay - a.missionDay)[0];
+    return scenarioScript(scenario, last?.vitals);
+  }, [scenario, records]);
 
   const {
     heartRate,
@@ -111,6 +123,7 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
 
       <div className="max-w-7xl mx-auto space-y-8">
         {profile && <CrewPanel profile={profile} />}
+        <LiveEvolution key={profile?.id ?? 'live'} />
         <header className="border-b border-slate-800 pb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-widest text-cyan-500">
