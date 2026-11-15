@@ -26,12 +26,14 @@ const space = localFont({
  * Familia de texto corrido (Roboto, SIL OFL 1.1). Jerarquía por peso:
  *   900 Black   → títulos y énfasis (font-semibold/bold/black, h1–h3)
  *   200 ExtraLight → texto corrido (peso por defecto del body)
+ *   300 Light   → texto pequeño (≤ 14 px), para que se lea sobre fondo oscuro
  *   100 Thin    → cifras grandes (font-thin)
  */
 const robotoCondensed = localFont({
   src: [
     { path: "./fonts/roboto/Roboto_Condensed-Thin.ttf", weight: "100", style: "normal" },
     { path: "./fonts/roboto/Roboto_Condensed-ExtraLight.ttf", weight: "200", style: "normal" },
+    { path: "./fonts/roboto/Roboto_Condensed-Light.ttf", weight: "300", style: "normal" },
     { path: "./fonts/roboto/Roboto_Condensed-Black.ttf", weight: "900", style: "normal" },
   ],
   variable: "--font-roboto-condensed",

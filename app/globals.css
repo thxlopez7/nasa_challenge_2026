@@ -53,9 +53,19 @@ body {
   letter-spacing: 0.01em;
 }
 
-/* Jerarquía tipográfica del texto corrido. */
-h1, h2, h3, h4, strong, b {
-  font-weight: 900;
+
+/* Jerarquía tipográfica. En @layer base para que las utilidades de
+   Tailwind (font-bold, font-thin…) sigan mandando cuando se usan. */
+@layer base {
+  h1, h2, h3, h4, strong, b {
+    font-weight: 900;
+  }
+
+  /* Texto pequeño (≤ 14 px): Roboto Condensed Light, más legible que el
+     ExtraLight a ese tamaño. */
+  .text-xs, .text-sm, .text-\[9px\], .text-\[10px\], .text-\[11px\], .text-\[12px\] {
+    font-weight: 300;
+  }
 }
 
 /* Notas y aclaraciones: Roboto ExtraLight Italic. */
