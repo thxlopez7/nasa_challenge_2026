@@ -33,7 +33,14 @@ interface MissionData {
 /** Misiones guardadas por destino, para cambiar de Luna a Marte sin perder nada. */
 type Shelf = Partial<Record<MissionProfileId, MissionData>>;
 
+/** Todo lo de un tripulante: su misión actual y las de otros destinos. */
+interface CrewData extends MissionData {
+  shelf: Shelf;
+}
+
 interface MissionActions {
+  /** Cambia de tripulante: guarda lo suyo y carga lo del perfil elegido. */
+  switchCrew: (crewId: string) => void;
   /**
    * Cambia de destino: guarda la misión actual en su estante y recupera la
    * del destino elegido (o deja la preparación vacía si aún no existe).
@@ -59,7 +66,13 @@ interface MissionActions {
   closeAsExcused: () => void;
 }
 
-export type MissionState = MissionData & { shelf: Shelf } & MissionActions;
+export type MissionState = MissionData & {
+  shelf: Shelf;
+  /** Tripulante dueño de los datos cargados */
+  crewId: string | null;
+  /** Datos de los demás tripulantes */
+  crews: Record<string, CrewData>;
+} & MissionActions;
 
 const emptyData: MissionData = { mission: null, records: {}, session: null };
 
@@ -109,6 +122,20 @@ export const useMissionStore = create<MissionState>()(
     (set, get) => ({
       ...emptyData,
       shelf: {},
+      crewId: null,
+      crews: {},
+
+      switchCrew: (crewId) => {
+        const { crewId: current, mission, records, session, shelf, crews } = get();
+        if (current === crewId) return;
+        const next = { ...crews };
+        // Los datos sin dueño (de antes de existir perfiles) se quedan con el primero.
+        if (current) next[current] = { mission, records, session, shelf };
+        const restored: CrewData =
+          next[crewId] ?? (current ? { ...emptyData, shelf: {} } : { mission, records, session, shelf });
+        delete next[crewId];
+        set({ ...restored, crewId, crews: next });
+      },
 
       selectProfile: (profileId) => {
         const { mission, records, session, shelf } = get();
@@ -319,7 +346,14 @@ export const useMissionStore = create<MissionState>()(
       // `window` sólo existe en el navegador (ver useTelemetryStore).
       storage: createJSONStorage(() => window.localStorage),
       skipHydration: true,
-      partialize: ({ mission, records, session, shelf }) => ({ mission, records, session, shelf }),
+      partialize: ({ mission, records, session, shelf, crewId, crews }) => ({
+        mission,
+        records,
+        session,
+        shelf,
+        crewId,
+        crews,
+      }),
     }
   )
 );

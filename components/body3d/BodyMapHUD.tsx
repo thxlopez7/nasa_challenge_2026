@@ -67,6 +67,57 @@ const SYSTEMS_DATA: Record<SystemId, SystemData> = {
   },
 };
 
+/** Cómo se ve cada sistema según el escenario del tripulante. */
+type Scenario = "critical" | "stable" | "live";
+const SCENARIO_SYSTEMS: Record<Scenario, Partial<Record<SystemId, Partial<SystemData>>>> = {
+  live: {},
+  stable: {
+    neuro: {
+      status: "amber", metric: "Cefalea 3/10", trend: [30, 32, 35, 34, 36, 35, 33],
+      crewSummary: "Cefalea leve y mareo al girar la cabeza: adaptación normal al espacio.",
+      crewAction: "Hidrátate, mueve la cabeza despacio y descansa la vista unos minutos.",
+      surgeonMetrics: "Cefalea: 3/10 | Mareo: 2/10 (adaptación espacial) | ONSD: 5.4 mm (normal)",
+    },
+    cardio: { status: "green", metric: "FC 70 lpm", crewSummary: "Ritmo cardíaco y oxigenación estables.", surgeonMetrics: "FC: 70 lpm | SpO2: 98% | CO2 Cabina: 720 ppm" },
+    inmune: {
+      status: "green", metric: "NLR 2.0", trend: [20, 21, 20, 22, 21, 20, 21],
+      crewSummary: "Defensas normales. Sin exposición relevante a radiación.",
+      crewAction: "Mantén la higiene habitual del módulo.",
+      surgeonMetrics: "Radiación: 0.4 µSv/h | Linfocitos: 1480/µL | Índice NLR: 2.0",
+    },
+    oseo: { status: "green" },
+    conducta: { status: "green", metric: "Sueño 7.4 h", crewSummary: "Buen descanso y ánimo estable." },
+  },
+  critical: {
+    inmune: {
+      status: "red", metric: "NLR 8.6", trend: [30, 41, 58, 72, 84, 91, 96],
+      crewSummary: "Defensas muy bajas tras el evento de partículas solares.",
+      crewAction: "Refugio blindado y aviso inmediato al cirujano de vuelo.",
+      surgeonMetrics: "Radiación: 140 µSv/h | Linfocitos: 650/µL | Índice NLR: 8.6 (Crítico > 3)",
+    },
+    cardio: {
+      status: "red", metric: "FC 142 · SpO2 86 %", trend: [20, 24, 35, 52, 70, 88, 97],
+      crewSummary: "Taquicardia e hipoxemia: el corazón compensa la falta de oxígeno y el exceso de CO2.",
+      crewAction: "Oxígeno al 100 % y depurador de CO2 de respaldo.",
+      surgeonMetrics: "FC: 142 lpm | SpO2: 86% | CO2 Cabina: 6100 ppm",
+    },
+    oseo: {
+      status: "amber", metric: "Ca2+ 1.33 mmol/L", trend: [22, 25, 31, 40, 52, 60, 66],
+      crewSummary: "Cistatina C y calcio elevados: el riñón empieza a sufrir.",
+      surgeonMetrics: "Creatinina: 1.08 mg/dL | Cistatina C: 1.41 mg/L | Ca2+: 1.33 mmol/L",
+    },
+    conducta: { status: "amber", metric: "Cortisol 38", crewSummary: "Estrés agudo y desorientación: deja de responder a las comprobaciones." },
+  },
+};
+
+function systemsFor(scenario: Scenario): Record<SystemId, SystemData> {
+  const out = { ...SYSTEMS_DATA };
+  for (const [id, patch] of Object.entries(SCENARIO_SYSTEMS[scenario]) as [SystemId, Partial<SystemData>][]) {
+    out[id] = { ...out[id], ...patch };
+  }
+  return out;
+}
+
 const STATUS_LABEL: Record<StatusColor, string> = { green: "Óptimo", amber: "Precaución", red: "Crítico" };
 // Color + forma + texto: nunca solo color
 const STATUS_ICON: Record<StatusColor, string> = { green: "✓", amber: "▲", red: "■" };
@@ -348,7 +399,8 @@ const SEVERITY: Record<StatusColor, 0 | 1 | 2> = { green: 0, amber: 1, red: 2 };
  * Escáner corporal 3D y explorador de anatomía (equipo UX/UI). Ocupa la
  * primera pantalla de la página única de ExoVitals.
  */
-export function BodyMapHUD({ scanRun = 0 }: { scanRun?: number } = {}) {
+export function BodyMapHUD({ scanRun = 0, scenario = "live" }: { scanRun?: number; scenario?: Scenario } = {}) {
+  const SYS = systemsFor(scenario);
   const [selectedSystem, setSelectedSystem] = useState<SystemId>("inmune");
   const [isSurgeonMode, setIsSurgeonMode] = useState<boolean>(false);
   const [emergencyActive, setEmergencyActive] = useState<boolean>(false);
@@ -374,9 +426,9 @@ export function BodyMapHUD({ scanRun = 0 }: { scanRun?: number } = {}) {
     setStage("intro");
   }
 
-  const ids = Object.keys(SYSTEMS_DATA) as SystemId[];
-  const current = SYSTEMS_DATA[selectedSystem];
-  const sorted = [...ids].sort((a, b) => ORDER.indexOf(SYSTEMS_DATA[a].status) - ORDER.indexOf(SYSTEMS_DATA[b].status));
+  const ids = Object.keys(SYS) as SystemId[];
+  const current = SYS[selectedSystem];
+  const sorted = [...ids].sort((a, b) => ORDER.indexOf(SYS[a].status) - ORDER.indexOf(SYS[b].status));
   const rows = current.surgeonMetrics.split(" | ").map((m) => {
     const i = m.indexOf(": ");
     return [m.slice(0, i), m.slice(i + 2)];
@@ -384,11 +436,11 @@ export function BodyMapHUD({ scanRun = 0 }: { scanRun?: number } = {}) {
 
   // Sistemas con problemas: se marcan en rojo sobre el holograma.
   const anomalies: Anomaly[] = ids
-    .filter((id) => SEVERITY[SYSTEMS_DATA[id].status] > 0)
-    .map((id) => ({ id, severity: SEVERITY[SYSTEMS_DATA[id].status] as 1 | 2 }));
+    .filter((id) => SEVERITY[SYS[id].status] > 0)
+    .map((id) => ({ id, severity: SEVERITY[SYS[id].status] as 1 | 2 }));
 
   const markers: BodyMarker[] = ids.map((id) => {
-    const sys = SYSTEMS_DATA[id];
+    const sys = SYS[id];
     return {
       id,
       number: ids.indexOf(id) + 1,
@@ -507,7 +559,7 @@ export function BodyMapHUD({ scanRun = 0 }: { scanRun?: number } = {}) {
 
               <ol className="xp-findings">
                 {detected.map((id) => {
-                  const sys = SYSTEMS_DATA[id];
+                  const sys = SYS[id];
                   return (
                     <li key={id} className={`xp-finding is-${sys.status}`}>
                       <span className="xp-finding-icon" aria-hidden>{STATUS_ICON[sys.status]}</span>
@@ -568,7 +620,7 @@ export function BodyMapHUD({ scanRun = 0 }: { scanRun?: number } = {}) {
             <aside className="xp-panel xp-right">
               <p className="kick">Sistemas · del más grave al menos</p>
               {sorted.map((id) => {
-                const sys = SYSTEMS_DATA[id];
+                const sys = SYS[id];
                 return (
                   <button key={id} className={`xp-sys is-${sys.status}`} aria-pressed={selectedSystem === id} onClick={() => setSelectedSystem(id)}>
                     <span className="xp-sys-icon" style={{ background: STATUS_FILL[sys.status] }} aria-hidden>{STATUS_ICON[sys.status]}</span>

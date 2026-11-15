@@ -221,3 +221,28 @@ em, i, .italic {
   from { opacity: 0; transform: translateY(28px); filter: blur(8px); }
   to { opacity: 1; transform: translateY(0); filter: blur(0); }
 }
+
+/* ---------------- Selector de perfiles (ProfilePicker) ---------------- */
+
+.profile-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(3, 2, 11, 0.55), rgba(3, 2, 11, 0.92) 70%),
+    url('/images/galactic-center.webp') center / cover no-repeat;
+  filter: saturate(0.9);
+}
+
+.profile-rise {
+  animation: cover-rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Alerta crítica: el recuadro late para llamar la atención. */
+.earth-pulse {
+  animation: earth-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes earth-pulse {
+  0%, 100% { box-shadow: 0 0 40px rgba(239, 68, 68, 0.35); }
+  50% { box-shadow: 0 0 90px rgba(239, 68, 68, 0.7); }
+}

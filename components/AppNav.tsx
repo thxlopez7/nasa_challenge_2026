@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Activity, Moon, Orbit, ScanLine, Sparkles } from 'lucide-react';
+import { Activity, House, Moon, Orbit, ScanLine } from 'lucide-react';
+import { useActiveProfile } from '../store/useProfileStore';
+import AstroAvatar from './profile/AstroAvatar';
 import { useIntroStore } from '../store/useIntroStore';
 import { MISSION_CHOICES, saveChoice, type MissionSlug } from '../utils/missionChoice';
 
@@ -21,6 +23,7 @@ type SectionId = (typeof SECTIONS)[number]['id'];
  */
 export function AppNav({ mision }: { mision?: MissionSlug }) {
   const showIntro = useIntroStore((s) => s.show);
+  const profile = useActiveProfile();
   const [active, setActive] = useState<SectionId>('cuerpo');
 
   // Recuerda la misión activa para la próxima visita.
@@ -119,14 +122,25 @@ export function AppNav({ mision }: { mision?: MissionSlug }) {
             );
           })}
         </div>
+        {profile && (
+          <button
+            type="button"
+            onClick={() => showIntro('profiles')}
+            title="Cambiar de tripulante"
+            className="inline-flex items-center gap-2 rounded-full border border-slate-700 py-0.5 pl-0.5 pr-3 text-slate-300 hover:border-slate-400 hover:text-white transition cursor-pointer"
+          >
+            <AstroAvatar id={profile.avatar} className="h-6 w-6 rounded-full" />
+            <span className="hidden sm:inline">{profile.name}</span>
+          </button>
+        )}
         <button
           type="button"
-          onClick={showIntro}
-          title="Ver la intro otra vez"
-          aria-label="Ver la intro otra vez"
-          className="rounded-full p-1.5 text-slate-500 hover:text-cyan-300 hover:bg-slate-800 transition cursor-pointer"
+          onClick={() => showIntro('title')}
+          title="Volver al inicio de la experiencia"
+          className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/40 px-3 py-1 text-cyan-200 hover:bg-cyan-500/15 transition cursor-pointer"
         >
-          <Sparkles className="h-3.5 w-3.5" aria-hidden />
+          <House className="h-3.5 w-3.5" aria-hidden />
+          Inicio
         </button>
       </div>
     </nav>

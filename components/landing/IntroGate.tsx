@@ -3,23 +3,37 @@
 import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useIntroStore } from '../../store/useIntroStore';
+import { useMissionStore } from '../../store/useMissionStore';
+import { useProfileStore } from '../../store/useProfileStore';
+import { useTelemetryStore } from '../../store/useTelemetryStore';
+import type { CrewProfile } from '../../types/profile';
 import type { MissionSlug } from '../../utils/missionChoice';
+import ProfilePicker from '../profile/ProfilePicker';
 import CoverPage from './CoverPage';
 
 /** Rutas internas donde no tiene sentido una intro. */
 const NO_INTRO = ['/test'];
 
 /**
- * Muestra la intro encima de cualquier página al abrir la app. Vive en el
- * layout raíz, así que aparece en cada carga completa (también si se entra
- * directo a /panel o /cuerpo) y no al navegar dentro de la app.
+ * Entrada a la app, encima de cualquier página: pantalla de título (elegir
+ * Luna o Marte) → «¿Quién está a bordo?» (elegir o crear tripulante).
+ * Vive en el layout raíz, así que aparece en cada carga completa y no al
+ * navegar dentro de la app.
  */
 export function IntroGate() {
   const open = useIntroStore((s) => s.open);
+  const step = useIntroStore((s) => s.step);
+  const goTo = useIntroStore((s) => s.goTo);
   const hide = useIntroStore((s) => s.hide);
+  const setActive = useProfileStore((s) => s.setActive);
   const pathname = usePathname();
   const router = useRouter();
   const visible = open && !NO_INTRO.some((p) => pathname.startsWith(p));
+
+  // Perfiles guardados en este navegador.
+  useEffect(() => {
+    void useProfileStore.persist.rehydrate();
+  }, []);
 
   // Precarga el panel para que el salto no espere a la red.
   useEffect(() => {
@@ -39,14 +53,27 @@ export function IntroGate() {
 
   if (!visible) return null;
 
-  const onChoose = (slug: MissionSlug) => {
+  const onChooseMission = (slug: MissionSlug) => {
     router.replace(`/panel?mision=${slug}`, { scroll: false });
+    goTo('profiles');
+  };
+
+  const onPickProfile = async (p: CrewProfile) => {
+    setActive(p.id);
+    // Cada tripulante tiene su propia misión; su telemetría empieza de cero.
+    await useMissionStore.persist.rehydrate();
+    useMissionStore.getState().switchCrew(p.id);
+    useTelemetryStore.getState().simulateScenario('RESET');
     hide();
   };
 
   return (
-    <div className="fixed inset-0 z-[200]" role="dialog" aria-modal="true" aria-label="Intro de ExoVitals">
-      <CoverPage onChoose={onChoose} />
+    <div className="fixed inset-0 z-[200]" role="dialog" aria-modal="true" aria-label="Entrada a ExoVitals">
+      {step === 'title' ? (
+        <CoverPage onChoose={onChooseMission} />
+      ) : (
+        <ProfilePicker onPick={onPickProfile} onBack={() => goTo('title')} />
+      )}
     </div>
   );
 }

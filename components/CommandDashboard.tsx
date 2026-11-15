@@ -3,6 +3,9 @@
 import GodModePanel from './GodModePanel';
 import MedicalCopilot from './MedicalCopilot';
 import SensorSimulator from './SensorSimulator';
+import CrewPanel from './scenario/CrewPanel';
+import type { CrewProfile } from '../types/profile';
+import { SCENARIO_FRAMES } from '../utils/scenarios';
 import MissionCenter from './mission/MissionCenter';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 import type { AlertSeverity } from '../types/telemetry';
@@ -72,7 +75,10 @@ function RuleRow({
 }
 
 /** Centro de mando: telemetría, motor RIDGE, God Mode, copiloto y Centro de misión. */
-export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
+export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; profile?: CrewProfile }) {
+  // Cada tripulante reproduce el guion de su escenario (o el dataset en vivo).
+  const script = profile && profile.scenario !== 'live' ? SCENARIO_FRAMES[profile.scenario] : undefined;
+
   const {
     heartRate,
     spO2,
@@ -101,9 +107,10 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans p-4 sm:p-6 lg:p-10">
-      <SensorSimulator />
+      <SensorSimulator key={profile?.id ?? 'live'} frames={script?.frames} loop={script?.loop ?? true} />
 
       <div className="max-w-7xl mx-auto space-y-8">
+        {profile && <CrewPanel profile={profile} />}
         <header className="border-b border-slate-800 pb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-widest text-cyan-500">
