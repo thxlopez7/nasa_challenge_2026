@@ -131,7 +131,7 @@ export function CoverPage({ onChoose }: { onChoose: (slug: MissionSlug) => void 
                 ))}
               </span>
               <span
-                className="cover-subtitle cover-rise mt-3 flex items-center justify-center gap-3 sm:gap-5 whitespace-nowrap text-[min(4vw,1.875rem)] tracking-[0.25em] sm:tracking-[0.35em] text-cyan-100"
+                className="cover-subtitle cover-rise mt-3 flex items-center justify-center gap-2 sm:gap-5 whitespace-nowrap text-[clamp(0.75rem,3.8vw,1.875rem)] tracking-[0.18em] sm:tracking-[0.35em] text-cyan-100"
                 style={{ animationDelay: '1.4s' }}
               >
                 <span className="hidden sm:block h-px w-16 bg-gradient-to-r from-transparent to-cyan-300" />
@@ -141,11 +141,11 @@ export function CoverPage({ onChoose }: { onChoose: (slug: MissionSlug) => void 
             </span>
           </h1>
 
-          <div className="cover-rise mt-12 flex flex-col items-center gap-3" style={{ animationDelay: '1.8s' }}>
-            <p className="cover-blink font-mono text-[10px] sm:text-xs uppercase tracking-[0.4em] text-slate-200">
+          <div className="cover-rise mt-8 sm:mt-12 w-full max-w-xs sm:max-w-none flex flex-col items-center gap-3" style={{ animationDelay: '1.8s' }}>
+            <p className="cover-blink font-mono text-[10px] sm:text-xs uppercase tracking-[0.3em] sm:tracking-[0.4em] text-slate-200">
               {ci.chooseMission}
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="w-full sm:w-auto flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-center gap-3">
               {(['luna', 'marte'] as const).map((slug) => {
                 const missionName = slug === 'luna' ? t.common.moon : t.common.mars;
                 const tagline = slug === 'luna' ? ci.moonTagline : ci.marsTagline;
@@ -157,14 +157,14 @@ export function CoverPage({ onChoose }: { onChoose: (slug: MissionSlug) => void 
                     onClick={() => go(slug)}
                     disabled={!!leaving}
                     aria-label={ci.enterMissionAria(missionName, tagline)}
-                    className={`cover-mission group inline-flex items-center gap-2.5 rounded-full border px-4 py-2 text-sm font-display font-bold tracking-wider backdrop-blur-md transition cursor-pointer disabled:cursor-default ${
+                    className={`cover-mission group min-h-[48px] inline-flex items-center justify-center gap-2.5 rounded-full border px-5 py-2.5 text-sm font-display font-bold tracking-wider backdrop-blur-md transition cursor-pointer disabled:cursor-default ${
                       slug === 'marte'
                         ? 'border-orange-300/50 bg-orange-500/10 text-orange-100 hover:bg-orange-500/25 hover:border-orange-200'
                         : 'border-slate-200/50 bg-white/5 text-slate-100 hover:bg-white/15 hover:border-white'
                     } ${leaving === slug ? 'scale-110' : ''}`}
                   >
-                    <Icon className="h-4 w-4 transition-transform group-hover:rotate-12" aria-hidden />
-                    {ci.missionPrefix} {missionName.toUpperCase()}
+                    <Icon className="h-4 w-4 shrink-0 transition-transform group-hover:rotate-12" aria-hidden />
+                    <span>{ci.missionPrefix} {missionName.toUpperCase()}</span>
                     <span className="hidden sm:inline font-mono font-normal text-[10px] tracking-normal opacity-70">
                       {tagline}
                     </span>

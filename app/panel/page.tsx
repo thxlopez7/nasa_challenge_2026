@@ -32,10 +32,10 @@ function OnePage({ mision }: { mision?: MissionSlug }) {
   return (
     <>
       <AppNav mision={mision} />
-      <section id="cuerpo" aria-label="Escáner corporal 3D" className="scroll-mt-12">
+      <section id="cuerpo" aria-label="Escáner corporal 3D" className="scroll-mt-14 overflow-x-clip">
         <BodyMapHUD mision={mision} scanRun={scanRun} />
       </section>
-      <section id="mando" aria-label="Centro de mando" className="scroll-mt-12">
+      <section id="mando" aria-label="Centro de mando" className="scroll-mt-14 overflow-x-clip">
         <CommandDashboard mision={mision} profile={profile} />
       </section>
       {profile && <EarthAlert key={`${profile.id}-${scanRun}`} profile={profile} mision={mision} />}

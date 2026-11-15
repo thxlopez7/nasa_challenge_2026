@@ -120,13 +120,13 @@ export function GlobalStatusBar({ snapshot }: { snapshot: ClinicalSnapshot }) {
         )}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
         {/* Earth Link Chip -> navigates to #tierra */}
         <button
           type="button"
           onClick={() => setActiveTab('tierra')}
           aria-label={t.command.statusBar.earthLinkAria}
-          className={`min-h-[44px] inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold cursor-pointer transition ${
+          className={`min-h-[44px] flex-1 sm:flex-initial inline-flex items-center justify-center sm:justify-start gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold cursor-pointer transition ${
             isOffline
               ? 'border-amber-500/70 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20'
               : 'border-slate-700 bg-slate-950/70 text-slate-200 hover:border-cyan-500/60 hover:text-cyan-200'

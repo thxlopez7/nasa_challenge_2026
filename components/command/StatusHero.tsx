@@ -121,18 +121,18 @@ export function StatusHero({
         aria-hidden
         className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${style.glow} via-transparent to-transparent`}
       />
-      <div className="relative grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-        <div className="flex items-start gap-4 min-w-0">
+      <div className="relative grid gap-4 p-4 sm:gap-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+        <div className="flex items-start gap-3 sm:gap-4 min-w-0">
           <span
-            className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl ring-1 ${style.iconCls}`}
+            className={`grid h-11 w-11 sm:h-14 sm:w-14 shrink-0 place-items-center rounded-xl sm:rounded-2xl ring-1 ${style.iconCls}`}
           >
-            <Icon className="h-7 w-7" aria-hidden />
+            <Icon className="h-5 w-5 sm:h-7 sm:w-7" aria-hidden />
           </span>
-          <div className="min-w-0 space-y-1.5">
+          <div className="min-w-0 space-y-1 sm:space-y-1.5">
             <p className="cc-eyebrow">{h.eyebrow}</p>
             <h2
               id="status-hero-title"
-              className={`text-2xl sm:text-3xl font-semibold leading-tight ${style.title}`}
+              className={`text-xl sm:text-3xl font-semibold leading-tight ${style.title}`}
             >
               {title}
             </h2>
@@ -142,23 +142,23 @@ export function StatusHero({
           </div>
         </div>
 
-        <ul className="flex flex-wrap gap-2 lg:flex-col lg:items-stretch" aria-label={t.command.mosaic.title}>
+        <ul className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 lg:flex-col lg:items-stretch" aria-label={t.command.mosaic.title}>
           {counts.map(([status, n]) => (
             <li
               key={status}
-              className={`flex items-center gap-2.5 rounded-lg border border-[var(--cc-line)] bg-black/20 px-3 py-1.5 text-sm ${
+              className={`flex items-center gap-2 rounded-lg border border-[var(--cc-line)] bg-black/20 px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm ${
                 n === 0 ? 'opacity-45' : ''
               }`}
             >
-              <span className={`h-2 w-2 rounded-full ${DOT[status]}`} aria-hidden />
-              <span className="cc-num text-base font-semibold text-slate-50 w-5 text-right">{n}</span>
-              <span className="text-slate-400">{h.counts[status]}</span>
+              <span className={`h-2 w-2 shrink-0 rounded-full ${DOT[status]}`} aria-hidden />
+              <span className="cc-num text-sm sm:text-base font-semibold text-slate-50 w-4 sm:w-5 text-right">{n}</span>
+              <span className="text-slate-400 truncate">{h.counts[status]}</span>
             </li>
           ))}
         </ul>
       </div>
 
-      <div className="relative border-t border-[var(--cc-line)] bg-black/20 px-5 py-3 sm:px-6">
+      <div className="relative border-t border-[var(--cc-line)] bg-black/20 px-4 py-3 sm:px-6">
         <NextActionBanner recommendation={recommendation} embedded label={h.nextLabel} />
       </div>
     </section>

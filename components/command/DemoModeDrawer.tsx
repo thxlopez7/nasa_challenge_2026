@@ -54,9 +54,9 @@ export function DemoModeDrawer() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="demo-drawer-title"
-        className="w-full max-w-md bg-slate-900 border-l border-slate-800 h-full overflow-y-auto shadow-2xl flex flex-col"
+        className="w-full max-w-md bg-slate-900 border-l border-slate-800 h-[100dvh] overflow-y-auto shadow-2xl flex flex-col"
       >
-        <div className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-5 py-4 flex items-start justify-between gap-3">
+        <div className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-4 sm:px-5 py-3.5 sm:py-4 flex items-start justify-between gap-3">
           <div className="space-y-1">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 border border-amber-500/40 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200">
               <SlidersHorizontal className="h-3 w-3" aria-hidden />

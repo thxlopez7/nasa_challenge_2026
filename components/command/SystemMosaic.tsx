@@ -80,7 +80,7 @@ export function SystemMosaic({ tiles }: { tiles: SystemTileData[] }) {
         </h2>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
         {tiles.map((tile) => {
           const Icon = SYSTEM_ICON[tile.id];
           const style = TILE_STYLE[tile.status];
@@ -90,27 +90,27 @@ export function SystemMosaic({ tiles }: { tiles: SystemTileData[] }) {
           return (
             <div
               key={tile.id}
-              className={`group relative overflow-hidden rounded-xl border p-4 pt-[18px] transition flex flex-col justify-between gap-3 ${style.border}`}
+              className={`group relative overflow-hidden rounded-xl border p-3 sm:p-4 pt-3.5 sm:pt-[18px] transition flex flex-col justify-between gap-2.5 sm:gap-3 ${style.border}`}
             >
               <span aria-hidden className={`absolute inset-x-0 top-0 h-[3px] ${style.bar}`} />
-              <div className="flex items-start justify-between gap-1.5">
+              <div className="flex items-start justify-between gap-1">
                 <button
                   type="button"
                   onClick={() => openSystemDrawer(tile.id, false)}
                   aria-label={`${t.command.mosaic.openDetailAria} ${tile.title}`}
-                  className="min-h-[44px] flex-1 text-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 rounded-md -m-1 p-1"
+                  className="min-h-[44px] min-w-0 flex-1 text-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 rounded-md -m-1 p-1"
                 >
-                  <div className="flex items-center gap-2 text-sm font-medium text-slate-300">
-                    <Icon className={`h-4 w-4 shrink-0 ${style.labelClass}`} aria-hidden />
+                  <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium text-slate-300">
+                    <Icon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 ${style.labelClass}`} aria-hidden />
                     <span className="truncate">{tile.shortTitle}</span>
                   </div>
 
-                  <div className="mt-2 flex items-baseline gap-1.5">
-                    <span className="cc-num text-3xl font-medium text-white leading-none">
+                  <div className="mt-1.5 sm:mt-2 flex flex-wrap items-baseline gap-1 sm:gap-1.5">
+                    <span className="cc-num text-2xl sm:text-3xl font-medium text-white leading-none">
                       {tile.primaryValue}
                     </span>
                     {tile.unit && (
-                      <span className="text-sm text-slate-400">{tile.unit}</span>
+                      <span className="text-xs sm:text-sm text-slate-400">{tile.unit}</span>
                     )}
                   </div>
                 </button>
@@ -120,13 +120,13 @@ export function SystemMosaic({ tiles }: { tiles: SystemTileData[] }) {
                   onClick={() => openSystemDrawer(tile.id, true)}
                   aria-label={`${t.command.mosaic.guideButtonAria}: ${tile.title}`}
                   title={t.command.mosaic.guideButtonAria}
-                  className="min-h-[44px] min-w-[44px] -mr-1.5 -mt-1.5 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-cyan-300 hover:bg-slate-800/80 cursor-pointer transition"
+                  className="min-h-[44px] min-w-[44px] -mr-2 -mt-1.5 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-cyan-300 hover:bg-slate-800/80 cursor-pointer transition shrink-0"
                 >
                   <HelpCircle className="h-4 w-4" aria-hidden />
                 </button>
               </div>
 
-              <div className="flex items-center justify-between gap-2 text-xs border-t border-[var(--cc-line)] pt-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-1.5 text-xs border-t border-[var(--cc-line)] pt-2">
                 <span
                   className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold ${style.badge}`}
                 >
@@ -134,7 +134,7 @@ export function SystemMosaic({ tiles }: { tiles: SystemTileData[] }) {
                   <span>{statusWord}</span>
                 </span>
 
-                <span className="text-slate-400 truncate tabular-nums">
+                <span className="text-slate-400 truncate tabular-nums max-w-full">
                   {tile.isStale && tile.status !== 'missing'
                     ? `${t.command.mosaic.staleTag}`
                     : tile.secondarySummary}

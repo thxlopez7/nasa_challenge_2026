@@ -36,17 +36,17 @@ export function CrewPanel({ profile }: { profile: CrewProfile }) {
         : { label: t.crew.status.stable, cls: 'bg-emerald-500/15 text-emerald-200 border-emerald-500' };
 
   return (
-    <section aria-label={t.crew.onBoard} className="grid gap-6 rounded-xl border border-slate-800 bg-slate-900 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
-      <div className="flex gap-4">
-        <CrewAvatar profile={profile} className="h-24 w-24 shrink-0 rounded-xl" />
-        <div className="min-w-0 space-y-2">
+    <section aria-label={t.crew.onBoard} className="grid gap-4 sm:gap-6 rounded-xl border border-slate-800 bg-slate-900 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+      <div className="flex flex-col sm:flex-row items-start gap-3.5 sm:gap-4">
+        <CrewAvatar profile={profile} className="h-20 w-20 sm:h-24 sm:w-24 shrink-0 rounded-xl" />
+        <div className="min-w-0 w-full space-y-2">
           <p className="text-xs uppercase tracking-[0.25em] text-cyan-500">{t.crew.onBoard}</p>
-          <h2 className="text-2xl font-black text-white leading-tight">{profile.name}</h2>
+          <h2 className="text-xl sm:text-2xl font-black text-white leading-tight">{profile.name}</h2>
           <p className="text-sm text-slate-400">{info.role} · {profile.agency}</p>
           <span className={`inline-block rounded border px-2 py-0.5 text-xs font-black uppercase tracking-wider ${status.cls}`}>
             {status.label}
           </span>
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-1 pt-2 text-sm sm:grid-cols-4">
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 pt-2 text-sm sm:grid-cols-4">
             <div><dt className="text-xs text-slate-500">{t.crew.age}</dt><dd>{profile.age}</dd></div>
             <div><dt className="text-xs text-slate-500">{t.crew.blood}</dt><dd>{profile.bloodType}</dd></div>
             <div><dt className="text-xs text-slate-500">{t.crew.height}</dt><dd>{profile.heightCm} cm</dd></div>

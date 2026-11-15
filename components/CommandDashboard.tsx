@@ -304,7 +304,7 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
   return (
     <div
       ref={commandRootRef}
-      className="cc min-h-[calc(100vh-4rem)] px-3 py-3 sm:px-6 sm:py-5"
+      className="cc min-h-[calc(100dvh-3.5rem)] px-3 pt-3 pb-24 sm:px-6 sm:pt-5 sm:pb-24 xl:pb-6"
     >
       <SensorSimulator key={profile?.id ?? 'live'} frames={script?.frames} loop={script?.loop ?? true} />
 
@@ -320,7 +320,7 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
           <div
             role="tablist"
             aria-label={t.command.tabs.tablistAria}
-            className="flex flex-wrap items-center gap-1 border-b border-[var(--cc-line)]"
+            className="grid grid-cols-4 sm:flex sm:flex-wrap items-center gap-1 border-b border-[var(--cc-line)]"
           >
             {tabsMeta.map(({ id, label, Icon }, idx) => {
               const selected = activeTab === id;
@@ -338,14 +338,14 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
                   tabIndex={selected ? 0 : -1}
                   onClick={() => selectTabWithSync(id)}
                   onKeyDown={(e) => handleTabKeyDown(e, idx)}
-                  className={`-mb-px min-h-[48px] inline-flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold cursor-pointer transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 rounded-t-md ${
+                  className={`-mb-px min-h-[48px] inline-flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 border-b-2 px-1.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold cursor-pointer transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 rounded-t-md min-w-0 ${
                     selected
-                      ? 'border-cyan-400 text-white'
+                      ? 'border-cyan-400 text-white bg-cyan-500/5 sm:bg-transparent'
                       : 'border-transparent text-slate-400 hover:text-slate-100 hover:border-slate-600'
                   }`}
                 >
                   <Icon className="h-4 w-4 shrink-0" aria-hidden />
-                  <span>{label}</span>
+                  <span className="truncate">{label}</span>
                 </button>
               );
             })}
@@ -399,7 +399,7 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
                       </p>
                     </div>
 
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-1.5 w-full sm:w-auto">
                       {LOG_SECTIONS.map((sec) => {
                         const active = activeLogSection === sec;
                         return (
@@ -408,7 +408,7 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
                             type="button"
                             aria-pressed={active}
                             onClick={() => setActiveLogSection(sec)}
-                            className={`min-h-[44px] px-3.5 py-2 rounded-lg border text-xs font-bold uppercase tracking-wider cursor-pointer transition ${
+                            className={`min-h-[44px] px-3.5 py-2 rounded-lg border text-xs font-bold uppercase tracking-wider cursor-pointer transition text-center ${
                               active
                                 ? 'border-cyan-400 bg-cyan-500/20 text-cyan-100'
                                 : 'border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800'
