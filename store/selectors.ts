@@ -6,7 +6,18 @@ import { useMissionStore } from './useMissionStore';
 import { computeNlr, getAlertSeverity } from '../utils/clinicalEngine';
 import { getMissionComms, type MissionCommsProfile, type SupportedLang } from '../config/missionComms';
 import { MISSION_CHOICES, type MissionSlug } from '../utils/missionChoice';
-import type { AlertSeverity, Biomarkers, ClinicalAlerts, Environment } from '../types/telemetry';
+import { deriveEscalationLevel } from '../utils/behavioralScoring';
+import type {
+  AlertSeverity,
+  BehavioralCheckInData,
+  Biomarkers,
+  ClinicalAlerts,
+  Environment,
+  EscalationLevel,
+  IndicatorMeta,
+  MeasurementSource,
+  TrackedIndicatorKey,
+} from '../types/telemetry';
 import type { MissionProfileId } from '../types/mission';
 
 export type PhysiologicalSystemId = 'neuro' | 'cardio' | 'inmune' | 'oseo' | 'conducta';
@@ -28,7 +39,13 @@ export interface ClinicalSnapshot {
   environment: Environment;
   alerts: ClinicalAlerts;
   globalSeverity: AlertSeverity;
+  escalationLevel: EscalationLevel;
   isManualOverride: boolean;
+  measuredAt?: string;
+  source?: MeasurementSource;
+  indicatorMeta?: Partial<Record<TrackedIndicatorKey, IndicatorMeta>>;
+  behavioralCheckIn?: BehavioralCheckInData;
+  sharePsychWithAi: boolean;
   nlr: number;
   cisCRatio: number;
   sleepHoursRecorded: number | null;
@@ -194,8 +211,8 @@ export function deriveSystemSnapshots(input: {
             : 'Pause exertion, hydrate, and repeat resting measurement.',
       },
       surgeonMetrics: {
-        es: `FC: ${Math.round(heartRate)} lpm | SpO₂: ${spO2}% | PA y RMSSD ortostático: sin captura actual`,
-        en: `HR: ${Math.round(heartRate)} bpm | SpO₂: ${spO2}% | BP & orthostatic RMSSD: not yet captured`,
+        es: `FC: ${Math.round(heartRate)} lpm | SpO₂: ${spO2}% | PA: ${biomarkers.systolicMmHg ?? '—'}/${biomarkers.diastolicMmHg ?? '—'} mmHg | Glucosa: ${biomarkers.glucoseMgDl ?? '—'} mg/dL | Temp: ${biomarkers.bodyTempC !== undefined ? biomarkers.bodyTempC.toFixed(1) : '—'} °C`,
+        en: `HR: ${Math.round(heartRate)} bpm | SpO₂: ${spO2}% | BP: ${biomarkers.systolicMmHg ?? '—'}/${biomarkers.diastolicMmHg ?? '—'} mmHg | Glucose: ${biomarkers.glucoseMgDl ?? '—'} mg/dL | Temp: ${biomarkers.bodyTempC !== undefined ? biomarkers.bodyTempC.toFixed(1) : '—'} °C`,
       },
     },
     inmune: {
@@ -343,6 +360,11 @@ export function useClinicalSnapshot(misionSlug?: MissionSlug): ClinicalSnapshot 
       linfocitos: s.linfocitos,
       neutrofilos: s.neutrofilos,
       cortisol: s.cortisol,
+      systolicMmHg: s.systolicMmHg,
+      diastolicMmHg: s.diastolicMmHg,
+      glucoseMgDl: s.glucoseMgDl,
+      glucoseContext: s.glucoseContext,
+      bodyTempC: s.bodyTempC,
       co2Level: s.co2Level,
       radiationRate: s.radiationRate,
       radiationAccumulated: s.radiationAccumulated,
@@ -351,6 +373,12 @@ export function useClinicalSnapshot(misionSlug?: MissionSlug): ClinicalSnapshot 
       isRadiationWarning: s.isRadiationWarning,
       isCo2Warning: s.isCo2Warning,
       isManualOverride: s.isManualOverride,
+      measuredAt: s.measuredAt,
+      source: s.source,
+      indicatorMeta: s.indicatorMeta,
+      behavioralCheckIn: s.behavioralCheckIn,
+      sharePsychWithAi: s.sharePsychWithAi ?? false,
+      escalationLevel: s.escalationLevel,
     }))
   );
 
@@ -371,6 +399,11 @@ export function useClinicalSnapshot(misionSlug?: MissionSlug): ClinicalSnapshot 
     linfocitos: telemetry.linfocitos,
     neutrofilos: telemetry.neutrofilos,
     cortisol: telemetry.cortisol,
+    systolicMmHg: telemetry.systolicMmHg,
+    diastolicMmHg: telemetry.diastolicMmHg,
+    glucoseMgDl: telemetry.glucoseMgDl,
+    glucoseContext: telemetry.glucoseContext,
+    bodyTempC: telemetry.bodyTempC,
   };
 
   const environment: Environment = {
@@ -415,12 +448,26 @@ export function useClinicalSnapshot(misionSlug?: MissionSlug): ClinicalSnapshot 
     sleepHoursRecorded,
   });
 
+  const escalationLevel =
+    telemetry.escalationLevel ??
+    deriveEscalationLevel({
+      alerts,
+      biomarkers,
+      behavioralCheckIn: telemetry.behavioralCheckIn,
+    });
+
   return {
     biomarkers,
     environment,
     alerts,
     globalSeverity: getAlertSeverity(alerts),
+    escalationLevel,
     isManualOverride: telemetry.isManualOverride,
+    measuredAt: telemetry.measuredAt,
+    source: telemetry.source,
+    indicatorMeta: telemetry.indicatorMeta,
+    behavioralCheckIn: telemetry.behavioralCheckIn,
+    sharePsychWithAi: telemetry.sharePsychWithAi,
     nlr: computeNlr(biomarkers),
     cisCRatio: biomarkers.creatinina > 0 ? biomarkers.cistatinaC / biomarkers.creatinina : 0,
     sleepHoursRecorded,

@@ -4,6 +4,8 @@ import GodModePanel from './GodModePanel';
 import MedicalCopilot from './MedicalCopilot';
 import SensorSimulator from './SensorSimulator';
 import MissionCenter from './mission/MissionCenter';
+import QuickMeasurementPanel from './mission/QuickMeasurementPanel';
+import BehavioralCheckIn from './mission/BehavioralCheckIn';
 import { useClinicalSnapshot } from '../store/selectors';
 import { useT } from '../i18n/I18nContext';
 import type { AlertSeverity } from '../types/telemetry';
@@ -67,8 +69,38 @@ function RuleRow({
 export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
   const { t, lang } = useT();
   const snapshot = useClinicalSnapshot(mision);
-  const { biomarkers, environment, alerts, globalSeverity, nlr, cisCRatio, comms, isManualOverride, sleepHoursRecorded } =
-    snapshot;
+  const {
+    biomarkers,
+    environment,
+    alerts,
+    globalSeverity,
+    escalationLevel,
+    nlr,
+    cisCRatio,
+    comms,
+    isManualOverride,
+    sleepHoursRecorded,
+    behavioralCheckIn,
+  } = snapshot;
+
+  const escalationBadge =
+    escalationLevel === 'emergency'
+      ? {
+          text: lang === 'es' ? 'ESCALAMIENTO: EMERGENCIA' : 'ESCALATION: EMERGENCY',
+          styles: 'border-red-500 bg-red-500/20 text-red-200',
+        }
+      : escalationLevel === 'notify-flight-surgeon'
+        ? {
+            text:
+              lang === 'es'
+                ? 'ESCALAMIENTO: NOTIFICAR CIRUJANO DE VUELO'
+                : 'ESCALATION: NOTIFY FLIGHT SURGEON',
+            styles: 'border-amber-500/80 bg-amber-500/15 text-amber-200',
+          }
+        : {
+            text: lang === 'es' ? 'ESCALAMIENTO: AUTOCUIDADO' : 'ESCALATION: SELF-MANAGE',
+            styles: 'border-emerald-500/60 bg-emerald-500/10 text-emerald-200',
+          };
 
   const severityLabel =
     globalSeverity === 'CRITICAL'
@@ -99,6 +131,11 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
               className={`inline-flex items-center px-3 py-1.5 rounded border text-xs font-bold uppercase tracking-wider ${SEVERITY_STYLE[globalSeverity]}`}
             >
               {t.dashboard.statusSummaryLabel}: {severityLabel}
+            </span>
+            <span
+              className={`inline-flex items-center px-3 py-1.5 rounded border text-xs font-bold uppercase tracking-wider ${escalationBadge.styles}`}
+            >
+              {escalationBadge.text}
             </span>
             <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-slate-900 border border-slate-800 text-xs text-cyan-300">
               <span
@@ -171,6 +208,55 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
                   </p>
                 </div>
               </div>
+
+              {/* Tarjetas de captura manual P2 (Presión, Glucosa, Temp, Índice conductual) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 pt-1">
+                <div className="bg-slate-950/40 border border-slate-800/80 rounded-lg p-3.5">
+                  <p className="text-[11px] text-slate-400 uppercase">
+                    {lang === 'es' ? 'Presión arterial' : 'Blood Pressure'}
+                  </p>
+                  <p className="text-lg font-bold mt-1 tabular-nums">
+                    {biomarkers.systolicMmHg ?? '—'}/{biomarkers.diastolicMmHg ?? '—'}{' '}
+                    <span className="text-xs text-slate-400">mmHg</span>
+                  </p>
+                </div>
+                <div className="bg-slate-950/40 border border-slate-800/80 rounded-lg p-3.5">
+                  <p className="text-[11px] text-slate-400 uppercase">
+                    {lang === 'es' ? 'Glucosa capilar' : 'Capillary Glucose'}
+                  </p>
+                  <p className="text-lg font-bold mt-1 tabular-nums">
+                    {biomarkers.glucoseMgDl ?? '—'}{' '}
+                    <span className="text-xs text-slate-400">
+                      mg/dL (
+                      {biomarkers.glucoseContext === 'postprandial'
+                        ? lang === 'es'
+                          ? 'posprandial'
+                          : 'postprandial'
+                        : lang === 'es'
+                          ? 'ayunas'
+                          : 'fasting'}
+                      )
+                    </span>
+                  </p>
+                </div>
+                <div className="bg-slate-950/40 border border-slate-800/80 rounded-lg p-3.5">
+                  <p className="text-[11px] text-slate-400 uppercase">
+                    {lang === 'es' ? 'Temperatura corporal' : 'Body Temperature'}
+                  </p>
+                  <p className="text-lg font-bold mt-1 tabular-nums">
+                    {biomarkers.bodyTempC !== undefined ? biomarkers.bodyTempC.toFixed(1) : '—'}{' '}
+                    <span className="text-xs text-slate-400">°C</span>
+                  </p>
+                </div>
+                <div className="bg-slate-950/40 border border-slate-800/80 rounded-lg p-3.5">
+                  <p className="text-[11px] text-slate-400 uppercase">
+                    {lang === 'es' ? 'Riesgo conductual' : 'Behavioral Risk'}
+                  </p>
+                  <p className="text-lg font-bold mt-1 tabular-nums">
+                    {behavioralCheckIn ? `${behavioralCheckIn.behavioralRiskIndex} / 100` : lang === 'es' ? 'Sin check-in' : 'Pending'}
+                  </p>
+                </div>
+              </div>
             </section>
 
             {/* Matriz de reglas clínicas */}
@@ -212,6 +298,8 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
               </div>
             </section>
 
+            <QuickMeasurementPanel />
+            <BehavioralCheckIn />
             <GodModePanel />
           </div>
 
