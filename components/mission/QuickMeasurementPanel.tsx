@@ -1,15 +1,24 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { type Dispatch, type SetStateAction, useEffect, useMemo, useState } from 'react';
 import { BookOpen, CheckCircle2, Clock, FlaskConical, Plus, Minus, AlertTriangle, Thermometer, Droplets, HeartPulse } from 'lucide-react';
 import { INDICATORS_EN } from '../../content/indicators.en';
 import { INDICATORS_ES, type EducationalIndicatorId } from '../../content/indicators.es';
 import { useT } from '../../i18n/I18nContext';
 import { useClinicalSnapshot } from '../../store/selectors';
+import {
+  type PocDraft,
+  type SpotDraft,
+  useCommandUiStore,
+} from '../../store/useCommandUiStore';
 import { useTelemetryStore } from '../../store/useTelemetryStore';
 import type { GlucoseContext } from '../../types/telemetry';
 import { evaluateMeasurementSchedule } from '../../utils/measurementSchedule';
 import { formatDecimal, formatRelativeAgeHours } from '../../utils/formatters';
+
+function resolveSetStateAction<T>(action: SetStateAction<T>, prev: T): T {
+  return typeof action === 'function' ? (action as (p: T) => T)(prev) : action;
+}
 
 type QuickMeasureMessageKey =
   | 'savedSpot'
@@ -47,28 +56,83 @@ function toLocalDateTimeValue(date: Date): string {
 
 export function QuickMeasurementPanel({
   sectionFilter = 'all',
+  hideSchedule = false,
 }: {
   sectionFilter?: 'all' | 'vitals' | 'poc';
+  hideSchedule?: boolean;
 } = {}) {
   const { lang, t } = useT();
   const snapshot = useClinicalSnapshot();
   const logManualVitals = useTelemetryStore((s) => s.logManualVitals);
 
-  const [systolic, setSystolic] = useState<number>(snapshot.biomarkers.systolicMmHg ?? 118);
-  const [diastolic, setDiastolic] = useState<number>(snapshot.biomarkers.diastolicMmHg ?? 76);
-  const [glucose, setGlucose] = useState<number>(snapshot.biomarkers.glucoseMgDl ?? 92);
-  const [glucoseCtx, setGlucoseCtx] = useState<GlucoseContext>(
-    snapshot.biomarkers.glucoseContext ?? 'fasting'
-  );
-  const [bodyTemp, setBodyTemp] = useState<number>(snapshot.biomarkers.bodyTempC ?? 36.7);
-  const [measuredInput, setMeasuredInput] = useState<string>('');
+  const spotDraft = useCommandUiStore((s) => s.spotDraft);
+  const setSpotDraft = useCommandUiStore((s) => s.setSpotDraft);
+  const clearSpotDraft = useCommandUiStore((s) => s.clearSpotDraft);
+  const pocDraft = useCommandUiStore((s) => s.pocDraft);
+  const setPocDraft = useCommandUiStore((s) => s.setPocDraft);
+  const clearPocDraft = useCommandUiStore((s) => s.clearPocDraft);
+
+  const defaultSpot: SpotDraft = {
+    systolic: snapshot.biomarkers.systolicMmHg ?? 118,
+    diastolic: snapshot.biomarkers.diastolicMmHg ?? 76,
+    glucose: snapshot.biomarkers.glucoseMgDl ?? 92,
+    glucoseCtx: snapshot.biomarkers.glucoseContext ?? 'fasting',
+    bodyTemp: snapshot.biomarkers.bodyTempC ?? 36.7,
+    measuredInput: '',
+  };
+  const spot = spotDraft ?? defaultSpot;
+  const systolic = spot.systolic;
+  const diastolic = spot.diastolic;
+  const glucose = spot.glucose;
+  const glucoseCtx = spot.glucoseCtx;
+  const bodyTemp = spot.bodyTemp;
+  const measuredInput = spot.measuredInput;
+
+  const updateSpotField = <K extends keyof SpotDraft>(
+    key: K,
+    action: SetStateAction<SpotDraft[K]>
+  ) => {
+    const base = useCommandUiStore.getState().spotDraft ?? defaultSpot;
+    setSpotDraft({ ...base, [key]: resolveSetStateAction(action, base[key]) });
+  };
+  const setSystolic: Dispatch<SetStateAction<number>> = (a) => updateSpotField('systolic', a);
+  const setDiastolic: Dispatch<SetStateAction<number>> = (a) => updateSpotField('diastolic', a);
+  const setGlucose: Dispatch<SetStateAction<number>> = (a) => updateSpotField('glucose', a);
+  const setGlucoseCtx: Dispatch<SetStateAction<GlucoseContext>> = (a) => updateSpotField('glucoseCtx', a);
+  const setBodyTemp: Dispatch<SetStateAction<number>> = (a) => updateSpotField('bodyTemp', a);
+  const setMeasuredInput: Dispatch<SetStateAction<string>> = (a) => updateSpotField('measuredInput', a);
+
+  const defaultPoc: PocDraft = {
+    cistatinaC: snapshot.biomarkers.cistatinaC,
+    creatinina: snapshot.biomarkers.creatinina,
+    calcioIonico: snapshot.biomarkers.calcioIonico,
+    linfocitos: snapshot.biomarkers.linfocitos,
+    neutrofilos: snapshot.biomarkers.neutrofilos,
+    cortisol: snapshot.biomarkers.cortisol,
+  };
+  const poc = pocDraft ?? defaultPoc;
+  const cistatinaC = poc.cistatinaC;
+  const creatinina = poc.creatinina;
+  const calcioIonico = poc.calcioIonico;
+  const linfocitos = poc.linfocitos;
+  const neutrofilos = poc.neutrofilos;
+  const cortisol = poc.cortisol;
+
+  const updatePocField = <K extends keyof PocDraft>(
+    key: K,
+    action: SetStateAction<PocDraft[K]>
+  ) => {
+    const base = useCommandUiStore.getState().pocDraft ?? defaultPoc;
+    setPocDraft({ ...base, [key]: resolveSetStateAction(action, base[key]) });
+  };
+  const setCistatinaC: Dispatch<SetStateAction<number>> = (a) => updatePocField('cistatinaC', a);
+  const setCreatinina: Dispatch<SetStateAction<number>> = (a) => updatePocField('creatinina', a);
+  const setCalcioIonico: Dispatch<SetStateAction<number>> = (a) => updatePocField('calcioIonico', a);
+  const setLinfocitos: Dispatch<SetStateAction<number>> = (a) => updatePocField('linfocitos', a);
+  const setNeutrofilos: Dispatch<SetStateAction<number>> = (a) => updatePocField('neutrofilos', a);
+  const setCortisol: Dispatch<SetStateAction<number>> = (a) => updatePocField('cortisol', a);
+
   const [feedback, setFeedback] = useState<MeasureFeedback | null>(null);
-  const [cistatinaC, setCistatinaC] = useState<number>(snapshot.biomarkers.cistatinaC);
-  const [creatinina, setCreatinina] = useState<number>(snapshot.biomarkers.creatinina);
-  const [calcioIonico, setCalcioIonico] = useState<number>(snapshot.biomarkers.calcioIonico);
-  const [linfocitos, setLinfocitos] = useState<number>(snapshot.biomarkers.linfocitos);
-  const [neutrofilos, setNeutrofilos] = useState<number>(snapshot.biomarkers.neutrofilos);
-  const [cortisol, setCortisol] = useState<number>(snapshot.biomarkers.cortisol);
   const [cartridgeFeedback, setCartridgeFeedback] = useState<MeasureFeedback | null>(null);
   const [selectedGuide, setSelectedGuide] = useState<EducationalIndicatorId>('bp');
   const [nowMs, setNowMs] = useState<number | null>(null);
@@ -121,17 +185,13 @@ export function QuickMeasurementPanel({
       bodyTempC: Number(bodyTemp.toFixed(1)),
       measuredAt: iso,
     });
+    clearSpotDraft();
     setNowMs(Date.now());
     setFeedback({ kind: 'ok', msgKey: 'savedSpot' });
   };
 
   const handleSyncCartridgeFromSnapshot = () => {
-    setCistatinaC(Number(snapshot.biomarkers.cistatinaC.toFixed(2)));
-    setCreatinina(Number(snapshot.biomarkers.creatinina.toFixed(2)));
-    setCalcioIonico(Number(snapshot.biomarkers.calcioIonico.toFixed(2)));
-    setLinfocitos(Math.round(snapshot.biomarkers.linfocitos));
-    setNeutrofilos(Math.round(snapshot.biomarkers.neutrofilos));
-    setCortisol(Number(snapshot.biomarkers.cortisol.toFixed(1)));
+    clearPocDraft();
     setCartridgeFeedback(null);
   };
 
@@ -171,6 +231,7 @@ export function QuickMeasurementPanel({
       cortisol: Number(cortisol.toFixed(1)),
       measuredAt: iso,
     });
+    clearPocDraft();
     setNowMs(Date.now());
     setCartridgeFeedback({ kind: 'ok', msgKey: 'savedPoc' });
   };
@@ -208,7 +269,7 @@ export function QuickMeasurementPanel({
       </div>
 
       {/* Recordatorios de rutina y frescura */}
-      {schedule.length > 0 && (
+      {!hideSchedule && schedule.length > 0 && (
         <div className="flex flex-wrap gap-2" aria-label={t.quickMeasure.freshnessAria}>
           {schedule.map((item) => (
             <span

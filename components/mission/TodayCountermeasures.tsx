@@ -274,7 +274,7 @@ export function TodayCountermeasures({
                         type="button"
                         onClick={() => toggleExpand(item.id)}
                         aria-expanded={isExpanded}
-                        className="inline-flex items-center gap-1 min-h-[36px] px-2.5 py-1 rounded border border-slate-700 bg-slate-900 hover:bg-slate-800 text-[11px] text-slate-300 cursor-pointer"
+                        className="inline-flex items-center gap-1 min-h-[44px] px-2.5 py-1 rounded border border-slate-700 bg-slate-900 hover:bg-slate-800 text-[11px] text-slate-300 cursor-pointer"
                       >
                         <span>{isExpanded ? copy.hideDetails : copy.showDetails}</span>
                         {isExpanded ? (
@@ -289,7 +289,7 @@ export function TodayCountermeasures({
                         type="button"
                         disabled={isDone || isHold}
                         onClick={() => handleCompleteCountermeasure(item)}
-                        className={`min-h-[36px] inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
+                        className={`min-h-[44px] inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
                           isDone
                             ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-500/50 cursor-default'
                             : isHold
