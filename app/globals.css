@@ -357,14 +357,15 @@ em, i, .italic {
    fondo espacio profundo, tarjetas con filo fino, sans legible para leer y
    mono tabular solo para telemetría. Cian = acción; verde/ámbar/rojo = estado. */
 .cc {
-  --cc-bg: #050912;
-  --cc-panel: #0a1220;
-  --cc-panel-2: #0d1828;
-  --cc-line: rgba(148, 163, 184, 0.14);
-  --cc-line-strong: rgba(148, 163, 184, 0.26);
-  --cc-text: #e6edf7;
-  --cc-muted: #93a3b8;
-  --cc-accent: #22d3ee;
+  /* Tokens del sistema EXOVITALS (ev-*) para que el panel case con el resto. */
+  --cc-bg: var(--color-ev-void);
+  --cc-panel: rgba(28, 37, 65, 0.72);
+  --cc-panel-2: var(--color-ev-base);
+  --cc-line: rgba(0, 229, 255, 0.14);
+  --cc-line-strong: var(--color-ev-line);
+  --cc-text: #ffffff;
+  --cc-muted: var(--color-ev-label);
+  --cc-accent: var(--color-ev-cyan);
   background:
     radial-gradient(1200px 500px at 15% -10%, rgba(34, 211, 238, 0.07), transparent 60%),
     radial-gradient(900px 400px at 100% 0%, rgba(59, 130, 246, 0.06), transparent 60%),

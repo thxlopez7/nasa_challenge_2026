@@ -240,10 +240,13 @@ export function deriveSystemTiles(
 
   // 3. Radiation
   const radTraces = tracesFor(['R2_RADIATION_IMMUNOSUPPRESSION']);
+  // Rojo solo si la tasa supera el umbral. Si la regla R2 se dispara por el
+  // lado inmune (NLR/linfocitos), el rojo va al mosaico Inmune y aquí: vigilar.
   const radStatus: TileStatus =
-    alerts.isRadiationWarning || environment.radiationRate >= T.radiation.minRadiationRate
+    environment.radiationRate >= T.radiation.minRadiationRate
     ? 'red'
-    : environment.radiationRate > T.radiation.minRadiationRate * 0.8 ||
+    : alerts.isRadiationWarning ||
+        environment.radiationRate > T.radiation.minRadiationRate * 0.8 ||
         environment.radiationAccumulated > 35
       ? 'amber'
       : firingStatusFor(radTraces);
