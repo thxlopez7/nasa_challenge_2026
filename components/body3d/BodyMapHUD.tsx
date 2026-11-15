@@ -1,8 +1,10 @@
 "use client";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import type { Anomaly, BodyMarker, Layer, Stage } from "./BodyExperience";
 import { ALL_CREDITS, SYSTEM_MODELS } from "./modelCatalog";
+import { useTelemetryStore } from "../../store/useTelemetryStore";
+import { RIDGE_THRESHOLDS, computeNlr } from "../../utils/clinicalEngine";
 
 // WebGL sólo existe en el navegador: los visores 3D no se prerenderizan.
 const BodyExperience = dynamic(() => import("./BodyExperience"), {
@@ -75,10 +77,9 @@ const ORDER = ["red", "amber", "green"];
 const DAYS = ["D-6", "D-5", "D-4", "D-3", "D-2", "Ayer", "Hoy"];
 
 const GLOBAL_CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=Barlow+Condensed:wght@600;700;800&family=IBM+Plex+Mono:wght@500&display=swap');
 :root{--bg:#05070a;--line:#555b66;--ink:#f5f5f2;--dim:#b4b8bf;--y:#ffe600;--b:#1a73c8;--c:#00a8e8;--red:#ff5547}
-.hud,.fam{font-family:'Barlow',system-ui,sans-serif}
-.hud h1,.hud h2,.fam h1,.fam h2,.disp{font-family:'Barlow Condensed',sans-serif}
+.hud,.fam{font-family:'Barlow',var(--font-geist-sans),system-ui,-apple-system,sans-serif}
+.hud h1,.hud h2,.fam h1,.fam h2,.disp{font-family:'Barlow Condensed',var(--font-montserrat),system-ui,sans-serif}
 .hud{min-height:100vh;background:var(--bg);color:var(--ink);font-size:18px;padding:20px 28px 32px}
 .hud :focus-visible,.fam :focus-visible{outline:2px solid var(--y);outline-offset:2px}
 .stripe{height:9px;background:var(--b);margin:-20px -28px 20px}
@@ -86,22 +87,22 @@ const GLOBAL_CSS = `
 .top h1{margin:0;font-size:clamp(34px,5vw,54px);font-weight:800;line-height:1}
 .dek{margin:12px 0 0;padding-top:10px;border-top:1px dotted var(--line);max-width:58ch;color:#dcdcd6}
 .dim{color:var(--dim)}
-.kick{margin:0 0 8px;color:var(--y);font:800 19px 'Barlow Condensed',sans-serif;text-transform:uppercase}
-.btn{min-height:48px;padding:0 18px;border:1px solid var(--line);background:none;color:var(--ink);font:600 17px 'Barlow',sans-serif;cursor:pointer}
+.kick{margin:0 0 8px;color:var(--y);font:800 19px 'Barlow Condensed',var(--font-montserrat),system-ui,sans-serif;text-transform:uppercase}
+.btn{min-height:48px;padding:0 18px;border:1px solid var(--line);background:none;color:var(--ink);font:600 17px 'Barlow',var(--font-geist-sans),system-ui,sans-serif;cursor:pointer}
 .btn[aria-pressed=true]{background:var(--c);border-color:var(--c);color:#000}
-.sos{min-height:52px;padding:0 26px;border:0;background:var(--red);color:#1a0705;font:800 22px 'Barlow Condensed',sans-serif;cursor:pointer}
+.sos{min-height:52px;padding:0 26px;border:0;background:var(--red);color:#1a0705;font:800 22px 'Barlow Condensed',var(--font-montserrat),system-ui,sans-serif;cursor:pointer}
 .layout{display:grid;grid-template-columns:minmax(280px,1fr) minmax(300px,470px) 300px;gap:32px;margin-top:26px;align-items:start}
 @media(max-width:1100px){.layout{grid-template-columns:1fr}}
-.bar{display:flex;justify-content:space-between;gap:8px;background:var(--c);color:#000;font:800 21px 'Barlow Condensed',sans-serif;padding:2px 10px}
+.bar{display:flex;justify-content:space-between;gap:8px;background:var(--c);color:#000;font:800 21px 'Barlow Condensed',var(--font-montserrat),system-ui,sans-serif;padding:2px 10px}
 .srow{display:block;width:100%;padding:10px 0;background:none;border:0;border-bottom:1px dotted var(--line);color:inherit;font:inherit;text-align:left;cursor:pointer}
 .srow[aria-pressed=true] .bar{background:var(--y)}
 .srow small{display:block;margin-top:4px;font-size:16px;font-weight:600}
 .sec{padding:12px 0;border-bottom:1px dotted var(--line)}
-.sec h3{margin:0 0 4px;font:800 24px 'Barlow Condensed',sans-serif}
+.sec h3{margin:0 0 4px;font:800 24px 'Barlow Condensed',var(--font-montserrat),system-ui,sans-serif}
 .sec p{margin:0;font-size:20px;line-height:1.45;max-width:56ch}
 .sec p::before{content:"●";color:var(--y);margin-right:8px;font-size:.7em}
 .mt{display:grid;grid-template-columns:1fr auto;gap:16px;padding:10px 0;border-bottom:1px dotted var(--line)}
-.mono{font-family:'IBM Plex Mono',monospace;font-size:20px}
+.mono{font-family:'IBM Plex Mono',var(--font-geist-mono),ui-monospace,monospace;font-size:20px}
 .ln{fill:rgba(245,245,242,.07);stroke:var(--ink);stroke-opacity:.85;stroke-width:1.3;stroke-linejoin:round}
 .in{fill:none;stroke:var(--ink);stroke-opacity:.45;stroke-width:1.1}
 .cn{font:800 17px 'Barlow Condensed',sans-serif;fill:var(--ink)}
@@ -340,6 +341,7 @@ function EmergencyProtocol({ onExit }: { onExit: () => void }) {
 }
 
 const SEVERITY: Record<StatusColor, 0 | 1 | 2> = { green: 0, amber: 1, red: 2 };
+const SYSTEM_IDS: SystemId[] = ["neuro", "cardio", "inmune", "oseo", "conducta"];
 
 /**
  * Escáner corporal 3D y explorador de anatomía (equipo UX/UI). Ocupa la
@@ -350,6 +352,27 @@ export function BodyMapHUD() {
   const [isSurgeonMode, setIsSurgeonMode] = useState<boolean>(false);
   const [emergencyActive, setEmergencyActive] = useState<boolean>(false);
 
+  // Telemetría y alertas en vivo desde Zustand (conectada al motor RIDGE)
+  const heartRate = useTelemetryStore((s) => s.heartRate);
+  const spO2 = useTelemetryStore((s) => s.spO2);
+  const co2Level = useTelemetryStore((s) => s.co2Level);
+  const cistatinaC = useTelemetryStore((s) => s.cistatinaC);
+  const creatinina = useTelemetryStore((s) => s.creatinina);
+  const calcioIonico = useTelemetryStore((s) => s.calcioIonico);
+  const linfocitos = useTelemetryStore((s) => s.linfocitos);
+  const neutrofilos = useTelemetryStore((s) => s.neutrofilos);
+  const cortisol = useTelemetryStore((s) => s.cortisol);
+  const radiationRate = useTelemetryStore((s) => s.radiationRate);
+  const radiationAccumulated = useTelemetryStore((s) => s.radiationAccumulated);
+  const isRenalWarning = useTelemetryStore((s) => s.isRenalWarning);
+  const isRadiationWarning = useTelemetryStore((s) => s.isRadiationWarning);
+  const isCo2Warning = useTelemetryStore((s) => s.isCo2Warning);
+  const isEmergency = useTelemetryStore((s) => s.isEmergency);
+  const triggerCodeRed = useTelemetryStore((s) => s.triggerCodeRed);
+  const simulateScenario = useTelemetryStore((s) => s.simulateScenario);
+
+  const showEmergency = emergencyActive || isEmergency;
+
   // Experiencia 3D: fase 1 escaneo holográfico → fase 2 anatomía
   const [stage, setStage] = useState<Stage>("intro");
   const [layer, setLayer] = useState<Layer>("anatomy");
@@ -359,9 +382,156 @@ export function BodyMapHUD() {
   const [introKey, setIntroKey] = useState(0);
   const [homeKey, setHomeKey] = useState(0);
 
-  const ids = Object.keys(SYSTEMS_DATA) as SystemId[];
-  const current = SYSTEMS_DATA[selectedSystem];
-  const sorted = [...ids].sort((a, b) => ORDER.indexOf(SYSTEMS_DATA[a].status) - ORDER.indexOf(SYSTEMS_DATA[b].status));
+  const systemsData = useMemo<Record<SystemId, SystemData>>(() => {
+    const neuroStatus: StatusColor =
+      isCo2Warning && co2Level > 4000
+        ? "red"
+        : isCo2Warning || co2Level > 1200
+          ? "amber"
+          : "green";
+
+    const cardioStatus: StatusColor =
+      isCo2Warning || heartRate > 120 || spO2 < 92
+        ? "red"
+        : co2Level > 1500 || heartRate > 95 || spO2 < 96
+          ? "amber"
+          : "green";
+
+    const nlr = computeNlr({ neutrofilos, linfocitos });
+    const nlrStr = Number.isFinite(nlr)
+      ? nlr.toFixed(2)
+      : Number.isNaN(nlr)
+        ? "—"
+        : "∞";
+
+    const inmuneStatus: StatusColor = isRadiationWarning
+      ? "red"
+      : radiationRate > 35 || linfocitos < 1200 || (Number.isFinite(nlr) && nlr > 2.5)
+        ? "amber"
+        : "green";
+
+    const oseoStatus: StatusColor = isRenalWarning
+      ? "red"
+      : cistatinaC > 1.0 || calcioIonico > 1.2
+        ? "amber"
+        : "green";
+
+    const conductaStatus: StatusColor =
+      cortisol > 24 ? "red" : cortisol > 16 ? "amber" : "green";
+
+    return {
+      neuro: {
+        ...SYSTEMS_DATA.neuro,
+        status: neuroStatus,
+        metric: neuroStatus === "green" ? "ONSD 5.2 mm" : "ONSD 5.9 mm",
+        crewSummary:
+          neuroStatus === "red"
+            ? "Hipercapnia severa por CO2 elevado que aumenta la presión intracraneal."
+            : neuroStatus === "green"
+              ? "Presión intracraneal y nervio óptico dentro de parámetros nominales."
+              : SYSTEMS_DATA.neuro.crewSummary,
+        crewAction:
+          neuroStatus === "red"
+            ? "Activa purga ECLSS / máscara O2 inmediatamente y revisa depuradores de CO2."
+            : neuroStatus === "green"
+              ? "Mantener control rutinario de CO2 e hidratación."
+              : SYSTEMS_DATA.neuro.crewAction,
+        surgeonMetrics: `ONSD: ${neuroStatus === "green" ? "5.2" : "5.9"} mm (Umbral > 5.8 mm) | CO2 Cabina: ${co2Level} ppm | Cortisol: ${cortisol.toFixed(1)} ng/mL`,
+      },
+      cardio: {
+        ...SYSTEMS_DATA.cardio,
+        status: cardioStatus,
+        metric: `FC ${heartRate} lpm`,
+        crewSummary: isCo2Warning
+          ? "Bolsillo o fuga de CO2 (> 3500 ppm) con SpO2 aún conservada: riesgo de hipercapnia silenciosa."
+          : cardioStatus === "amber"
+            ? "Carga cardiovascular o CO2 ambiental en aumento; vigila ventilación y frecuencia cardíaca."
+            : SYSTEMS_DATA.cardio.crewSummary,
+        crewAction: isCo2Warning
+          ? "Ventila la zona de inmediato, enciende ventiladores ECLSS y revisa los cartuchos de LiOH."
+          : SYSTEMS_DATA.cardio.crewAction,
+        surgeonMetrics: `FC: ${heartRate} lpm | SpO2: ${spO2}% | CO2 Cabina: ${co2Level} ppm (Umbral > ${RIDGE_THRESHOLDS.co2.minCo2Level} ppm)`,
+      },
+      inmune: {
+        ...SYSTEMS_DATA.inmune,
+        status: inmuneStatus,
+        metric: `NLR ${nlrStr}`,
+        crewSummary:
+          inmuneStatus === "green"
+            ? "Defensas y conteo linfocitario estables frente a la radiación basal de la misión."
+            : inmuneStatus === "amber"
+              ? "Aumento moderado de radiación o descenso inicial de linfocitos; monitorizar NLR."
+              : SYSTEMS_DATA.inmune.crewSummary,
+        crewAction:
+          inmuneStatus === "green"
+            ? "Mantener dosimetría continua y protocolo nutricional estándar."
+            : inmuneStatus === "amber"
+              ? "Evitar actividad extravehicular (EVA) y repetir cartucho hematológico en 6 h."
+              : SYSTEMS_DATA.inmune.crewAction,
+        surgeonMetrics: `Radiación: ${radiationRate} µSv/h (${radiationAccumulated} mSv acum.) | Linfocitos: ${linfocitos} cél/µL | Índice NLR: ${nlrStr} (Crítico > ${RIDGE_THRESHOLDS.radiation.minNlr})`,
+      },
+      oseo: {
+        ...SYSTEMS_DATA.oseo,
+        status: oseoStatus,
+        metric: `Ca2+ ${calcioIonico.toFixed(2)} mmol/L`,
+        crewSummary: isRenalWarning
+          ? "Nefropatía oculta y sobrecarga de calcio por resorción ósea en 0G (enmascarada en creatinina)."
+          : oseoStatus === "amber"
+            ? "Tendencia al alza de Cistatina C o calcio libre; riesgo incipiente de litiasis renal."
+            : SYSTEMS_DATA.oseo.crewSummary,
+        crewAction: isRenalWarning
+          ? "Hidratación intensiva (> 3 L), citrato potásico y pausa de carga extrema hasta evaluar filtración."
+          : oseoStatus === "amber"
+            ? "Reforzar hidratación con citrato potásico y completar sesión supervisada en ARED."
+            : SYSTEMS_DATA.oseo.crewAction,
+        surgeonMetrics: `Creatinina: ${creatinina.toFixed(2)} mg/dL | Cistatina C: ${cistatinaC.toFixed(2)} mg/L | Ca2+: ${calcioIonico.toFixed(2)} mmol/L`,
+      },
+      conducta: {
+        ...SYSTEMS_DATA.conducta,
+        status: conductaStatus,
+        metric: `Cortisol ${cortisol.toFixed(1)} ng/mL`,
+        crewSummary:
+          conductaStatus === "green"
+            ? "Cortisol y respuesta conductual dentro de rango óptimo en aislamiento."
+            : conductaStatus === "red"
+              ? "Cortisol muy elevado por estrés fisiológico o privación severa de sueño."
+              : SYSTEMS_DATA.conducta.crewSummary,
+        crewAction:
+          conductaStatus === "green"
+            ? "Mantener higiene de sueño de 7–8 h y coherencia cardíaca guiada."
+            : conductaStatus === "red"
+              ? "Suspender tareas no críticas, iniciar 10 min de coherencia cardíaca y priorizar descanso."
+              : SYSTEMS_DATA.conducta.crewAction,
+        surgeonMetrics: `Cortisol sérico: ${cortisol.toFixed(1)} ng/mL (Estrés > 18 ng/mL) | Sueño estimado: ${conductaStatus === "red" ? "4.6" : conductaStatus === "amber" ? "5.4" : "7.2"} h | Turno: ${conductaStatus === "green" ? "Nominal" : "Fatiga"}`,
+      },
+    };
+  }, [
+    heartRate,
+    spO2,
+    co2Level,
+    cistatinaC,
+    creatinina,
+    calcioIonico,
+    linfocitos,
+    neutrofilos,
+    cortisol,
+    radiationRate,
+    radiationAccumulated,
+    isRenalWarning,
+    isRadiationWarning,
+    isCo2Warning,
+  ]);
+
+  const ids = SYSTEM_IDS;
+  const current = systemsData[selectedSystem];
+  const sorted = useMemo(
+    () =>
+      [...SYSTEM_IDS].sort(
+        (a, b) =>
+          ORDER.indexOf(systemsData[a].status) - ORDER.indexOf(systemsData[b].status)
+      ),
+    [systemsData]
+  );
   const rows = current.surgeonMetrics.split(" | ").map((m) => {
     const i = m.indexOf(": ");
     return [m.slice(0, i), m.slice(i + 2)];
@@ -369,11 +539,11 @@ export function BodyMapHUD() {
 
   // Sistemas con problemas: se marcan en rojo sobre el holograma.
   const anomalies: Anomaly[] = ids
-    .filter((id) => SEVERITY[SYSTEMS_DATA[id].status] > 0)
-    .map((id) => ({ id, severity: SEVERITY[SYSTEMS_DATA[id].status] as 1 | 2 }));
+    .filter((id) => SEVERITY[systemsData[id].status] > 0)
+    .map((id) => ({ id, severity: SEVERITY[systemsData[id].status] as 1 | 2 }));
 
   const markers: BodyMarker[] = ids.map((id) => {
-    const sys = SYSTEMS_DATA[id];
+    const sys = systemsData[id];
     return {
       id,
       number: ids.indexOf(id) + 1,
@@ -411,7 +581,7 @@ export function BodyMapHUD() {
   // Teclado: ← → recorren sistemas, 1–5 eligen, Enter/Espacio salta el escaneo.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (emergencyActive) return;
+      if (showEmergency) return;
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       if (stage === "explore") {
@@ -423,9 +593,18 @@ export function BodyMapHUD() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [stage, emergencyActive, sorted, ids]);
+  }, [stage, showEmergency, sorted, ids]);
 
-  if (emergencyActive) return <EmergencyProtocol onExit={() => setEmergencyActive(false)} />;
+  if (showEmergency) {
+    return (
+      <EmergencyProtocol
+        onExit={() => {
+          setEmergencyActive(false);
+          if (isEmergency) simulateScenario("RESET");
+        }}
+      />
+    );
+  }
 
   const critical = anomalies.filter((a) => a.severity === 2).length;
 
@@ -443,7 +622,15 @@ export function BodyMapHUD() {
             <button className="btn" aria-pressed={!isSurgeonMode} onClick={() => setIsSurgeonMode(false)}>Tripulación</button>
             <button className="btn" aria-pressed={isSurgeonMode} onClick={() => setIsSurgeonMode(true)}>Cirujano de vuelo</button>
           </div>
-          <button className="sos" onClick={() => setEmergencyActive(true)}>■ Emergencia</button>
+          <button
+            className="sos"
+            onClick={() => {
+              setEmergencyActive(true);
+              triggerCodeRed();
+            }}
+          >
+            ■ Emergencia
+          </button>
         </div>
       </header>
 
@@ -482,7 +669,7 @@ export function BodyMapHUD() {
 
               <ol className="xp-findings">
                 {detected.map((id) => {
-                  const sys = SYSTEMS_DATA[id];
+                  const sys = systemsData[id];
                   return (
                     <li key={id} className={`xp-finding is-${sys.status}`}>
                       <span className="xp-finding-icon" aria-hidden>{STATUS_ICON[sys.status]}</span>
@@ -543,7 +730,7 @@ export function BodyMapHUD() {
             <aside className="xp-panel xp-right">
               <p className="kick">Sistemas · del más grave al menos</p>
               {sorted.map((id) => {
-                const sys = SYSTEMS_DATA[id];
+                const sys = systemsData[id];
                 return (
                   <button key={id} className={`xp-sys is-${sys.status}`} aria-pressed={selectedSystem === id} onClick={() => setSelectedSystem(id)}>
                     <span className="xp-sys-icon" style={{ background: STATUS_FILL[sys.status] }} aria-hidden>{STATUS_ICON[sys.status]}</span>

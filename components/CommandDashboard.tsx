@@ -81,6 +81,7 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
     calcioIonico,
     linfocitos,
     neutrofilos,
+    cortisol,
     co2Level,
     radiationRate,
     radiationAccumulated,
@@ -140,7 +141,9 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
                   <p className="text-2xl font-bold mt-1 tabular-nums">
                     {heartRate} <span className="text-sm text-slate-400">bpm</span>
                   </p>
-                  <p className="text-xs text-slate-500 mt-1">SpO2: {spO2}%</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    SpO2: {spO2}% · Cortisol: {cortisol.toFixed(1)} ng/mL
+                  </p>
                 </div>
 
                 <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-4">

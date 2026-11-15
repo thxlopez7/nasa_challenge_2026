@@ -243,8 +243,12 @@ function VitalsStep({ run }: { run: Run }) {
     ['SpO2', `${live.spO2}%`],
     ['CO2', `${live.co2Level} ppm`],
     ['Cistatina C', `${live.cistatinaC.toFixed(2)} mg/L`],
+    ['Creatinina', `${live.creatinina.toFixed(2)} mg/dL`],
+    ['Calcio iónico', `${live.calcioIonico.toFixed(2)} mmol/L`],
     ['Linfocitos', `${live.linfocitos} cél/µL`],
+    ['Cortisol', `${live.cortisol.toFixed(1)} ng/mL`],
     ['Radiación', `${live.radiationRate} µSv/h`],
+    ['Dosis acumulada', `${live.radiationAccumulated.toFixed(1)} mSv`],
   ];
 
   return (

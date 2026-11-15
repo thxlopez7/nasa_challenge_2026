@@ -28,7 +28,7 @@ export const initialState: TelemetryDataState = {
 
   // Environment
   co2Level: 600,
-  radiationRate: 0.4,
+  radiationRate: 15.5,
   radiationAccumulated: 45,
 
   // ClinicalAlerts

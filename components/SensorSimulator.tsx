@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useTelemetryStore } from '../store/useTelemetryStore';
+import { initialState, useTelemetryStore } from '../store/useTelemetryStore';
 import type { Biomarkers, Environment } from '../types/telemetry';
 
 type ScenarioFrame = Partial<Biomarkers & Environment>;
@@ -44,6 +44,29 @@ export function SensorSimulator(): null {
     return () => {
       abortController.abort();
     };
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = useTelemetryStore.subscribe((state, prevState) => {
+      const overrideCleared =
+        prevState.isManualOverride && !state.isManualOverride;
+      const restoredToInitial =
+        !state.isManualOverride &&
+        state.heartRate === initialState.heartRate &&
+        state.spO2 === initialState.spO2 &&
+        state.cistatinaC === initialState.cistatinaC &&
+        state.creatinina === initialState.creatinina &&
+        state.calcioIonico === initialState.calcioIonico &&
+        state.co2Level === initialState.co2Level &&
+        state.radiationRate === initialState.radiationRate &&
+        state.radiationAccumulated === initialState.radiationAccumulated;
+
+      if (overrideCleared || restoredToInitial) {
+        tickIndex.current = 0;
+      }
+    });
+
+    return unsubscribe;
   }, []);
 
   useEffect(() => {

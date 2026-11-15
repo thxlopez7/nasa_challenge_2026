@@ -57,6 +57,7 @@ function MissionSetup({ today, preferred }: { today: DayKey; preferred?: Mission
   const startMission = useMissionStore((s) => s.startMission);
   const loadDemoHistory = useMissionStore((s) => s.loadDemoHistory);
   const [profileId, setProfileId] = useState<MissionProfileId>(preferred ?? 'MARS_CONJUNCTION');
+  const activeProfileId = preferred ?? profileId;
 
   return (
     <div className="space-y-6">
@@ -73,7 +74,7 @@ function MissionSetup({ today, preferred }: { today: DayKey; preferred?: Mission
         {Object.values(MISSION_PROFILES)
           .filter((p) => !preferred || p.id === preferred)
           .map((p) => {
-          const active = profileId === p.id;
+          const active = activeProfileId === p.id;
           return (
             <button
               key={p.id}
@@ -112,17 +113,17 @@ function MissionSetup({ today, preferred }: { today: DayKey; preferred?: Mission
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
-          onClick={() => startMission(profileId, today)}
+          onClick={() => startMission(activeProfileId, today)}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-cyan-500 text-slate-950 font-bold hover:bg-cyan-400 transition cursor-pointer"
         >
           <Rocket className="h-4 w-4" aria-hidden /> Iniciar misión hoy
         </button>
         <button
           type="button"
-          onClick={() => loadDemoHistory(today, profileId)}
+          onClick={() => loadDemoHistory(today, activeProfileId)}
           className="px-4 py-2.5 rounded-lg border border-slate-700 text-slate-300 text-sm font-semibold hover:bg-slate-800 transition cursor-pointer"
         >
-          Ver demo con {demoDaysFor(profileId)} días simulados
+          Ver demo con {demoDaysFor(activeProfileId)} días simulados
         </button>
       </div>
     </div>

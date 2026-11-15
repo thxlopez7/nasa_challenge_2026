@@ -107,7 +107,8 @@ export default function QAStressTestDashboard() {
     updateSensors({
       linfocitos: 600,
       neutrofilos: 4200, // NLR = 7.0 (> 3.5) y Linfocitos < 1200
-      radiationAccumulated: 0, // Radiación en 0 mSv
+      radiationRate: 0, // Tasa instantánea en 0 µSv/h
+      radiationAccumulated: 0, // Radiación acumulada en 0 mSv
     });
 
     const afterState = useTelemetryStore.getState();
@@ -118,7 +119,7 @@ export default function QAStressTestDashboard() {
       testName: 'EDGE CASE: Inmunosupresión Aislada (Rad = 0 mSv)',
       details: `isRadiationWarning=${afterState.isRadiationWarning} (Esperado: false). NLR=${(
         afterState.neutrofilos / afterState.linfocitos
-      ).toFixed(2)}, Linfocitos=${afterState.linfocitos}, Rad=${afterState.radiationAccumulated} mSv.`,
+      ).toFixed(2)}, Linfocitos=${afterState.linfocitos}, Rate=${afterState.radiationRate} µSv/h, Rad=${afterState.radiationAccumulated} mSv.`,
     });
   };
 
