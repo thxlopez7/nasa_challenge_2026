@@ -4,28 +4,16 @@ import GodModePanel from './GodModePanel';
 import MedicalCopilot from './MedicalCopilot';
 import SensorSimulator from './SensorSimulator';
 import MissionCenter from './mission/MissionCenter';
-import { useTelemetryStore } from '../store/useTelemetryStore';
+import { useClinicalSnapshot } from '../store/selectors';
+import { useT } from '../i18n/I18nContext';
 import type { AlertSeverity } from '../types/telemetry';
-import {
-  RIDGE_THRESHOLDS as T,
-  computeNlr,
-  getAlertSeverity,
-} from '../utils/clinicalEngine';
+import { RIDGE_THRESHOLDS as T } from '../utils/clinicalEngine';
 import { MISSION_CHOICES, type MissionSlug } from '../utils/missionChoice';
 
-const SEVERITY_BADGE: Record<AlertSeverity, { label: string; styles: string }> = {
-  OPTIMAL: {
-    label: 'Óptimo',
-    styles: 'border-cyan-500/60 bg-cyan-500/10 text-cyan-300',
-  },
-  WARNING: {
-    label: 'Advertencia',
-    styles: 'border-amber-500/70 bg-amber-500/10 text-amber-300',
-  },
-  CRITICAL: {
-    label: 'Crítico',
-    styles: 'border-red-500 bg-red-500/15 text-red-300 animate-pulse',
-  },
+const SEVERITY_STYLE: Record<AlertSeverity, string> = {
+  OPTIMAL: 'border-cyan-500/60 bg-cyan-500/10 text-cyan-300',
+  WARNING: 'border-amber-500/70 bg-amber-500/10 text-amber-300',
+  CRITICAL: 'border-red-500 bg-red-500/15 text-red-300 animate-pulse',
 };
 
 function fmtRatio(value: number): string {
@@ -38,14 +26,18 @@ function RuleRow({
   title,
   rule,
   active,
+  activeLabel,
+  nominalLabel,
   critical = false,
 }: {
   title: string;
   rule: string;
   active: boolean;
+  activeLabel: string;
+  nominalLabel: string;
   critical?: boolean;
 }) {
-  const on = critical ? 'text-red-500' : 'text-amber-500';
+  const on = critical ? 'text-red-400' : 'text-amber-400';
   return (
     <div
       className={`flex items-center justify-between gap-4 rounded-lg border p-4 transition-colors ${
@@ -61,44 +53,29 @@ function RuleRow({
         <p className="text-xs text-slate-400 font-mono mt-0.5">{rule}</p>
       </div>
       <span
-        className={`shrink-0 text-sm font-bold uppercase ${
-          active ? on : 'text-cyan-500'
+        className={`shrink-0 text-xs font-bold uppercase px-2 py-0.5 rounded ${
+          active ? `${on} bg-slate-950/50` : 'text-cyan-400'
         }`}
       >
-        {active ? 'Activa' : 'Normal'}
+        {active ? activeLabel : nominalLabel}
       </span>
     </div>
   );
 }
 
-/** Centro de mando: telemetría, motor RIDGE, God Mode, copiloto y Centro de misión. */
+/** Centro de mando: telemetría unificada, reglas clínicas, God Mode, copiloto IA y Centro de misión. */
 export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
-  const {
-    heartRate,
-    spO2,
-    cistatinaC,
-    creatinina,
-    calcioIonico,
-    linfocitos,
-    neutrofilos,
-    cortisol,
-    co2Level,
-    radiationRate,
-    radiationAccumulated,
-    isEmergency,
-    isRenalWarning,
-    isRadiationWarning,
-    isCo2Warning,
-  } = useTelemetryStore();
+  const { t, lang } = useT();
+  const snapshot = useClinicalSnapshot(mision);
+  const { biomarkers, environment, alerts, globalSeverity, nlr, cisCRatio, comms, isManualOverride, sleepHoursRecorded } =
+    snapshot;
 
-  const nlr = computeNlr({ neutrofilos, linfocitos });
-  const severity = getAlertSeverity({
-    isEmergency,
-    isRenalWarning,
-    isRadiationWarning,
-    isCo2Warning,
-  });
-  const badge = SEVERITY_BADGE[severity];
+  const severityLabel =
+    globalSeverity === 'CRITICAL'
+      ? t.common.critical
+      : globalSeverity === 'WARNING'
+        ? t.common.warning
+        : t.common.optimal;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-mono p-4 sm:p-6 lg:p-10">
@@ -107,22 +84,28 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
       <div className="max-w-7xl mx-auto space-y-8">
         <header className="border-b border-slate-800 pb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-widest text-cyan-500">
-              NASA Space Apps Challenge 2026 // Edge-First CDSS
+            <p className="text-xs uppercase tracking-widest text-cyan-400">
+              {t.dashboard.eyebrow}
             </p>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">
-              EXOVITALS — MISSION MEDICAL COMMAND
+              {t.dashboard.title}
             </h1>
+            <p className="text-[11px] text-slate-400 mt-1">
+              {t.common.prototypeBadge} · {t.dashboard.commsLatencyLabel}: {comms.commsMode[lang]}
+            </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <span
-              className={`inline-flex items-center px-3 py-1.5 rounded border text-xs font-bold uppercase tracking-wider ${badge.styles}`}
+              className={`inline-flex items-center px-3 py-1.5 rounded border text-xs font-bold uppercase tracking-wider ${SEVERITY_STYLE[globalSeverity]}`}
             >
-              Estado: {badge.label}
+              {t.dashboard.statusSummaryLabel}: {severityLabel}
             </span>
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-slate-900 border border-slate-800 text-xs text-cyan-400">
-              <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
-              1 Hz TELEMETRY STREAM
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-slate-900 border border-slate-800 text-xs text-cyan-300">
+              <span
+                className={`h-2 w-2 rounded-full ${isManualOverride ? 'bg-amber-400' : 'bg-cyan-400 animate-pulse'}`}
+                aria-hidden
+              />
+              {isManualOverride ? t.dashboard.manualOverrideBadge : t.dashboard.streamLabel}
             </span>
           </div>
         </header>
@@ -131,81 +114,99 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
           <div className="lg:col-span-2 space-y-6">
             {/* Telemetría en vivo */}
             <section className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
-              <h2 className="text-lg font-bold text-cyan-400 uppercase tracking-wider">
-                Telemetría en vivo
-              </h2>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-lg font-bold text-cyan-400 uppercase tracking-wider">
+                  {t.nav.sectionCommand}
+                </h2>
+                <span className="text-xs text-slate-400">
+                  {t.dashboard.sleepToday}:{' '}
+                  {sleepHoursRecorded !== null ? `${sleepHoursRecorded.toFixed(1)} h` : t.common.noRecordToday}
+                </span>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-4">
-                  <p className="text-xs text-slate-400 uppercase">Heart Rate</p>
+                  <p className="text-xs text-slate-400 uppercase">{t.dashboard.kpis.heartRate}</p>
                   <p className="text-2xl font-bold mt-1 tabular-nums">
-                    {heartRate} <span className="text-sm text-slate-400">bpm</span>
+                    {Math.round(biomarkers.heartRate)}{' '}
+                    <span className="text-sm text-slate-400">{lang === 'es' ? 'lpm' : 'bpm'}</span>
                   </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    SpO2: {spO2}% · Cortisol: {cortisol.toFixed(1)} ng/mL
+                  <p className="text-xs text-slate-400 mt-1">
+                    {t.dashboard.kpis.spo2}: {biomarkers.spO2}% · {t.dashboard.kpis.cortisol}:{' '}
+                    {biomarkers.cortisol.toFixed(1)} ng/mL
                   </p>
                 </div>
 
                 <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-4">
-                  <p className="text-xs text-slate-400 uppercase">Nivel CO2</p>
+                  <p className="text-xs text-slate-400 uppercase">{t.dashboard.kpis.co2Level}</p>
                   <p className="text-2xl font-bold mt-1 tabular-nums">
-                    {co2Level} <span className="text-sm text-slate-400">ppm</span>
+                    {Math.round(environment.co2Level)} <span className="text-sm text-slate-400">ppm</span>
                   </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Umbral: &gt; {T.co2.minCo2Level} ppm
+                  <p className="text-xs text-slate-400 mt-1">
+                    {lang === 'es' ? 'Umbral prototipo' : 'Prototype alert'}: &gt; {T.co2.minCo2Level} ppm
                   </p>
                 </div>
 
                 <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-4">
-                  <p className="text-xs text-slate-400 uppercase">Cistatina C</p>
+                  <p className="text-xs text-slate-400 uppercase">{t.dashboard.kpis.cystatinC}</p>
                   <p className="text-2xl font-bold mt-1 tabular-nums">
-                    {cistatinaC.toFixed(2)}{' '}
+                    {biomarkers.cistatinaC.toFixed(2)}{' '}
                     <span className="text-sm text-slate-400">mg/L</span>
                   </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Cr: {creatinina.toFixed(2)} · Ca²⁺: {calcioIonico.toFixed(2)}
+                  <p className="text-xs text-slate-400 mt-1">
+                    Cr: {biomarkers.creatinina.toFixed(2)} · CisC/Cr: {cisCRatio.toFixed(2)} · Ca²⁺:{' '}
+                    {biomarkers.calcioIonico.toFixed(2)}
                   </p>
                 </div>
 
                 <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-4">
-                  <p className="text-xs text-slate-400 uppercase">Radiación</p>
+                  <p className="text-xs text-slate-400 uppercase">{t.dashboard.kpis.radiation}</p>
                   <p className="text-2xl font-bold mt-1 tabular-nums">
-                    {radiationRate}{' '}
+                    {environment.radiationRate.toFixed(1)}{' '}
                     <span className="text-sm text-slate-400">µSv/h</span>
                   </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Linf: {linfocitos} · NLR: {fmtRatio(nlr)} · {radiationAccumulated} mSv
+                  <p className="text-xs text-slate-400 mt-1">
+                    Linf: {Math.round(biomarkers.linfocitos)} · NLR: {fmtRatio(nlr)} ·{' '}
+                    {environment.radiationAccumulated.toFixed(1)} mSv
                   </p>
                 </div>
               </div>
             </section>
 
-            {/* Motor clínico RIDGE */}
+            {/* Matriz de reglas clínicas */}
             <section className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
               <h2 className="text-lg font-bold text-cyan-400 uppercase tracking-wider">
-                Motor clínico (RIDGE)
+                {t.dashboard.rulesTitle}
               </h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <RuleRow
-                  title="R1 · Nefropatía oculta"
-                  rule={`Cr ≤ ${T.renal.maxCreatinina} ∧ CisC > ${T.renal.minCistatinaC} ∧ Ca²⁺ > ${T.renal.minCalcioIonico}`}
-                  active={isRenalWarning}
+                  title={`R1 · ${t.dashboard.rules.nephropathyName}`}
+                  rule={t.dashboard.rules.nephropathyCondition}
+                  active={alerts.isRenalWarning}
+                  activeLabel={t.dashboard.activeAlert}
+                  nominalLabel={t.dashboard.nominalClear}
                 />
                 <RuleRow
-                  title="R2 · Inmunosupresión por radiación"
-                  rule={`Rad > ${T.radiation.minRadiationRate} µSv/h ∧ Linf < ${T.radiation.maxLinfocitos} ∧ NLR > ${T.radiation.minNlr}`}
-                  active={isRadiationWarning}
+                  title={`R2 · ${t.dashboard.rules.radiationName}`}
+                  rule={t.dashboard.rules.radiationCondition}
+                  active={alerts.isRadiationWarning}
+                  activeLabel={t.dashboard.activeAlert}
+                  nominalLabel={t.dashboard.nominalClear}
                 />
                 <RuleRow
-                  title="R3 · Bolsillo de CO2"
-                  rule={`CO2 > ${T.co2.minCo2Level} ppm ∧ SpO2 ≥ ${T.co2.minSpO2}%`}
-                  active={isCo2Warning}
+                  title={`R3 · ${t.dashboard.rules.co2Name}`}
+                  rule={t.dashboard.rules.co2Condition}
+                  active={alerts.isCo2Warning}
+                  activeLabel={t.dashboard.activeAlert}
+                  nominalLabel={t.dashboard.nominalClear}
                 />
                 <RuleRow
-                  title="Emergencia crítica (Code Red)"
-                  rule="Override manual del tripulante"
-                  active={isEmergency}
+                  title={`R4 · ${t.dashboard.rules.emergencyName}`}
+                  rule={t.dashboard.rules.emergencyCondition}
+                  active={alerts.isEmergency}
+                  activeLabel={t.dashboard.activeAlert}
+                  nominalLabel={t.dashboard.nominalClear}
                   critical
                 />
               </div>
@@ -215,7 +216,7 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
           </div>
 
           <div className="lg:col-span-1">
-            <MedicalCopilot />
+            <MedicalCopilot mision={mision} />
           </div>
         </div>
 

@@ -4,7 +4,14 @@ import dynamic from "next/dynamic";
 import type { Anomaly, BodyMarker, Layer, Stage } from "./BodyExperience";
 import { ALL_CREDITS, SYSTEM_MODELS } from "./modelCatalog";
 import { useTelemetryStore } from "../../store/useTelemetryStore";
-import { RIDGE_THRESHOLDS, computeNlr } from "../../utils/clinicalEngine";
+import {
+  useClinicalSnapshot,
+  type PhysiologicalSystemId,
+  type SystemHealthStatus,
+} from "../../store/selectors";
+import { useSystemTrendSeries } from "../../store/useTelemetryTrend";
+import { useT } from "../../i18n/I18nContext";
+import type { MissionSlug } from "../../utils/missionChoice";
 
 // WebGL sólo existe en el navegador: los visores 3D no se prerenderizan.
 const BodyExperience = dynamic(() => import("./BodyExperience"), {
@@ -13,10 +20,10 @@ const BodyExperience = dynamic(() => import("./BodyExperience"), {
 });
 const OrganViewer = dynamic(() => import("./OrganViewer"), { ssr: false });
 
-type SystemId = "neuro" | "cardio" | "inmune" | "oseo" | "conducta";
-type StatusColor = "green" | "amber" | "red";
+type SystemId = PhysiologicalSystemId;
+type StatusColor = SystemHealthStatus;
 
-interface SystemData {
+interface SystemViewModel {
   id: SystemId;
   name: string;
   short: string;
@@ -30,51 +37,51 @@ interface SystemData {
   surgeonMetrics: string;
 }
 
-const SYSTEMS_DATA: Record<SystemId, SystemData> = {
+const SYSTEM_META: Record<
+  SystemId,
+  { hazard: { es: string; en: string }; howToMeasure: { es: string; en: string } }
+> = {
   neuro: {
-    id: "neuro", name: "Neurológico y Ocular (SANS)", short: "Neuro-ocular", metric: "ONSD 5.9 mm", hazard: "Gravedad alterada", trend: [38, 40, 44, 47, 52, 55, 58], status: "amber",
-    crewSummary: "Presión de líquidos elevada hacia el cráneo por falta de gravedad.",
-    howToMeasure: "Apoya el ecógrafo USB sobre el párpado cerrado o haz el test de cuadrícula.",
-    crewAction: "Colócate el pantalón de presión negativa (LBNP) durante 45 min.",
-    surgeonMetrics: "ONSD: 5.9 mm (Umbral > 5.8 mm) | HRV (RMSSD): 24 ms | Rejilla Amsler: Leve distorsión",
+    hazard: { es: "Gravedad alterada y ambiente cerrado", en: "Altered gravity & closed habitat" },
+    howToMeasure: {
+      es: "Lectura continua de CO₂ de cabina y SpO₂; reportar cefalea, visión borrosa o mareo.",
+      en: "Continuous cabin CO₂ & SpO₂ monitoring; log headache, blurred vision, or dizziness.",
+    },
   },
   cardio: {
-    id: "cardio", name: "Sistema Cardiovascular", short: "Cardiovascular", metric: "FC 68 lpm", hazard: "Gravedad alterada y entorno cerrado", trend: [20, 19, 21, 18, 20, 19, 18], status: "green",
-    crewSummary: "Ritmo cardíaco y oxigenación estables para entorno de microgravedad.",
-    howToMeasure: "Lectura pasiva continua mediante camiseta inteligente CSA Bio-Monitor.",
-    crewAction: "Mantener protocolo estándar de hidratación (2.5L diarios).",
-    surgeonMetrics: "FC: 68 lpm | MAP: 88 mmHg | SpO2: 98% | CO2 Cabina: 2100 ppm",
+    hazard: { es: "Gravedad alterada y entorno cerrado", en: "Altered gravity & closed habitat" },
+    howToMeasure: {
+      es: "Sensor biométrico continuo de FC y pulsioxímetro arterial (SpO₂).",
+      en: "Continuous heart-rate strap/shirt and arterial pulse oximeter (SpO₂).",
+    },
   },
   inmune: {
-    id: "inmune", name: "Sistema Inmunológico", short: "Inmunológico", metric: "NLR 4.1", hazard: "Radiación", trend: [30, 34, 41, 55, 68, 79, 86], status: "red",
-    crewSummary: "Defensas bajas por exposición a radiación solar reciente. Riesgo de infección.",
-    howToMeasure: "Escanea el cartucho hematológico en el Bio-Analyzer con 1 gota de sangre.",
-    crewAction: "1. Refúgiate en el módulo blindado por 8h. 2. Toma N-acetilcisteína (Botiquín A3 - Naranja).",
-    surgeonMetrics: "Radiación: 0.92 mSv/día | Linfocitos: 890/µL | Índice NLR: 4.1 (Crítico > 3.5)",
+    hazard: { es: "Radiación espacial (GCR / SPE)", en: "Space radiation (GCR / SPE)" },
+    howToMeasure: {
+      es: "Dosímetro de cabina + cartucho hematológico de 1 gota (linfocitos y neutrófilos).",
+      en: "Cabin dosimeter + single-drop hematology cartridge (lymphocytes & neutrophils).",
+    },
   },
   oseo: {
-    id: "oseo", name: "Sistema Óseo y Renal", short: "Óseo y renal", metric: "Ca2+ 1.24 mmol/L", hazard: "Gravedad alterada", trend: [24, 23, 25, 22, 21, 22, 20], status: "green",
-    crewSummary: "Niveles de calcio controlados. Sin riesgo inmediato de cálculos renales.",
-    howToMeasure: "Cartucho Renal (Azul) en Bio-Analyzer + registro de tiempo en máquina ARED.",
-    crewAction: "Completar sesión diaria de 60 min de ejercicio resistivo en ARED.",
-    surgeonMetrics: "Creatinina: 0.9 mg/dL | Cistatina C: 1.02 mg/L | Ca2+: 1.24 mmol/L | ARED: 65 min",
+    hazard: { es: "Gravedad alterada (0G / hipogravedad)", en: "Altered gravity (0G / hypogravity)" },
+    howToMeasure: {
+      es: "Panel bioquímico renal/mineral (Cistatina C, Creatinina y Calcio iónico sérico).",
+      en: "Renal & mineral biochemical panel (Cystatin C, Creatinine, ionized Calcium).",
+    },
   },
   conducta: {
-    id: "conducta", name: "Conducta y Sueño (Aislamiento)", short: "Conducta y sueño", metric: "Sueño 5.4 h",
-    hazard: "Aislamiento y confinamiento", trend: [35, 38, 44, 49, 52, 58, 61], status: "amber",
-    crewSummary: "El aislamiento y los turnos alteran el sueño y el ánimo. Detectarlo a tiempo evita errores en la misión.",
-    howToMeasure: "Responde el cuestionario de 2 minutos y deja que el reloj registre tu sueño.",
-    crewAction: "Protege 8 h de sueño con luz tenue y habla 15 min con un compañero o con Tierra.",
-    surgeonMetrics: "Sueño: 5.4 h | Variabilidad de sueño: 82 min | PHQ-4: 5 (leve) | Contactos sociales: 1/día",
+    hazard: { es: "Aislamiento, confinamiento y ciclos luz-oscuridad", en: "Isolation, confinement & circadian shift" },
+    howToMeasure: {
+      es: "Cortisol salival/sérico + registro diario de sueño y check-in conductual.",
+      en: "Salivary/serum cortisol + daily sleep log and behavioral check-in.",
+    },
   },
 };
 
-const STATUS_LABEL: Record<StatusColor, string> = { green: "Óptimo", amber: "Precaución", red: "Crítico" };
 // Color + forma + texto: nunca solo color
 const STATUS_ICON: Record<StatusColor, string> = { green: "✓", amber: "▲", red: "■" };
 const STATUS_FILL: Record<StatusColor, string> = { green: "#5fd39a", amber: "#ffa23a", red: "#ff5547" };
-const ORDER = ["red", "amber", "green"];
-const DAYS = ["D-6", "D-5", "D-4", "D-3", "D-2", "Ayer", "Hoy"];
+const ORDER: StatusColor[] = ["red", "amber", "green"];
 
 const GLOBAL_CSS = `
 :root{--bg:#05070a;--line:#555b66;--ink:#f5f5f2;--dim:#b4b8bf;--y:#ffe600;--b:#1a73c8;--c:#00a8e8;--red:#ff5547}
@@ -135,8 +142,9 @@ const GLOBAL_CSS = `
 @keyframes xpPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,85,71,.7)}50%{box-shadow:0 0 0 6px rgba(255,85,71,0)}}
 .body3d-overlay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none}
 .body3d-loading{margin:0;color:var(--dim);font:500 14px 'IBM Plex Mono',monospace;white-space:nowrap}
+.xp-markers{position:absolute;inset:0;pointer-events:none;z-index:3;overflow:hidden}
 .body3d-marker[hidden]{display:none}
-.body3d-marker{position:absolute;left:0;top:0;width:0;height:0;padding:0;border:0;background:none;color:var(--ink);cursor:pointer;font:inherit}
+.body3d-marker{position:absolute;left:0;top:0;width:0;height:0;padding:0;border:0;background:none;color:var(--ink);cursor:pointer;font:inherit;pointer-events:auto}
 .body3d-dot{position:absolute;left:-13px;top:-13px;display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--status);color:#05070a;font:700 14px 'Barlow',sans-serif;border:2px solid #05070a;box-shadow:0 0 0 1px var(--status)}
 .body3d-dot::after{content:"";position:absolute;inset:-3px;border-radius:50%;border:2px solid var(--status);opacity:0}
 .body3d-num{position:absolute;left:-9px;top:-9px;width:16px;height:16px;border-radius:50%;background:var(--b);color:#fff;font:800 10px 'Barlow',sans-serif;display:flex;align-items:center;justify-content:center}
@@ -156,7 +164,7 @@ const GLOBAL_CSS = `
 .organ3d-tabs{display:flex}
 .organ3d-tabs .btn{min-height:38px;font-size:15px;padding:0 12px}
 .organ3d-why{margin:8px 0 10px;color:#dcdcd6;font-size:17px;line-height:1.4;max-width:56ch}
-.organ3d-canvas{position:relative;height:280px;background:radial-gradient(ellipse at 50% 50%,#0f1a24 0%,var(--bg) 72%);border:1px dotted var(--line)}
+.organ3d-canvas{position:relative;height:clamp(340px,44vh,420px);background:radial-gradient(ellipse at 50% 50%,#0f1a24 0%,var(--bg) 72%);border:1px dotted var(--line)}
 .organ3d-credit{margin:6px 0 0;font-size:13px}
 .organ3d-credit a{color:var(--c)}
 .organ3d-empty{margin:0;font-size:16px}
@@ -347,27 +355,16 @@ const SYSTEM_IDS: SystemId[] = ["neuro", "cardio", "inmune", "oseo", "conducta"]
  * Escáner corporal 3D y explorador de anatomía (equipo UX/UI). Ocupa la
  * primera pantalla de la página única de ExoVitals.
  */
-export function BodyMapHUD() {
+export function BodyMapHUD({ mision }: { mision?: MissionSlug } = {}) {
+  const { t, lang } = useT();
+  const snapshot = useClinicalSnapshot(mision);
+  const trendSeries = useSystemTrendSeries();
+
   const [selectedSystem, setSelectedSystem] = useState<SystemId>("inmune");
   const [isSurgeonMode, setIsSurgeonMode] = useState<boolean>(false);
   const [emergencyActive, setEmergencyActive] = useState<boolean>(false);
 
-  // Telemetría y alertas en vivo desde Zustand (conectada al motor RIDGE)
-  const heartRate = useTelemetryStore((s) => s.heartRate);
-  const spO2 = useTelemetryStore((s) => s.spO2);
-  const co2Level = useTelemetryStore((s) => s.co2Level);
-  const cistatinaC = useTelemetryStore((s) => s.cistatinaC);
-  const creatinina = useTelemetryStore((s) => s.creatinina);
-  const calcioIonico = useTelemetryStore((s) => s.calcioIonico);
-  const linfocitos = useTelemetryStore((s) => s.linfocitos);
-  const neutrofilos = useTelemetryStore((s) => s.neutrofilos);
-  const cortisol = useTelemetryStore((s) => s.cortisol);
-  const radiationRate = useTelemetryStore((s) => s.radiationRate);
-  const radiationAccumulated = useTelemetryStore((s) => s.radiationAccumulated);
-  const isRenalWarning = useTelemetryStore((s) => s.isRenalWarning);
-  const isRadiationWarning = useTelemetryStore((s) => s.isRadiationWarning);
-  const isCo2Warning = useTelemetryStore((s) => s.isCo2Warning);
-  const isEmergency = useTelemetryStore((s) => s.isEmergency);
+  const isEmergency = snapshot.alerts.isEmergency;
   const triggerCodeRed = useTelemetryStore((s) => s.triggerCodeRed);
   const simulateScenario = useTelemetryStore((s) => s.simulateScenario);
 
@@ -382,145 +379,56 @@ export function BodyMapHUD() {
   const [introKey, setIntroKey] = useState(0);
   const [homeKey, setHomeKey] = useState(0);
 
-  const systemsData = useMemo<Record<SystemId, SystemData>>(() => {
-    const neuroStatus: StatusColor =
-      isCo2Warning && co2Level > 4000
-        ? "red"
-        : isCo2Warning || co2Level > 1200
-          ? "amber"
-          : "green";
+  const statusLabels: Record<StatusColor, string> = useMemo(
+    () => ({
+      green: t.common.green,
+      amber: t.common.amber,
+      red: t.common.red,
+    }),
+    [t]
+  );
 
-    const cardioStatus: StatusColor =
-      isCo2Warning || heartRate > 120 || spO2 < 92
-        ? "red"
-        : co2Level > 1500 || heartRate > 95 || spO2 < 96
-          ? "amber"
-          : "green";
+  const globalStatusText =
+    snapshot.globalSeverity === "CRITICAL"
+      ? t.common.critical
+      : snapshot.globalSeverity === "WARNING"
+        ? t.common.warning
+        : t.common.optimal;
 
-    const nlr = computeNlr({ neutrofilos, linfocitos });
-    const nlrStr = Number.isFinite(nlr)
-      ? nlr.toFixed(2)
-      : Number.isNaN(nlr)
-        ? "—"
-        : "∞";
+  const globalStatusColor =
+    snapshot.globalSeverity === "CRITICAL"
+      ? STATUS_FILL.red
+      : snapshot.globalSeverity === "WARNING"
+        ? STATUS_FILL.amber
+        : STATUS_FILL.green;
 
-    const inmuneStatus: StatusColor = isRadiationWarning
-      ? "red"
-      : radiationRate > 35 || linfocitos < 1200 || (Number.isFinite(nlr) && nlr > 2.5)
-        ? "amber"
-        : "green";
+  const systemsData = useMemo<Record<SystemId, SystemViewModel>>(() => {
+    const out = {} as Record<SystemId, SystemViewModel>;
+    for (const id of SYSTEM_IDS) {
+      const snap = snapshot.systems[id];
+      const sysText = t.bodyHud.systems[id];
+      const rawTrend = trendSeries[id];
+      const paddedTrend =
+        rawTrend.length >= 7
+          ? rawTrend.slice(-7)
+          : [...Array(7 - rawTrend.length).fill(rawTrend[0] ?? snap.loadScore), ...rawTrend];
 
-    const oseoStatus: StatusColor = isRenalWarning
-      ? "red"
-      : cistatinaC > 1.0 || calcioIonico > 1.2
-        ? "amber"
-        : "green";
-
-    const conductaStatus: StatusColor =
-      cortisol > 24 ? "red" : cortisol > 16 ? "amber" : "green";
-
-    return {
-      neuro: {
-        ...SYSTEMS_DATA.neuro,
-        status: neuroStatus,
-        metric: neuroStatus === "green" ? "ONSD 5.2 mm" : "ONSD 5.9 mm",
-        crewSummary:
-          neuroStatus === "red"
-            ? "Hipercapnia severa por CO2 elevado que aumenta la presión intracraneal."
-            : neuroStatus === "green"
-              ? "Presión intracraneal y nervio óptico dentro de parámetros nominales."
-              : SYSTEMS_DATA.neuro.crewSummary,
-        crewAction:
-          neuroStatus === "red"
-            ? "Activa purga ECLSS / máscara O2 inmediatamente y revisa depuradores de CO2."
-            : neuroStatus === "green"
-              ? "Mantener control rutinario de CO2 e hidratación."
-              : SYSTEMS_DATA.neuro.crewAction,
-        surgeonMetrics: `ONSD: ${neuroStatus === "green" ? "5.2" : "5.9"} mm (Umbral > 5.8 mm) | CO2 Cabina: ${co2Level} ppm | Cortisol: ${cortisol.toFixed(1)} ng/mL`,
-      },
-      cardio: {
-        ...SYSTEMS_DATA.cardio,
-        status: cardioStatus,
-        metric: `FC ${heartRate} lpm`,
-        crewSummary: isCo2Warning
-          ? "Bolsillo o fuga de CO2 (> 3500 ppm) con SpO2 aún conservada: riesgo de hipercapnia silenciosa."
-          : cardioStatus === "amber"
-            ? "Carga cardiovascular o CO2 ambiental en aumento; vigila ventilación y frecuencia cardíaca."
-            : SYSTEMS_DATA.cardio.crewSummary,
-        crewAction: isCo2Warning
-          ? "Ventila la zona de inmediato, enciende ventiladores ECLSS y revisa los cartuchos de LiOH."
-          : SYSTEMS_DATA.cardio.crewAction,
-        surgeonMetrics: `FC: ${heartRate} lpm | SpO2: ${spO2}% | CO2 Cabina: ${co2Level} ppm (Umbral > ${RIDGE_THRESHOLDS.co2.minCo2Level} ppm)`,
-      },
-      inmune: {
-        ...SYSTEMS_DATA.inmune,
-        status: inmuneStatus,
-        metric: `NLR ${nlrStr}`,
-        crewSummary:
-          inmuneStatus === "green"
-            ? "Defensas y conteo linfocitario estables frente a la radiación basal de la misión."
-            : inmuneStatus === "amber"
-              ? "Aumento moderado de radiación o descenso inicial de linfocitos; monitorizar NLR."
-              : SYSTEMS_DATA.inmune.crewSummary,
-        crewAction:
-          inmuneStatus === "green"
-            ? "Mantener dosimetría continua y protocolo nutricional estándar."
-            : inmuneStatus === "amber"
-              ? "Evitar actividad extravehicular (EVA) y repetir cartucho hematológico en 6 h."
-              : SYSTEMS_DATA.inmune.crewAction,
-        surgeonMetrics: `Radiación: ${radiationRate} µSv/h (${radiationAccumulated} mSv acum.) | Linfocitos: ${linfocitos} cél/µL | Índice NLR: ${nlrStr} (Crítico > ${RIDGE_THRESHOLDS.radiation.minNlr})`,
-      },
-      oseo: {
-        ...SYSTEMS_DATA.oseo,
-        status: oseoStatus,
-        metric: `Ca2+ ${calcioIonico.toFixed(2)} mmol/L`,
-        crewSummary: isRenalWarning
-          ? "Nefropatía oculta y sobrecarga de calcio por resorción ósea en 0G (enmascarada en creatinina)."
-          : oseoStatus === "amber"
-            ? "Tendencia al alza de Cistatina C o calcio libre; riesgo incipiente de litiasis renal."
-            : SYSTEMS_DATA.oseo.crewSummary,
-        crewAction: isRenalWarning
-          ? "Hidratación intensiva (> 3 L), citrato potásico y pausa de carga extrema hasta evaluar filtración."
-          : oseoStatus === "amber"
-            ? "Reforzar hidratación con citrato potásico y completar sesión supervisada en ARED."
-            : SYSTEMS_DATA.oseo.crewAction,
-        surgeonMetrics: `Creatinina: ${creatinina.toFixed(2)} mg/dL | Cistatina C: ${cistatinaC.toFixed(2)} mg/L | Ca2+: ${calcioIonico.toFixed(2)} mmol/L`,
-      },
-      conducta: {
-        ...SYSTEMS_DATA.conducta,
-        status: conductaStatus,
-        metric: `Cortisol ${cortisol.toFixed(1)} ng/mL`,
-        crewSummary:
-          conductaStatus === "green"
-            ? "Cortisol y respuesta conductual dentro de rango óptimo en aislamiento."
-            : conductaStatus === "red"
-              ? "Cortisol muy elevado por estrés fisiológico o privación severa de sueño."
-              : SYSTEMS_DATA.conducta.crewSummary,
-        crewAction:
-          conductaStatus === "green"
-            ? "Mantener higiene de sueño de 7–8 h y coherencia cardíaca guiada."
-            : conductaStatus === "red"
-              ? "Suspender tareas no críticas, iniciar 10 min de coherencia cardíaca y priorizar descanso."
-              : SYSTEMS_DATA.conducta.crewAction,
-        surgeonMetrics: `Cortisol sérico: ${cortisol.toFixed(1)} ng/mL (Estrés > 18 ng/mL) | Sueño estimado: ${conductaStatus === "red" ? "4.6" : conductaStatus === "amber" ? "5.4" : "7.2"} h | Turno: ${conductaStatus === "green" ? "Nominal" : "Fatiga"}`,
-      },
-    };
-  }, [
-    heartRate,
-    spO2,
-    co2Level,
-    cistatinaC,
-    creatinina,
-    calcioIonico,
-    linfocitos,
-    neutrofilos,
-    cortisol,
-    radiationRate,
-    radiationAccumulated,
-    isRenalWarning,
-    isRadiationWarning,
-    isCo2Warning,
-  ]);
+      out[id] = {
+        id,
+        name: sysText.name,
+        short: sysText.short,
+        metric: snap.primaryMetric[lang],
+        hazard: SYSTEM_META[id].hazard[lang],
+        trend: paddedTrend,
+        status: snap.status,
+        crewSummary: snap.crewSummary[lang],
+        howToMeasure: SYSTEM_META[id].howToMeasure[lang],
+        crewAction: snap.crewAction[lang],
+        surgeonMetrics: snap.surgeonMetrics[lang],
+      };
+    }
+    return out;
+  }, [snapshot.systems, trendSeries, t, lang]);
 
   const ids = SYSTEM_IDS;
   const current = systemsData[selectedSystem];
@@ -534,10 +442,10 @@ export function BodyMapHUD() {
   );
   const rows = current.surgeonMetrics.split(" | ").map((m) => {
     const i = m.indexOf(": ");
-    return [m.slice(0, i), m.slice(i + 2)];
+    return i >= 0 ? [m.slice(0, i), m.slice(i + 2)] : [m, ""];
   });
 
-  // Sistemas con problemas: se marcan en rojo sobre el holograma.
+  // Sistemas con problemas: se marcan sobre el holograma.
   const anomalies: Anomaly[] = ids
     .filter((id) => SEVERITY[systemsData[id].status] > 0)
     .map((id) => ({ id, severity: SEVERITY[systemsData[id].status] as 1 | 2 }));
@@ -548,7 +456,7 @@ export function BodyMapHUD() {
       id,
       number: ids.indexOf(id) + 1,
       title: sys.short,
-      statusLabel: STATUS_LABEL[sys.status],
+      statusLabel: statusLabels[sys.status],
       icon: STATUS_ICON[sys.status],
       color: STATUS_FILL[sys.status],
       metric: sys.metric,
@@ -556,7 +464,10 @@ export function BodyMapHUD() {
     };
   });
 
-  const onDetect = useCallback((id: SystemId) => setDetected((d) => (d.includes(id) ? d : [...d, id])), []);
+  const onDetect = useCallback(
+    (id: SystemId) => setDetected((d) => (d.includes(id) ? d : [...d, id])),
+    []
+  );
   const onIntroDone = useCallback(() => setScanDone(true), []);
 
   const explore = (focus?: SystemId) => {
@@ -578,15 +489,17 @@ export function BodyMapHUD() {
     setSelectedSystem(sorted[(i + dir + sorted.length) % sorted.length]);
   };
 
-  // Teclado: ← → recorren sistemas, 1–5 eligen, Enter/Espacio salta el escaneo.
+  // Teclado: ← → recorren sistemas, 1–5 eligen.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (showEmergency) return;
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       if (stage === "explore") {
-        if (e.key === "ArrowRight") setSelectedSystem((s) => sorted[(sorted.indexOf(s) + 1) % sorted.length]);
-        if (e.key === "ArrowLeft") setSelectedSystem((s) => sorted[(sorted.indexOf(s) - 1 + sorted.length) % sorted.length]);
+        if (e.key === "ArrowRight")
+          setSelectedSystem((s) => sorted[(sorted.indexOf(s) + 1) % sorted.length]);
+        if (e.key === "ArrowLeft")
+          setSelectedSystem((s) => sorted[(sorted.indexOf(s) - 1 + sorted.length) % sorted.length]);
         const n = Number(e.key);
         if (n >= 1 && n <= ids.length) setSelectedSystem(ids[n - 1]);
       }
@@ -607,6 +520,13 @@ export function BodyMapHUD() {
   }
 
   const critical = anomalies.filter((a) => a.severity === 2).length;
+  const tickLabels = current.trend.map((_, i) =>
+    i === current.trend.length - 1
+      ? lang === "es"
+        ? "Ahora"
+        : "Now"
+      : `T-${current.trend.length - 1 - i}`
+  );
 
   return (
     <div className="hud">
@@ -614,13 +534,42 @@ export function BodyMapHUD() {
       <div className="stripe" />
       <header className="top">
         <div>
-          <h1>La salud de la tripulación en el espacio</h1>
-          <p className="dek">Escaneamos el cuerpo sin depender de la Tierra, marcamos lo que duele o falla y te llevamos a la anatomía para entender por qué y qué hacer.</p>
+          <p className="mono dim" style={{ fontSize: 12, margin: "0 0 6px" }}>
+            {t.common.prototypeBadge} · {snapshot.comms.commsMode[lang]}
+          </p>
+          <h1>{t.bodyHud.overviewHeading}</h1>
+          <p className="dek">{t.bodyHud.disclaimerBanner}</p>
         </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center" }}>
-          <div role="group" aria-label="Modo de vista" style={{ display: "flex" }}>
-            <button className="btn" aria-pressed={!isSurgeonMode} onClick={() => setIsSurgeonMode(false)}>Tripulación</button>
-            <button className="btn" aria-pressed={isSurgeonMode} onClick={() => setIsSurgeonMode(true)}>Cirujano de vuelo</button>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+          <div
+            className="btn"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              borderColor: globalStatusColor,
+              color: globalStatusColor,
+              cursor: "default",
+            }}
+          >
+            <span>{t.bodyHud.globalStatusLabel}:</span>
+            <strong>{globalStatusText}</strong>
+          </div>
+          <div role="group" aria-label="View mode" style={{ display: "flex" }}>
+            <button
+              className="btn"
+              aria-pressed={!isSurgeonMode}
+              onClick={() => setIsSurgeonMode(false)}
+            >
+              {t.bodyHud.roleCrew}
+            </button>
+            <button
+              className="btn"
+              aria-pressed={isSurgeonMode}
+              onClick={() => setIsSurgeonMode(true)}
+            >
+              {t.bodyHud.roleSurgeon}
+            </button>
           </div>
           <button
             className="sos"
@@ -629,13 +578,13 @@ export function BodyMapHUD() {
               triggerCodeRed();
             }}
           >
-            ■ Emergencia
+            ■ {t.bodyHud.emergencyButton}
           </button>
         </div>
       </header>
 
       {/* ---------------- Escenario 3D ---------------- */}
-      <section className={`xp-stage is-${stage}`} aria-label="Escáner corporal 3D">
+      <section className={`xp-stage is-${stage}`} aria-label={t.bodyHud.overviewHeading}>
         <BodyExperience
           stage={stage}
           layer={layer}
@@ -653,45 +602,96 @@ export function BodyMapHUD() {
 
         <div className="xp-phase">
           <span className="xp-phase-n">{stage === "intro" ? "01" : "02"}</span>
-          <span>{stage === "intro" ? "Escaneo biométrico" : layer === "anatomy" ? "Anatomía · músculos" : "Anatomía · holograma"}</span>
+          <span>
+            {stage === "intro"
+              ? lang === "es"
+                ? "Escaneo biométrico"
+                : "Biometric scan"
+              : layer === "anatomy"
+                ? `${t.bodyHud.modeAnatomy}`
+                : `${t.bodyHud.modeHologram}`}
+          </span>
         </div>
 
         {stage === "intro" ? (
           <>
-            <button className="xp-skip" onClick={() => explore()}>Saltar escaneo →</button>
+            <button className="xp-skip" onClick={() => explore()}>
+              {lang === "es" ? "Saltar escaneo →" : "Skip scan →"}
+            </button>
 
             <aside className="xp-panel xp-left" aria-live="polite">
-              <p className="kick">Escaneo 360°</p>
-              <div className="xp-progress" role="progressbar" aria-label="Progreso del escaneo" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
+              <p className="kick">{lang === "es" ? "Escaneo 360°" : "360° Scan"}</p>
+              <div
+                className="xp-progress"
+                role="progressbar"
+                aria-label="Scan progress"
+                aria-valuenow={progress}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
                 <div style={{ width: `${progress}%` }} />
               </div>
-              <p className="mono dim xp-pct">{scanDone ? "Escaneo completo" : `Analizando… ${progress}%`}</p>
+              <p className="mono dim xp-pct">
+                {scanDone
+                  ? lang === "es"
+                    ? "Escaneo completo"
+                    : "Scan complete"
+                  : `${lang === "es" ? "Analizando…" : "Analyzing…"} ${progress}%`}
+              </p>
 
               <ol className="xp-findings">
                 {detected.map((id) => {
                   const sys = systemsData[id];
                   return (
                     <li key={id} className={`xp-finding is-${sys.status}`}>
-                      <span className="xp-finding-icon" aria-hidden>{STATUS_ICON[sys.status]}</span>
+                      <span className="xp-finding-icon" aria-hidden>
+                        {STATUS_ICON[sys.status]}
+                      </span>
                       <div>
                         <strong>{sys.short}</strong>
-                        <span style={{ color: STATUS_FILL[sys.status] }}>{STATUS_LABEL[sys.status]} · <span className="mono">{sys.metric}</span></span>
+                        <span style={{ color: STATUS_FILL[sys.status] }}>
+                          {statusLabels[sys.status]} · <span className="mono">{sys.metric}</span>
+                        </span>
                         <small>{sys.crewSummary}</small>
                       </div>
                     </li>
                   );
                 })}
               </ol>
-              {detected.length === 0 && !scanDone && <p className="dim xp-wait">Buscando dolores, molestias y fallos…</p>}
+              {detected.length === 0 && !scanDone && (
+                <p className="dim xp-wait">
+                  {lang === "es"
+                    ? "Evaluando telemetría fisiológica y ambiental…"
+                    : "Evaluating physiological and cabin telemetry…"}
+                </p>
+              )}
 
               {scanDone && (
                 <div className="xp-summary">
                   <p className="disp">
-                    {anomalies.length} {anomalies.length === 1 ? "zona afectada" : "zonas afectadas"}
-                    {critical > 0 && <span style={{ color: STATUS_FILL.red }}> · {critical} crítica{critical > 1 ? "s" : ""}</span>}
+                    {anomalies.length}{" "}
+                    {lang === "es"
+                      ? anomalies.length === 1
+                        ? "sistema fuera de rango"
+                        : "sistemas fuera de rango"
+                      : anomalies.length === 1
+                        ? "system flagged"
+                        : "systems flagged"}
+                    {critical > 0 && (
+                      <span style={{ color: STATUS_FILL.red }}>
+                        {" "}
+                        · {critical}{" "}
+                        {lang === "es" ? `crítica${critical > 1 ? "s" : ""}` : "critical"}
+                      </span>
+                    )}
                   </p>
-                  <button className="xp-cta" onClick={() => explore(anomalies.find((a) => a.severity === 2)?.id ?? anomalies[0]?.id)}>
-                    Explorar anatomía →
+                  <button
+                    className="xp-cta"
+                    onClick={() =>
+                      explore(anomalies.find((a) => a.severity === 2)?.id ?? anomalies[0]?.id)
+                    }
+                  >
+                    {lang === "es" ? "Explorar anatomía →" : "Inspect anatomy →"}
                   </button>
                 </div>
               )}
@@ -700,60 +700,129 @@ export function BodyMapHUD() {
         ) : (
           <>
             <aside className="xp-panel xp-left" aria-live="polite">
-              <p className="kick">Sistema seleccionado</p>
+              <p className="kick">{lang === "es" ? "Sistema seleccionado" : "Selected system"}</p>
               <h2 className="disp xp-title">{current.name}</h2>
-              <div className="bar" style={{ display: "inline-flex", fontSize: 17 }}>Riesgo NASA: {current.hazard}</div>
+              <div className="bar" style={{ display: "inline-flex", fontSize: 17 }}>
+                {lang === "es" ? "Riesgo NASA:" : "NASA Risk:"} {current.hazard}
+              </div>
               <p className="xp-status" style={{ color: STATUS_FILL[current.status] }}>
-                {STATUS_ICON[current.status]} {STATUS_LABEL[current.status]} · <span className="dim mono">{current.metric}</span>
+                {STATUS_ICON[current.status]} {statusLabels[current.status]} ·{" "}
+                <span className="dim mono">{current.metric}</span>
               </p>
               {!isSurgeonMode ? (
                 <>
-                  <div className="sec"><h3>Por qué importa</h3><p>{current.crewSummary}</p></div>
-                  <div className="sec"><h3>Cómo medirlo</h3><p>{current.howToMeasure}</p></div>
-                  <div className="sec"><h3>Qué hacer ahora</h3><p>{current.crewAction}</p></div>
+                  <div className="sec">
+                    <h3>{t.bodyHud.whatToWatch}</h3>
+                    <p>{current.crewSummary}</p>
+                  </div>
+                  <div className="sec">
+                    <h3>{lang === "es" ? "Cómo medirlo" : "How to measure"}</h3>
+                    <p>{current.howToMeasure}</p>
+                  </div>
+                  <div className="sec">
+                    <h3>{t.bodyHud.recommendedAction}</h3>
+                    <p>{current.crewAction}</p>
+                  </div>
                 </>
               ) : (
                 <div className="sec">
-                  <h3>Telemetría y biomarcadores RIDGE</h3>
+                  <h3>{t.bodyHud.clinicalNotes}</h3>
                   {rows.map(([k, v]) => (
-                    <div className="mt" key={k}><span className="dim">{k}</span><span className="mono">{v}</span></div>
+                    <div className="mt" key={k}>
+                      <span className="dim">{k}</span>
+                      <span className="mono">{v}</span>
+                    </div>
                   ))}
                 </div>
               )}
               <div className="xp-nav">
-                <button className="btn" onClick={() => step(-1)} aria-label="Sistema anterior">←</button>
-                <span className="dim">{sorted.indexOf(selectedSystem) + 1} / {sorted.length}</span>
-                <button className="btn" onClick={() => step(1)} aria-label="Sistema siguiente">→</button>
+                <button
+                  className="btn"
+                  onClick={() => step(-1)}
+                  aria-label={lang === "es" ? "Sistema anterior" : "Previous system"}
+                >
+                  ←
+                </button>
+                <span className="dim">
+                  {sorted.indexOf(selectedSystem) + 1} / {sorted.length}
+                </span>
+                <button
+                  className="btn"
+                  onClick={() => step(1)}
+                  aria-label={lang === "es" ? "Sistema siguiente" : "Next system"}
+                >
+                  →
+                </button>
               </div>
             </aside>
 
             <aside className="xp-panel xp-right">
-              <p className="kick">Sistemas · del más grave al menos</p>
+              <p className="kick">
+                {lang === "es" ? "Sistemas · prioridad clínica" : "Systems · clinical priority"}
+              </p>
               {sorted.map((id) => {
                 const sys = systemsData[id];
                 return (
-                  <button key={id} className={`xp-sys is-${sys.status}`} aria-pressed={selectedSystem === id} onClick={() => setSelectedSystem(id)}>
-                    <span className="xp-sys-icon" style={{ background: STATUS_FILL[sys.status] }} aria-hidden>{STATUS_ICON[sys.status]}</span>
+                  <button
+                    key={id}
+                    className={`xp-sys is-${sys.status}`}
+                    aria-pressed={selectedSystem === id}
+                    onClick={() => setSelectedSystem(id)}
+                  >
+                    <span
+                      className="xp-sys-icon"
+                      style={{ background: STATUS_FILL[sys.status] }}
+                      aria-hidden
+                    >
+                      {STATUS_ICON[sys.status]}
+                    </span>
                     <span className="xp-sys-text">
-                      <strong>{ids.indexOf(id) + 1} · {sys.short}</strong>
-                      <small style={{ color: STATUS_FILL[sys.status] }}>{STATUS_LABEL[sys.status]} <span className="dim mono">{sys.metric}</span></small>
+                      <strong>
+                        {ids.indexOf(id) + 1} · {sys.short}
+                      </strong>
+                      <small style={{ color: STATUS_FILL[sys.status] }}>
+                        {statusLabels[sys.status]}{" "}
+                        <span className="dim mono">{sys.metric}</span>
+                      </small>
                     </span>
                   </button>
                 );
               })}
 
-              <p className="kick" style={{ marginTop: 18 }}>Capa</p>
-              <div role="group" aria-label="Capa del cuerpo" className="xp-seg">
-                <button className="btn" aria-pressed={layer === "anatomy"} onClick={() => setLayer("anatomy")}>Músculos</button>
-                <button className="btn" aria-pressed={layer === "hologram"} onClick={() => setLayer("hologram")}>Holograma</button>
+              <p className="kick" style={{ marginTop: 18 }}>
+                {lang === "es" ? "Capa visual" : "Layer"}
+              </p>
+              <div role="group" aria-label="Body layer" className="xp-seg">
+                <button
+                  className="btn"
+                  aria-pressed={layer === "anatomy"}
+                  onClick={() => setLayer("anatomy")}
+                >
+                  {t.bodyHud.modeAnatomy}
+                </button>
+                <button
+                  className="btn"
+                  aria-pressed={layer === "hologram"}
+                  onClick={() => setLayer("hologram")}
+                >
+                  {t.bodyHud.modeHologram}
+                </button>
               </div>
               <div className="xp-actions">
-                <button className="btn" onClick={() => setHomeKey((k) => k + 1)}>⤢ Vista completa</button>
-                <button className="btn" onClick={replayScan}>↻ Repetir escaneo</button>
+                <button className="btn" onClick={() => setHomeKey((k) => k + 1)}>
+                  ⤢ {t.bodyHud.homeCamera}
+                </button>
+                <button className="btn" onClick={replayScan}>
+                  ↻ {t.bodyHud.rescanButton}
+                </button>
               </div>
             </aside>
 
-            <p className="xp-hint dim">Arrastra para girar · rueda para acercar · ← → para cambiar de sistema</p>
+            <p className="xp-hint dim">
+              {lang === "es"
+                ? "Arrastra para girar · rueda para acercar · ← → para cambiar de sistema"
+                : "Drag to orbit · scroll to zoom · ← → to switch system"}
+            </p>
           </>
         )}
       </section>
@@ -765,34 +834,60 @@ export function BodyMapHUD() {
             <OrganViewer key={selectedSystem} system={selectedSystem} />
           </div>
           <div className="xp-card">
-            <p className="kick">Tendencia de 7 días · {current.short}</p>
-            <div className="chart" role="img" aria-label={`Índice de riesgo de los últimos 7 días: ${current.trend.join(", ")}`}>
+            <p className="kick">
+              {lang === "es"
+                ? `Tendencia de carga en sesión · ${current.short}`
+                : `Live session load trend · ${current.short}`}
+            </p>
+            <div
+              className="chart"
+              role="img"
+              aria-label={`${current.short}: ${current.trend.join(", ")}`}
+            >
               {current.trend.map((v, i) => {
-                const st = v >= 70 ? "red" : v >= 40 ? "amber" : "green";
+                const st: StatusColor = v >= 70 ? "red" : v >= 40 ? "amber" : "green";
                 return (
                   <div className="col" key={i}>
-                    <span className="mono" style={{ fontSize: 15 }}>{STATUS_ICON[st]} {v}</span>
-                    <div className="cb" style={{ height: v * 1.5, background: STATUS_FILL[st] }} />
+                    <span className="mono" style={{ fontSize: 15 }}>
+                      {STATUS_ICON[st]} {v}
+                    </span>
+                    <div
+                      className="cb"
+                      style={{ height: Math.max(8, v * 1.5), background: STATUS_FILL[st] }}
+                    />
                   </div>
                 );
               })}
             </div>
-            <div className="days">{DAYS.map((d) => <span key={d}>{d}</span>)}</div>
-            <p className="dim" style={{ fontSize: 15, margin: "10px 0 0" }}>Índice de riesgo 0–100: ✓ menos de 40 óptimo · ▲ 40 a 69 precaución · ■ 70 o más crítico</p>
+            <div className="days">
+              {tickLabels.map((lbl, idx) => (
+                <span key={`${lbl}-${idx}`}>{lbl}</span>
+              ))}
+            </div>
+            <p className="dim" style={{ fontSize: 15, margin: "10px 0 0" }}>
+              {lang === "es"
+                ? "Índice derivado en vivo 0–100: ✓ < 40 óptimo · ▲ 40–69 precaución · ■ ≥ 70 crítico"
+                : "Live telemetry index 0–100: ✓ < 40 nominal · ▲ 40–69 caution · ■ ≥ 70 critical"}
+            </p>
             {SYSTEM_MODELS[selectedSystem].models.length === 0 && (
-              <p className="dim" style={{ fontSize: 15 }}>Este sistema no tiene un órgano único: se sigue con cuestionarios y el registro del reloj.</p>
+              <p className="dim" style={{ fontSize: 15 }}>
+                {t.bodyHud.noModelAvailable}
+              </p>
             )}
           </div>
         </section>
       )}
 
-      <p className="src">Fuentes: NASA-STD-3001 y los cinco riesgos del Programa de Investigación Humana de la NASA. Datos simulados para el prototipo; no es un dispositivo médico.</p>
+      <p className="src">{t.common.prototypeBadge}</p>
       <p className="src">
-        Modelos 3D (Sketchfab):{" "}
+        {lang === "es" ? "Modelos 3D (Sketchfab):" : "3D Models (Sketchfab):"}{" "}
         {ALL_CREDITS.map((c, i) => (
           <span key={c.source}>
             {i > 0 && " · "}
-            <a href={c.source} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>{c.title}</a> — {c.author} ({c.license})
+            <a href={c.source} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>
+              {c.title}
+            </a>{" "}
+            — {c.author} ({c.license})
           </span>
         ))}
       </p>

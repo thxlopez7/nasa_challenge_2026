@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Montserrat } from "next/font/google";
 import "./globals.css";
 import IntroGate from "../components/landing/IntroGate";
+import { I18nProvider } from "../i18n/I18nContext";
+import { StoreHydrator } from "../hooks/useHydrated";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,8 +34,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} ${montserrat.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        {children}
-        <IntroGate />
+        <I18nProvider>
+          <StoreHydrator />
+          {children}
+          <IntroGate />
+        </I18nProvider>
       </body>
     </html>
   );

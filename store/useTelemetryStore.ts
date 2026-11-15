@@ -243,7 +243,18 @@ export const useTelemetryStore = create<TelemetryState>()(
     }),
     {
       name: 'exovitals-core-storage',
+      version: 1,
+      skipHydration: true,
       storage: createJSONStorage(createThrottledBrowserStorage),
+      migrate: (persistedState: unknown) => {
+        if (!persistedState || typeof persistedState !== 'object') {
+          return { ...initialState };
+        }
+        return {
+          ...initialState,
+          ...(persistedState as Record<string, unknown>),
+        };
+      },
     }
   )
 );

@@ -1,8 +1,8 @@
 'use client';
 
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { Html, OrbitControls } from '@react-three/drei';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { OrbitControls } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { Group, Matrix4, Mesh, Plane, ShaderMaterial, Vector3 } from 'three';
 import type { BufferGeometry, Material } from 'three';
@@ -15,6 +15,7 @@ import {
 import { MAX_ZONES, hologramParams } from './hologramMaterial';
 import LoadingOverlay from './LoadingOverlay';
 import { useNormalizedScene } from './NormalizedModel';
+import { useT } from '../../i18n/I18nContext';
 
 /* ------------------------------------------------------------------ */
 /* Tipos públicos                                                      */
@@ -199,41 +200,49 @@ function AnomalyBeacon({ anomaly, frame }: { anomaly: Anomaly; frame: React.RefO
 }
 
 /* ------------------------------------------------------------------ */
-/* Marcadores (HTML anclado a 3D)                                       */
+/* Proyector 3D → DOM de marcadores (sin ReactDOM.createRoot)         */
 /* ------------------------------------------------------------------ */
 
-function Marker({ marker, selected, onSelect, hidden }: {
-  marker: BodyMarker;
-  selected: boolean;
-  onSelect: (id: BodySystemId) => void;
-  hidden: boolean;
+const PROJ_VEC = new Vector3();
+
+function MarkerProjector({
+  markers,
+  active,
+  markerMap,
+}: {
+  markers: BodyMarker[];
+  active: boolean;
+  markerMap: Map<BodySystemId, HTMLButtonElement | null>;
 }) {
-  const { position, side, labelDy } = BODY_HOTSPOTS[marker.id];
-  // Sin `center`: el ancla (0×0) cae justo sobre el punto 3D.
-  return (
-    <Html position={position} zIndexRange={[20, 0]}>
-      <button
-        type="button"
-        className={`body3d-marker${side < 0 ? ' is-left' : ''}${selected ? ' is-selected' : ''}${marker.critical ? ' is-critical' : ''}`}
-        hidden={hidden}
-        tabIndex={hidden ? -1 : 0}
-        style={{ ['--status' as string]: marker.color, ['--dy' as string]: `${labelDy}px` }}
-        aria-pressed={selected}
-        aria-label={`${marker.title}: ${marker.statusLabel}. ${marker.metric}`}
-        onClick={() => onSelect(marker.id)}
-      >
-        <span className="body3d-dot" aria-hidden>
-          {marker.icon}
-          <span className="body3d-num">{marker.number}</span>
-        </span>
-        <span className="body3d-lead" aria-hidden />
-        <span className="body3d-label" aria-hidden>
-          <strong>{marker.title}</strong>
-          <em>{marker.statusLabel} · {marker.metric}</em>
-        </span>
-      </button>
-    </Html>
-  );
+  const { camera, size } = useThree();
+
+  useFrame(() => {
+    for (const marker of markers) {
+      const el = markerMap.get(marker.id);
+      if (!el) continue;
+
+      if (!active) {
+        if (!el.hidden) el.hidden = true;
+        continue;
+      }
+
+      const [x, y, z] = BODY_HOTSPOTS[marker.id].position;
+      PROJ_VEC.set(x, y, z).project(camera);
+      const visible = PROJ_VEC.z >= -1 && PROJ_VEC.z <= 1;
+
+      if (!visible) {
+        if (!el.hidden) el.hidden = true;
+        continue;
+      }
+
+      if (el.hidden) el.hidden = false;
+      const px = (PROJ_VEC.x * 0.5 + 0.5) * size.width;
+      const py = (-PROJ_VEC.y * 0.5 + 0.5) * size.height;
+      el.style.transform = `translate3d(${px.toFixed(1)}px, ${py.toFixed(1)}px, 0)`;
+    }
+  });
+
+  return null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -249,7 +258,7 @@ function Director({
   introKey,
   reduced,
   markers,
-  onSelect,
+  markerMap,
   onDetect,
   onProgress,
   onIntroDone,
@@ -262,7 +271,7 @@ function Director({
   introKey: number;
   reduced: boolean;
   markers: BodyMarker[];
-  onSelect: (id: BodySystemId) => void;
+  markerMap: Map<BodySystemId, HTMLButtonElement | null>;
   onDetect: (id: BodySystemId) => void;
   onProgress: (pct: number) => void;
   onIntroDone: () => void;
@@ -375,12 +384,8 @@ function Director({
         <AnatomyBody frame={frame} />
         {stage === 'explore' &&
           anomalies.map((a) => <AnomalyBeacon key={a.id} anomaly={a} frame={frame} />)}
-        {/* Siempre montados (desmontar <Html> durante el render dispara avisos de
-            React 19); durante el escaneo sólo se ocultan. */}
-        {markers.map((m) => (
-          <Marker key={m.id} marker={m} selected={m.id === selected} onSelect={onSelect} hidden={stage !== 'explore'} />
-        ))}
       </Suspense>
+      <MarkerProjector markers={markers} active={stage === 'explore'} markerMap={markerMap} />
       <OrbitControls
       ref={controls}
       enabled={stage === 'explore'}
@@ -436,15 +441,18 @@ export function BodyExperience({
   onProgress: (pct: number) => void;
   onIntroDone: () => void;
 }) {
+  const { t } = useT();
   const reduced = usePrefersReducedMotion();
+  const markerMap = useMemo(() => new Map<BodySystemId, HTMLButtonElement | null>(), []);
+  const isExplore = stage === 'explore';
 
   return (
-    <div className={`xp-canvas${stage === 'explore' ? ' is-explore' : ''}`}>
+    <div className={`xp-canvas${isExplore ? ' is-explore' : ''}`}>
       <Canvas
         camera={{ position: [0, 0.25, INTRO_RADIUS], fov: 34 }}
         dpr={[1, 2]}
         gl={{ antialias: true, localClippingEnabled: true }}
-        aria-label="Cuerpo 3D del tripulante"
+        aria-label={t.bodyHud.overviewHeading}
       >
         <ambientLight intensity={0.55} />
         <hemisphereLight args={['#dfe9ff', '#1a1208', 0.6]} />
@@ -460,13 +468,45 @@ export function BodyExperience({
           introKey={introKey}
           reduced={reduced}
           markers={markers}
-          onSelect={onSelect}
+          markerMap={markerMap}
           onDetect={onDetect}
           onProgress={onProgress}
           onIntroDone={onIntroDone}
         />
       </Canvas>
-      <LoadingOverlay label="Cargando cuerpo 3D…" />
+      <div className="xp-markers" aria-hidden={!isExplore}>
+        {markers.map((marker) => {
+          const { side, labelDy } = BODY_HOTSPOTS[marker.id];
+          const isSelected = marker.id === selected;
+          return (
+            <button
+              key={marker.id}
+              ref={(el) => {
+                markerMap.set(marker.id, el);
+              }}
+              type="button"
+              className={`body3d-marker${side < 0 ? ' is-left' : ''}${isSelected ? ' is-selected' : ''}${marker.critical ? ' is-critical' : ''}`}
+              hidden={!isExplore}
+              tabIndex={!isExplore ? -1 : 0}
+              style={{ ['--status' as string]: marker.color, ['--dy' as string]: `${labelDy}px` }}
+              aria-pressed={isSelected}
+              aria-label={`${marker.title}: ${marker.statusLabel}. ${marker.metric}`}
+              onClick={() => onSelect(marker.id)}
+            >
+              <span className="body3d-dot" aria-hidden>
+                {marker.icon}
+                <span className="body3d-num">{marker.number}</span>
+              </span>
+              <span className="body3d-lead" aria-hidden />
+              <span className="body3d-label" aria-hidden>
+                <strong>{marker.title}</strong>
+                <em>{marker.statusLabel} · {marker.metric}</em>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <LoadingOverlay label={t.common.loading3dBody} />
     </div>
   );
 }

@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import {
+  AI_MAX_QUERY_LENGTH,
+  AI_MODEL_ID,
+  AI_TEMPERATURE,
+  AI_TIMEOUT_MS,
+} from '../../../config/ai';
+import type { SupportedLang } from '../../../config/missionComms';
+import type { MissionProfileId } from '../../../types/mission';
+import {
   generateClinicalPrompt,
   TelemetryPayload,
 } from '../../../utils/systemPrompt';
@@ -8,10 +16,9 @@ import {
 interface TriageRequestBody {
   query?: string;
   telemetry?: TelemetryPayload;
+  missionProfileId?: MissionProfileId;
+  lang?: SupportedLang;
 }
-
-const MAX_QUERY_LENGTH = 6000;
-const GEMINI_TIMEOUT_MS = 15_000;
 
 let cachedGenAI: GoogleGenerativeAI | null = null;
 let cachedKey: string | null = null;
@@ -28,12 +35,12 @@ export async function POST(req: NextRequest) {
   const abortController = new AbortController();
   const timeoutId = setTimeout(
     () => abortController.abort(),
-    GEMINI_TIMEOUT_MS
+    AI_TIMEOUT_MS
   );
 
   try {
     const body = (await req.json()) as TriageRequestBody;
-    const { query, telemetry } = body;
+    const { query, telemetry, missionProfileId, lang } = body;
 
     if (
       !query ||
@@ -48,7 +55,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const apiKey = process.env.GEMINI_API_KEY as string;
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
         { error: 'GEMINI_API_KEY is not configured on the server' },
@@ -56,14 +63,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const sanitizedQuery = query.trim().slice(0, MAX_QUERY_LENGTH);
+    const sanitizedQuery = query.trim().slice(0, AI_MAX_QUERY_LENGTH);
     const genAI = getGenAIClient(apiKey);
 
     const model = genAI.getGenerativeModel({
-      model: 'gemini-3-flash-preview',
-      systemInstruction: generateClinicalPrompt(telemetry),
+      model: AI_MODEL_ID,
+      systemInstruction: generateClinicalPrompt(telemetry, {
+        missionProfileId,
+        lang,
+      }),
       generationConfig: {
-        temperature: 0.2, // Determinismo clínico
+        temperature: AI_TEMPERATURE,
       },
     });
 
@@ -75,6 +85,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         response: responseText,
+        model: AI_MODEL_ID,
         timestamp: new Date().toISOString(),
       },
       { status: 200 }

@@ -27,7 +27,7 @@ function OnePage({ mision }: { mision?: MissionSlug }) {
     <>
       <AppNav mision={mision} />
       <section id="cuerpo" aria-label="Escáner corporal 3D" className="scroll-mt-12">
-        <BodyMapHUD />
+        <BodyMapHUD mision={mision} />
       </section>
       <section id="mando" aria-label="Centro de mando" className="scroll-mt-12">
         <CommandDashboard mision={mision} />

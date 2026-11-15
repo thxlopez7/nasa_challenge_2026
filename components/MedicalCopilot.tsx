@@ -1,31 +1,45 @@
 'use client';
 
 import { FormEvent, useEffect, useRef, useState } from 'react';
+import { AI_MODEL_LABEL } from '../config/ai';
+import { useT } from '../i18n/I18nContext';
+import { useClinicalSnapshot } from '../store/selectors';
 import { useTelemetryStore } from '../store/useTelemetryStore';
+import type { MissionSlug } from '../utils/missionChoice';
 
 export interface ChatMessage {
   role: 'user' | 'ai';
   content: string;
 }
 
-export function MedicalCopilot() {
+export function MedicalCopilot({ mision }: { mision?: MissionSlug }) {
+  const { t, lang } = useT();
+  const snapshot = useClinicalSnapshot(mision);
   const [input, setInput] = useState<string>('');
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: 'ai',
-      content:
-        'Oficial Médico Autónomo ExoVitals en línea. Enlace con la Tierra con latencia de 20 min. Estoy monitoreando su telemetría biométrica y ambiental en tiempo real. ¿Qué síntomas o anomalías experimenta?',
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const messagesRef = useRef<HTMLDivElement | null>(null);
 
-  // Desplaza solo la caja del chat (no la página entera) al último mensaje.
+  const missionDisplayName =
+    snapshot.missionProfileId === 'LUNAR_ARTEMIS'
+      ? `${t.common.moon} (Artemis)`
+      : snapshot.missionProfileId === 'ISS_6M'
+        ? t.common.iss
+        : `${t.common.mars} (Conjunction)`;
+
+  const welcomeMessage: ChatMessage = {
+    role: 'ai',
+    content: t.copilot.welcome(missionDisplayName, snapshot.comms.commsMode[lang]),
+  };
+
+  const renderedMessages = [welcomeMessage, ...messages];
+
+  // Desplaza solo la caja del chat al último mensaje.
   useEffect(() => {
     const box = messagesRef.current;
     if (box) box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
-  }, [messages, isLoading]);
+  }, [messages.length, isLoading]);
 
   const handleSend = async (e?: FormEvent<HTMLFormElement>) => {
     if (e) {
@@ -57,6 +71,8 @@ export function MedicalCopilot() {
         body: JSON.stringify({
           query: trimmedQuery,
           telemetry: currentTelemetry,
+          missionProfileId: snapshot.missionProfileId,
+          lang,
         }),
       });
 
@@ -67,7 +83,10 @@ export function MedicalCopilot() {
 
       if (!res.ok || !data.response) {
         throw new Error(
-          data.error || 'Error en el enlace con el módulo clínico autónomo.'
+          data.error ||
+            (lang === 'es'
+              ? 'Error en el enlace con el módulo clínico autónomo.'
+              : 'Unable to reach autonomous clinical module.')
         );
       }
 
@@ -82,13 +101,15 @@ export function MedicalCopilot() {
       const errorMsg =
         error instanceof Error
           ? error.message
-          : 'Error crítico al consultar al Cirujano de Vuelo Autónomo.';
+          : lang === 'es'
+            ? 'Error al consultar el asistente clínico.'
+            : 'Failed to query clinical assistant.';
 
       setMessages((prev) => [
         ...prev,
         {
           role: 'ai',
-          content: `[ALERTA DE SISTEMA]: ${errorMsg}`,
+          content: `${t.copilot.errorPrefix} ${errorMsg}`,
         },
       ]);
     } finally {
@@ -97,30 +118,36 @@ export function MedicalCopilot() {
   };
 
   return (
-    <section className="flex flex-col h-[680px] bg-slate-800/70 border border-slate-700 rounded-xl overflow-hidden">
-      {/* Cabecera del Copiloto */}
-      <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-700 flex items-center justify-between">
+    <section
+      aria-labelledby="copilot-title"
+      className="flex flex-col h-[540px] bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden"
+    >
+      {/* Cabecera */}
+      <div className="bg-slate-800/80 border-b border-slate-700 px-6 py-4 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-lg font-bold text-cyan-400 uppercase tracking-wider">
-            Cirujano de Vuelo Autónomo (AI)
+          <h2 id="copilot-title" className="text-lg font-bold text-cyan-400 uppercase tracking-wider">
+            {t.copilot.title}
           </h2>
           <p className="text-xs text-slate-400">
-            Gemini 3 Flash // Telemetría Inyectada en Tiempo Real
+            {t.copilot.subtitleModelPrefix}: {AI_MODEL_LABEL} · {t.copilot.subtitleLiveSuffix}
           </p>
         </div>
-        <span className="px-2.5 py-1 rounded bg-cyan-950/80 border border-cyan-700 text-[11px] text-cyan-300 uppercase tracking-wider">
-          Edge-First
-        </span>
+        <div className="flex items-center gap-2 bg-slate-950/60 border border-slate-700 px-3 py-1 rounded-full">
+          <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" aria-hidden />
+          <span className="text-xs font-mono text-emerald-300">
+            {t.copilot.commsBannerPrefix}: {snapshot.comms.commsMode[lang]}
+          </span>
+        </div>
       </div>
 
-      {/* Historial de Mensajes con Scroll */}
+      {/* Historial */}
       <div ref={messagesRef} className="flex-1 overflow-y-auto p-6 space-y-4">
-        {messages.map((msg, index) => {
+        {renderedMessages.map((msg, index) => {
           const isUser = msg.role === 'user';
 
           return (
             <div
-              key={index}
+              key={`${index}-${msg.role}`}
               className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
             >
               <div
@@ -130,8 +157,12 @@ export function MedicalCopilot() {
                     : 'bg-sky-950/90 text-cyan-100 border border-cyan-800/80 rounded-bl-none shadow-md'
                 }`}
               >
-                <p className="text-[10px] uppercase tracking-widest mb-1 opacity-60 font-semibold">
-                  {isUser ? 'Astronauta' : 'ExoVitals AI'}
+                <p className="text-[10px] uppercase tracking-widest mb-1 opacity-70 font-semibold">
+                  {isUser
+                    ? lang === 'es'
+                      ? 'Tripulación'
+                      : 'Crew'
+                    : `ExoVitals IA · ${AI_MODEL_LABEL}`}
                 </p>
                 <div>{msg.content}</div>
               </div>
@@ -140,17 +171,20 @@ export function MedicalCopilot() {
         })}
 
         {isLoading && (
-          <div className="flex justify-start">
+          <div className="flex justify-start" role="status" aria-live="polite">
             <div className="bg-sky-950/90 text-cyan-200 border border-cyan-800/80 rounded-xl rounded-bl-none px-4 py-3 text-sm flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
-              <span>Cargando evaluación clínica y contramedidas...</span>
+              <span className="h-2 w-2 rounded-full bg-cyan-400 animate-ping" aria-hidden />
+              <span>{t.copilot.sending}</span>
             </div>
           </div>
         )}
-
       </div>
 
-      {/* Formulario de Entrada */}
+      <p className="px-6 py-2 bg-slate-950/70 border-t border-slate-800 text-[11px] text-slate-400">
+        {t.copilot.aiDisclaimer}
+      </p>
+
+      {/* Entrada */}
       <form
         onSubmit={handleSend}
         className="p-4 bg-slate-900/90 border-t border-slate-700 flex items-center gap-3"
@@ -159,16 +193,17 @@ export function MedicalCopilot() {
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ej: Tengo dolor de cabeza y mareo leve..."
+          placeholder={t.copilot.placeholder}
+          aria-label={t.copilot.placeholder}
           disabled={isLoading}
-          className="flex-1 bg-slate-800 text-white placeholder-slate-500 text-sm rounded-lg px-4 py-3 border border-slate-700 focus:outline-none focus:border-cyan-500 disabled:opacity-50"
+          className="flex-1 min-h-[44px] bg-slate-800 text-white placeholder-slate-400 text-sm rounded-lg px-4 py-2.5 border border-slate-700 focus:outline-none focus:border-cyan-500 disabled:opacity-50"
         />
         <button
           type="submit"
           disabled={isLoading || !input.trim()}
-          className="px-5 py-3 rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 disabled:text-slate-500 text-slate-950 font-bold text-sm uppercase tracking-wider transition cursor-pointer disabled:cursor-not-allowed"
+          className="min-h-[44px] px-5 py-2.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 disabled:text-slate-400 text-slate-950 font-bold text-sm uppercase tracking-wider transition cursor-pointer disabled:cursor-not-allowed"
         >
-          Enviar
+          {t.copilot.send}
         </button>
       </form>
     </section>
