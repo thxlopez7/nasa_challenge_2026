@@ -15,7 +15,7 @@ import {
   presumptiveDiagnosis,
   type PresumptiveFinding,
 } from '../../utils/scenarios';
-import AstroAvatar from '../profile/AstroAvatar';
+import CrewAvatar from '../profile/CrewAvatar';
 
 /** Segundos que se espera a que el tripulante confirme que está consciente. */
 const CHECK_SECONDS = 15;
@@ -276,7 +276,7 @@ export function EarthAlert({ profile, mision }: { profile: CrewProfile; mision?:
 
           {/* Tripulante */}
           <section className="flex flex-wrap items-center gap-4 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-            <AstroAvatar id={report.crew.avatar} className="h-16 w-16 rounded-lg" />
+            <CrewAvatar profile={report.crew} className="h-16 w-16 rounded-lg" />
             <div className="min-w-0 flex-1">
               <p className="text-lg font-black">{report.crew.name} · <span className="font-normal">{report.crew.role}</span></p>
               <p className="text-sm text-slate-400">{report.mission}</p>

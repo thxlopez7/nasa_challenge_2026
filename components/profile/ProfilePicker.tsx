@@ -1,16 +1,40 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, Check, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Camera, Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 import type { AvatarId, BloodType, CrewProfile, CrewScenario } from '../../types/profile';
 import { DEMO_PROFILES, useProfileStore } from '../../store/useProfileStore';
 import AstroAvatar, { AVATARS, AVATAR_IDS } from './AstroAvatar';
+import CrewAvatar from './CrewAvatar';
 
 const SCENARIO_BADGE: Record<CrewScenario, { label: string; cls: string }> = {
   critical: { label: 'Escenario crítico', cls: 'border-red-400/60 bg-red-500/15 text-red-200' },
   stable: { label: 'Escenario estable', cls: 'border-emerald-400/60 bg-emerald-500/15 text-emerald-200' },
   live: { label: 'Telemetría en vivo', cls: 'border-cyan-400/60 bg-cyan-500/10 text-cyan-200' },
 };
+
+/** Recorta al centro y reduce la foto a 256×256 para guardarla en el navegador. */
+function toSquareDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const side = Math.min(img.width, img.height);
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return reject(new Error('Sin canvas'));
+      ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, 256, 256);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/webp', 0.85));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('No se pudo leer la imagen'));
+    };
+    img.src = url;
+  });
+}
 
 const ROLES = ['Comandante', 'Piloto', 'Especialista de misión', 'Ingeniero de vuelo', 'Médico de a bordo'];
 const BLOOD: BloodType[] = ['O+', 'O−', 'A+', 'A−', 'B+', 'B−', 'AB+', 'AB−'];
@@ -39,7 +63,7 @@ function ProfileTile({
         aria-label={deletable ? `Borrar el perfil de ${profile.name}` : `Entrar como ${profile.name}, ${profile.role}`}
         className="group relative block h-28 w-28 sm:h-36 sm:w-36 rounded-xl outline-none ring-offset-4 ring-offset-black transition hover:scale-105 focus-visible:ring-4 focus-visible:ring-white disabled:opacity-50 disabled:hover:scale-100 cursor-pointer disabled:cursor-not-allowed"
       >
-        <AstroAvatar id={profile.avatar} className="h-full w-full rounded-xl border-2 border-transparent transition group-hover:border-white" />
+        <CrewAvatar profile={profile} className="h-full w-full rounded-xl border-2 border-transparent transition group-hover:border-white" />
         {deletable && (
           <span className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/60">
             <Trash2 className="h-8 w-8 text-red-300" aria-hidden />
@@ -66,7 +90,24 @@ const label = 'block text-xs uppercase tracking-wider text-slate-400 mb-1';
 function CreateProfile({ onDone, onCancel }: { onDone: (p: CrewProfile) => void; onCancel: () => void }) {
   const addProfile = useProfileStore((s) => s.addProfile);
   const [avatar, setAvatar] = useState<AvatarId>('oceano');
+  const [photo, setPhoto] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
+
+  const onPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('El archivo tiene que ser una imagen.');
+      return;
+    }
+    try {
+      setPhoto(await toSquareDataUrl(file));
+      setError(null);
+    } catch {
+      setError('No se pudo cargar esa imagen. Prueba con otra.');
+    }
+  };
 
   const submit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -84,6 +125,7 @@ function CreateProfile({ onDone, onCancel }: { onDone: (p: CrewProfile) => void;
       name,
       role: String(fd.get('role')),
       avatar,
+      photo,
       age: num('age', 35),
       heightCm: num('height', 175),
       weightKg: num('weight', 70),
@@ -105,8 +147,33 @@ function CreateProfile({ onDone, onCancel }: { onDone: (p: CrewProfile) => void;
         </p>
       </div>
 
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="h-24 w-24 overflow-hidden rounded-xl border border-slate-600">
+          {photo ? (
+            // eslint-disable-next-line @next/next/no-img-element -- vista previa de una foto local
+            <img src={photo} alt="Vista previa de la foto" className="h-full w-full object-cover" />
+          ) : (
+            <AstroAvatar id={avatar} className="h-full w-full" />
+          )}
+        </div>
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-500 px-3 py-2 text-sm text-slate-200 hover:border-white transition">
+              <Camera className="h-4 w-4" aria-hidden /> {photo ? 'Cambiar foto' : 'Subir foto'}
+              <input type="file" accept="image/*" onChange={onPhoto} className="sr-only" />
+            </label>
+            {photo && (
+              <button type="button" onClick={() => setPhoto(undefined)} className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm text-slate-400 hover:text-white transition cursor-pointer">
+                <X className="h-4 w-4" aria-hidden /> Quitar
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-slate-400">Opcional. Usa una foto tuya o de alguien que te haya dado permiso.</p>
+        </div>
+      </div>
+
       <fieldset>
-        <legend className={label}>Avatar</legend>
+        <legend className={label}>{photo ? 'Avatar (si quitas la foto)' : 'Avatar'}</legend>
         <div className="flex flex-wrap gap-3">
           {AVATAR_IDS.map((id) => (
             <button

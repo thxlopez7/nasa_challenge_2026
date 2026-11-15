@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Activity, House, Moon, Orbit, ScanLine } from 'lucide-react';
 import { useActiveProfile } from '../store/useProfileStore';
-import AstroAvatar from './profile/AstroAvatar';
+import CrewAvatar from './profile/CrewAvatar';
 import { useIntroStore } from '../store/useIntroStore';
 import { MISSION_CHOICES, saveChoice, type MissionSlug } from '../utils/missionChoice';
 
@@ -129,7 +129,7 @@ export function AppNav({ mision }: { mision?: MissionSlug }) {
             title="Cambiar de tripulante"
             className="inline-flex items-center gap-2 rounded-full border border-slate-700 py-0.5 pl-0.5 pr-3 text-slate-300 hover:border-slate-400 hover:text-white transition cursor-pointer"
           >
-            <AstroAvatar id={profile.avatar} className="h-6 w-6 rounded-full" />
+            <CrewAvatar profile={profile} className="h-6 w-6 rounded-full" />
             <span className="hidden sm:inline">{profile.name}</span>
           </button>
         )}

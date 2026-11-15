@@ -21,6 +21,8 @@ export interface CrewProfile {
   name: string;
   role: string;
   avatar: AvatarId;
+  /** Foto de portada (URL o data URL). Si no hay, se usa el avatar ilustrado. */
+  photo?: string;
   age: number;
   heightCm: number;
   weightKg: number;

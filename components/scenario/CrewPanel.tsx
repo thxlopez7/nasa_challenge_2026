@@ -6,7 +6,7 @@ import { useTelemetryStore } from '../../store/useTelemetryStore';
 import type { CrewProfile } from '../../types/profile';
 import { getAlertSeverity } from '../../utils/clinicalEngine';
 import { SCENARIO_EVENTS, type ScenarioEvent } from '../../utils/scenarios';
-import AstroAvatar from '../profile/AstroAvatar';
+import CrewAvatar from '../profile/CrewAvatar';
 
 const LEVEL: Record<ScenarioEvent['level'], { icon: typeof Info; cls: string; label: string }> = {
   info: { icon: Info, cls: 'border-cyan-500/40 text-cyan-200', label: 'Leve' },
@@ -40,7 +40,7 @@ export function CrewPanel({ profile }: { profile: CrewProfile }) {
   return (
     <section aria-label="Tripulante a bordo" className="grid gap-6 rounded-xl border border-slate-800 bg-slate-900 p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
       <div className="flex gap-4">
-        <AstroAvatar id={profile.avatar} className="h-24 w-24 shrink-0 rounded-xl" />
+        <CrewAvatar profile={profile} className="h-24 w-24 shrink-0 rounded-xl" />
         <div className="min-w-0 space-y-2">
           <p className="text-xs uppercase tracking-[0.25em] text-cyan-500">Tripulante a bordo</p>
           <h2 className="text-2xl font-black text-white leading-tight">{profile.name}</h2>

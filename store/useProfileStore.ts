@@ -25,6 +25,7 @@ export const DEMO_PROFILES: CrewProfile[] = [
     name: 'Tomás Vega',
     role: 'Especialista de misión',
     avatar: 'luna',
+    photo: '/images/crew/tomas-vega.webp',
     age: 36,
     heightCm: 181,
     weightKg: 77,
