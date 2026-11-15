@@ -40,9 +40,7 @@ export function IntroGate() {
   if (!visible) return null;
 
   const onChoose = (slug: MissionSlug) => {
-    // En el cuerpo 3D se queda ahí; desde cualquier otra ruta, al panel.
-    const target = pathname.startsWith('/cuerpo') ? '/cuerpo' : '/panel';
-    router.replace(`${target}?mision=${slug}`);
+    router.replace(`/panel?mision=${slug}`, { scroll: false });
     hide();
   };
 
