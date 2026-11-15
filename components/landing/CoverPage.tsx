@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Moon, Orbit } from 'lucide-react';
 import { saveChoice, type MissionSlug } from '../../utils/missionChoice';
-import { useT } from '../../i18n/I18nContext';
+import { DICTS } from '../../i18n/I18nContext';
 import Starfield from './Starfield';
 
 const TITLE = 'EXOVITALS';
@@ -23,7 +23,8 @@ const depthOf = (i: number, n: number) => Math.sin((i / (n - 1)) * Math.PI) * 0.
  * la galaxia y se avisa con `onChoose`.
  */
 export function CoverPage({ onChoose }: { onChoose: (slug: MissionSlug) => void }) {
-  const { t } = useT();
+  // La intro no tiene selector de idioma: siempre en inglés.
+  const t = DICTS.en;
   const ci = t.coverIntro;
   const root = useRef<HTMLDivElement>(null);
   const [arriving, setArriving] = useState(true);

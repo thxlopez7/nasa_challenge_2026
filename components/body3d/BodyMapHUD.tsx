@@ -12,6 +12,7 @@ import {
 import { useSystemTrendSeries } from "../../store/useTelemetryTrend";
 import { useT } from "../../i18n/I18nContext";
 import type { MissionSlug } from "../../utils/missionChoice";
+import { deriveOverallLevel, deriveSystemTiles } from "../../utils/nextAction";
 
 // WebGL sólo existe en el navegador: los visores 3D no se prerenderizan.
 const BodyExperience = dynamic(() => import("./BodyExperience"), {
@@ -419,25 +420,32 @@ export function BodyMapHUD({ mision, scanRun = 0 }: { mision?: MissionSlug; scan
   const statusLabels: Record<StatusColor, string> = useMemo(
     () => ({
       green: t.common.green,
-      amber: t.common.amber,
+      amber: t.command.mosaic.statuses.amber,
       red: t.common.red,
     }),
     [t]
   );
 
+  // Mismo nivel global que el Centro de mando (motor + Código Rojo + mosaico).
+  const overallLevel = useMemo(
+    () => deriveOverallLevel(snapshot, deriveSystemTiles(snapshot, lang)),
+    [snapshot, lang]
+  );
   const globalStatusText =
-    snapshot.globalSeverity === "CRITICAL"
+    overallLevel === "critical"
       ? t.common.critical
-      : snapshot.globalSeverity === "WARNING"
+      : overallLevel === "warning"
         ? t.common.warning
-        : t.common.optimal;
+        : overallLevel === "watch"
+          ? `${t.common.green} · ${t.command.hero.counts.amber}`
+          : t.common.green;
 
   const globalStatusColor =
-    snapshot.globalSeverity === "CRITICAL"
+    overallLevel === "critical"
       ? STATUS_FILL.red
-      : snapshot.globalSeverity === "WARNING"
-        ? STATUS_FILL.amber
-        : STATUS_FILL.green;
+      : overallLevel === "nominal"
+        ? STATUS_FILL.green
+        : STATUS_FILL.amber;
 
   const systemsData = useMemo<Record<SystemId, SystemViewModel>>(() => {
     const out = {} as Record<SystemId, SystemViewModel>;
@@ -571,7 +579,6 @@ export function BodyMapHUD({ mision, scanRun = 0 }: { mision?: MissionSlug; scan
             {t.common.prototypeBadge} · {snapshot.comms.commsMode[lang]}
           </p>
           <h1>{t.bodyHud.overviewHeading}</h1>
-          <p className="dek">{t.bodyHud.disclaimerBanner}</p>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
           <div
@@ -891,7 +898,6 @@ export function BodyMapHUD({ mision, scanRun = 0 }: { mision?: MissionSlug; scan
         </section>
       )}
 
-      <p className="src">{t.common.prototypeBadge}</p>
       <p className="src">
         {lang === "es" ? "Modelos 3D (Sketchfab):" : "3D Models (Sketchfab):"}{" "}
         {ALL_CREDITS.map((c, i) => (
