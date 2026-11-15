@@ -100,8 +100,12 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
   const scenario = profile?.scenario;
   const script = useMemo(() => {
     if (!scenario || scenario === 'live') return undefined;
-    const last = Object.values(records)
-      .filter((r) => r.vitals)
+    // Parte del último día *anterior*: si se usara el registro de hoy, una
+    // recarga arrancaría el guion ya en crisis.
+    const todayKeyNow = toDayKey(new Date());
+    const last = Object.entries(records)
+      .filter(([key, r]) => key !== todayKeyNow && r.vitals)
+      .map(([, r]) => r)
       .sort((a, b) => b.missionDay - a.missionDay)[0];
     return scenarioScript(scenario, last?.vitals);
   }, [scenario, records]);
