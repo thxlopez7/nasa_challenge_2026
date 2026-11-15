@@ -88,16 +88,33 @@ export function deriveSystemSnapshots(input: {
   );
 
   // 2. Cardiovascular y Perfusión
+  const hrv = biomarkers.hrvRmssdMs;
+  const orthoHr = biomarkers.orthostaticDeltaHr;
+  const orthoSys = biomarkers.orthostaticDeltaSys;
   const cardioStatus: SystemHealthStatus =
-    alerts.isEmergency || spO2 < 92 || heartRate > 125 || heartRate < 42
+    alerts.isEmergency ||
+    spO2 < 92 ||
+    heartRate > 125 ||
+    heartRate < 42 ||
+    (hrv !== undefined && hrv < 15) ||
+    (orthoSys !== undefined && orthoSys <= -30)
       ? 'red'
-      : heartRate > 105 || heartRate < 50 || spO2 < 95
+      : heartRate > 105 ||
+          heartRate < 50 ||
+          spO2 < 95 ||
+          (hrv !== undefined && hrv < 25) ||
+          (orthoHr !== undefined && orthoHr >= 25) ||
+          (orthoSys !== undefined && orthoSys <= -20)
         ? 'amber'
         : 'green';
   const cardioScore = Math.min(
     100,
     Math.round(
-      Math.abs(heartRate - 70) * 0.7 + (spO2 < 98 ? (98 - spO2) * 8 : 0) + (alerts.isEmergency ? 30 : 0)
+      Math.abs(heartRate - 70) * 0.7 +
+        (spO2 < 98 ? (98 - spO2) * 8 : 0) +
+        (hrv !== undefined && hrv < 35 ? (35 - hrv) * 1.1 : 0) +
+        (orthoHr !== undefined && orthoHr > 20 ? (orthoHr - 20) * 1.2 : 0) +
+        (alerts.isEmergency ? 30 : 0)
     )
   );
 
@@ -113,11 +130,19 @@ export function deriveSystemSnapshots(input: {
     Math.round(nlr * 12 + Math.min(40, (radiationRate / 80) * 35) + (alerts.isRadiationWarning ? 25 : 0))
   );
 
-  // 4. Renal, Calcio y Remodelado Óseo
+  // 4. Renal, Calcio y Remodelado Óseo (DXA no disponible a bordo; proxy CTX/NTX & P1NP)
+  const ctx = biomarkers.ctxNtxIndex;
+  const p1np = biomarkers.p1npIndex;
+  const ared = biomarkers.aredLoadPct;
   const oseoStatus: SystemHealthStatus =
-    alerts.isRenalWarning
+    alerts.isRenalWarning ||
+    (ctx !== undefined && ctx >= 1.6 && p1np !== undefined && p1np <= 0.75)
       ? 'red'
-      : cistatinaC > 1.05 || calcioIonico > 1.2 || cisCRatio > 1.15
+      : cistatinaC > 1.05 ||
+          calcioIonico > 1.2 ||
+          cisCRatio > 1.15 ||
+          (ctx !== undefined && ctx >= 1.35) ||
+          (ared !== undefined && ared < 65)
         ? 'amber'
         : 'green';
   const oseoScore = Math.min(
@@ -125,6 +150,8 @@ export function deriveSystemSnapshots(input: {
     Math.round(
       Math.max(0, (cistatinaC - 0.7) * 55) +
         Math.max(0, (calcioIonico - 1.1) * 90) +
+        (ctx !== undefined && ctx > 1.15 ? (ctx - 1.15) * 45 : 0) +
+        (ared !== undefined && ared < 80 ? (80 - ared) * 0.4 : 0) +
         (alerts.isRenalWarning ? 25 : 0)
     )
   );
@@ -215,8 +242,8 @@ export function deriveSystemSnapshots(input: {
             : 'Pause exertion, hydrate, and repeat resting measurement.',
       },
       surgeonMetrics: {
-        es: `FC: ${Math.round(heartRate)} lpm | SpO₂: ${spO2}% | PA: ${biomarkers.systolicMmHg ?? '—'}/${biomarkers.diastolicMmHg ?? '—'} mmHg | Glucosa: ${biomarkers.glucoseMgDl ?? '—'} mg/dL | Temp: ${biomarkers.bodyTempC !== undefined ? biomarkers.bodyTempC.toFixed(1) : '—'} °C`,
-        en: `HR: ${Math.round(heartRate)} bpm | SpO₂: ${spO2}% | BP: ${biomarkers.systolicMmHg ?? '—'}/${biomarkers.diastolicMmHg ?? '—'} mmHg | Glucose: ${biomarkers.glucoseMgDl ?? '—'} mg/dL | Temp: ${biomarkers.bodyTempC !== undefined ? biomarkers.bodyTempC.toFixed(1) : '—'} °C`,
+        es: `FC: ${Math.round(heartRate)} lpm | SpO₂: ${spO2}% | PA: ${biomarkers.systolicMmHg ?? '—'}/${biomarkers.diastolicMmHg ?? '—'} mmHg | HRV RMSSD: ${hrv !== undefined ? `${Math.round(hrv)} ms` : '—'} | Ortostática ΔFC/ΔPAS: ${orthoHr !== undefined ? `+${Math.round(orthoHr)} lpm` : '—'} / ${orthoSys !== undefined ? `${Math.round(orthoSys)} mmHg` : '—'} | Glucosa: ${biomarkers.glucoseMgDl ?? '—'} mg/dL | Temp: ${biomarkers.bodyTempC !== undefined ? biomarkers.bodyTempC.toFixed(1) : '—'} °C`,
+        en: `HR: ${Math.round(heartRate)} bpm | SpO₂: ${spO2}% | BP: ${biomarkers.systolicMmHg ?? '—'}/${biomarkers.diastolicMmHg ?? '—'} mmHg | HRV RMSSD: ${hrv !== undefined ? `${Math.round(hrv)} ms` : '—'} | Orthostatic ΔHR/ΔSBP: ${orthoHr !== undefined ? `+${Math.round(orthoHr)} bpm` : '—'} / ${orthoSys !== undefined ? `${Math.round(orthoSys)} mmHg` : '—'} | Glucose: ${biomarkers.glucoseMgDl ?? '—'} mg/dL | Temp: ${biomarkers.bodyTempC !== undefined ? biomarkers.bodyTempC.toFixed(1) : '—'} °C`,
       },
     },
     inmune: {
@@ -289,8 +316,8 @@ export function deriveSystemSnapshots(input: {
             : 'Increase scheduled fluid intake immediately and hold unprescribed calcium supplements.',
       },
       surgeonMetrics: {
-        es: `Cistatina C: ${cistatinaC.toFixed(2)} mg/L | Creatinina: ${creatinina.toFixed(2)} mg/dL | Razón CisC/Cr: ${cisCRatio.toFixed(2)} | Ca²⁺: ${calcioIonico.toFixed(2)} mmol/L | DXA: no disponible a bordo`,
-        en: `Cystatin C: ${cistatinaC.toFixed(2)} mg/L | Creatinine: ${creatinina.toFixed(2)} mg/dL | CysC/Cr ratio: ${cisCRatio.toFixed(2)} | Ca²⁺: ${calcioIonico.toFixed(2)} mmol/L | DXA: unavailable onboard`,
+        es: `Cistatina C: ${cistatinaC.toFixed(2)} mg/L | Creatinina: ${creatinina.toFixed(2)} mg/dL | Razón CisC/Cr: ${cisCRatio.toFixed(2)} | Ca²⁺: ${calcioIonico.toFixed(2)} mmol/L | CTX/NTX: ${ctx !== undefined ? ctx.toFixed(2) : '—'} | P1NP: ${p1np !== undefined ? p1np.toFixed(2) : '—'} | ARED: ${ared !== undefined ? `${Math.round(ared)}%` : '—'} | DXA: no disponible a bordo`,
+        en: `Cystatin C: ${cistatinaC.toFixed(2)} mg/L | Creatinine: ${creatinina.toFixed(2)} mg/dL | CysC/Cr ratio: ${cisCRatio.toFixed(2)} | Ca²⁺: ${calcioIonico.toFixed(2)} mmol/L | CTX/NTX: ${ctx !== undefined ? ctx.toFixed(2) : '—'} | P1NP: ${p1np !== undefined ? p1np.toFixed(2) : '—'} | ARED: ${ared !== undefined ? `${Math.round(ared)}%` : '—'} | DXA: unavailable onboard`,
       },
     },
     conducta: {
@@ -369,6 +396,12 @@ export function useClinicalSnapshot(misionSlug?: MissionSlug): ClinicalSnapshot 
       glucoseMgDl: s.glucoseMgDl,
       glucoseContext: s.glucoseContext,
       bodyTempC: s.bodyTempC,
+      ctxNtxIndex: s.ctxNtxIndex,
+      p1npIndex: s.p1npIndex,
+      aredLoadPct: s.aredLoadPct,
+      hrvRmssdMs: s.hrvRmssdMs,
+      orthostaticDeltaHr: s.orthostaticDeltaHr,
+      orthostaticDeltaSys: s.orthostaticDeltaSys,
       co2Level: s.co2Level,
       radiationRate: s.radiationRate,
       radiationAccumulated: s.radiationAccumulated,
@@ -409,6 +442,12 @@ export function useClinicalSnapshot(misionSlug?: MissionSlug): ClinicalSnapshot 
     glucoseMgDl: telemetry.glucoseMgDl,
     glucoseContext: telemetry.glucoseContext,
     bodyTempC: telemetry.bodyTempC,
+    ctxNtxIndex: telemetry.ctxNtxIndex,
+    p1npIndex: telemetry.p1npIndex,
+    aredLoadPct: telemetry.aredLoadPct,
+    hrvRmssdMs: telemetry.hrvRmssdMs,
+    orthostaticDeltaHr: telemetry.orthostaticDeltaHr,
+    orthostaticDeltaSys: telemetry.orthostaticDeltaSys,
   };
 
   const environment: Environment = {

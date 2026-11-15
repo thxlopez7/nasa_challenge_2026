@@ -22,6 +22,9 @@ type MetricId =
   | 'linfocitos'
   | 'nlr'
   | 'heartRate'
+  | 'hrvRmssdMs'
+  | 'ctxNtxIndex'
+  | 'p1npIndex'
   | 'radiationAccumulated'
   | 'sleepHours'
   | 'sleepEfficiency'
@@ -70,6 +73,24 @@ const METRICS: Record<MetricId, MetricDef> = {
     label: 'Frecuencia cardíaca', unit: 'bpm', group: 'Biomarcadores', digits: 0,
     read: (r) => r.vitals?.heartRate,
     why: 'Tendencia en reposo: ayuda a ver estrés y desacondicionamiento.',
+  },
+  hrvRmssdMs: {
+    label: 'HRV (RMSSD)', unit: 'ms', group: 'Biomarcadores', digits: 0,
+    read: (r) => r.vitals?.hrvRmssdMs,
+    threshold: { value: 25, label: 'Bajo < 25 ms' },
+    why: 'Variabilidad cardíaca parasimpática: cae con desacondicionamiento y estrés acumulado.',
+  },
+  ctxNtxIndex: {
+    label: 'Resorción CTX/NTX', unit: 'idx', group: 'Biomarcadores', digits: 2,
+    read: (r) => r.vitals?.ctxNtxIndex,
+    threshold: { value: 1.35, label: 'Alerta ≥ 1.35' },
+    why: 'Marcador bioquímico de resorción ósea en 0 g (DXA no disponible a bordo).',
+  },
+  p1npIndex: {
+    label: 'Formación ósea P1NP', unit: 'idx', group: 'Biomarcadores', digits: 2,
+    read: (r) => r.vitals?.p1npIndex,
+    threshold: { value: 0.75, label: 'Bajo ≤ 0.75' },
+    why: 'Marcador bioquímico de formación osteoblástica frente a carga ARED.',
   },
   radiationAccumulated: {
     label: 'Dosis acumulada', unit: 'mSv', group: 'Entorno', digits: 1,

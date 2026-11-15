@@ -150,6 +150,22 @@ export const useTelemetryStore = create<TelemetryState>()(
           ),
           glucoseContext: data.glucoseContext ?? currentState.glucoseContext,
           bodyTempC: pickBoundedNumber(data.bodyTempC, currentState.bodyTempC, 32, 43),
+          ctxNtxIndex: pickBoundedNumber(data.ctxNtxIndex, currentState.ctxNtxIndex, 0.2, 6),
+          p1npIndex: pickBoundedNumber(data.p1npIndex, currentState.p1npIndex, 0.2, 5),
+          aredLoadPct: pickBoundedNumber(data.aredLoadPct, currentState.aredLoadPct, 0, 150),
+          hrvRmssdMs: pickBoundedNumber(data.hrvRmssdMs, currentState.hrvRmssdMs, 5, 200),
+          orthostaticDeltaHr: pickBoundedNumber(
+            data.orthostaticDeltaHr,
+            currentState.orthostaticDeltaHr,
+            -20,
+            80
+          ),
+          orthostaticDeltaSys: pickBoundedNumber(
+            data.orthostaticDeltaSys,
+            currentState.orthostaticDeltaSys,
+            -70,
+            40
+          ),
         };
 
         const nextRadiationAccumulated = pickFiniteNumber(
@@ -225,6 +241,22 @@ export const useTelemetryStore = create<TelemetryState>()(
           glucoseMgDl: pickBoundedNumber(patch.glucoseMgDl, currentState.glucoseMgDl, 20, 600),
           glucoseContext: patch.glucoseContext ?? currentState.glucoseContext ?? 'fasting',
           bodyTempC: pickBoundedNumber(patch.bodyTempC, currentState.bodyTempC, 32, 43),
+          ctxNtxIndex: pickBoundedNumber(patch.ctxNtxIndex, currentState.ctxNtxIndex, 0.2, 6),
+          p1npIndex: pickBoundedNumber(patch.p1npIndex, currentState.p1npIndex, 0.2, 5),
+          aredLoadPct: pickBoundedNumber(patch.aredLoadPct, currentState.aredLoadPct, 0, 150),
+          hrvRmssdMs: pickBoundedNumber(patch.hrvRmssdMs, currentState.hrvRmssdMs, 5, 200),
+          orthostaticDeltaHr: pickBoundedNumber(
+            patch.orthostaticDeltaHr,
+            currentState.orthostaticDeltaHr,
+            -20,
+            80
+          ),
+          orthostaticDeltaSys: pickBoundedNumber(
+            patch.orthostaticDeltaSys,
+            currentState.orthostaticDeltaSys,
+            -70,
+            40
+          ),
         };
 
         const nextEnv: Environment = {
@@ -383,6 +415,24 @@ export const useTelemetryStore = create<TelemetryState>()(
               calcioIonico: 1.5,
             };
             break;
+          case 'BONE_LOSS':
+            scenarioOverrides = {
+              ctxNtxIndex: 1.68,
+              p1npIndex: 0.72,
+              aredLoadPct: 48,
+              calcioIonico: 1.32,
+            };
+            break;
+          case 'CARDIO_DECONDITIONING':
+            scenarioOverrides = {
+              heartRate: 98,
+              hrvRmssdMs: 18,
+              orthostaticDeltaHr: 32,
+              orthostaticDeltaSys: -24,
+              systolicMmHg: 96,
+              diastolicMmHg: 62,
+            };
+            break;
         }
 
         const nextBio: Biomarkers = {
@@ -394,11 +444,19 @@ export const useTelemetryStore = create<TelemetryState>()(
           linfocitos: scenarioOverrides.linfocitos ?? currentState.linfocitos,
           neutrofilos: scenarioOverrides.neutrofilos ?? currentState.neutrofilos,
           cortisol: scenarioOverrides.cortisol ?? currentState.cortisol,
-          systolicMmHg: currentState.systolicMmHg,
-          diastolicMmHg: currentState.diastolicMmHg,
+          systolicMmHg: scenarioOverrides.systolicMmHg ?? currentState.systolicMmHg,
+          diastolicMmHg: scenarioOverrides.diastolicMmHg ?? currentState.diastolicMmHg,
           glucoseMgDl: currentState.glucoseMgDl,
           glucoseContext: currentState.glucoseContext,
           bodyTempC: currentState.bodyTempC,
+          ctxNtxIndex: scenarioOverrides.ctxNtxIndex ?? currentState.ctxNtxIndex,
+          p1npIndex: scenarioOverrides.p1npIndex ?? currentState.p1npIndex,
+          aredLoadPct: scenarioOverrides.aredLoadPct ?? currentState.aredLoadPct,
+          hrvRmssdMs: scenarioOverrides.hrvRmssdMs ?? currentState.hrvRmssdMs,
+          orthostaticDeltaHr:
+            scenarioOverrides.orthostaticDeltaHr ?? currentState.orthostaticDeltaHr,
+          orthostaticDeltaSys:
+            scenarioOverrides.orthostaticDeltaSys ?? currentState.orthostaticDeltaSys,
         };
 
         const nextEnv: Environment = {
@@ -428,7 +486,7 @@ export const useTelemetryStore = create<TelemetryState>()(
     }),
     {
       name: 'exovitals-core-storage',
-      version: 2,
+      version: 3,
       skipHydration: true,
       storage: createJSONStorage(createThrottledBrowserStorage),
       migrate: (persistedState: unknown) => {

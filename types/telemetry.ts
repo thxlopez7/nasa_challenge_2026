@@ -9,6 +9,8 @@ export type SimulationScenario =
   | 'SOLAR_STORM'
   | 'CO2_LEAK'
   | 'RENAL_DAMAGE'
+  | 'BONE_LOSS'
+  | 'CARDIO_DECONDITIONING'
   | 'RESET';
 
 /** Alias legado mantenido para retrocompatibilidad */
@@ -94,6 +96,20 @@ export interface Biomarkers {
   glucoseContext?: GlucoseContext;
   /** Temperatura corporal central/timpánica (°C) */
   bodyTempC?: number;
+
+  // --- Indicadores adicionales P6: Óseo/Muscular y Cardiovascular extendido ---
+  /** Índice bioquímico de resorción ósea CTX/NTX (ratio prototipo; basal ~1.0) — DXA no disponible a bordo */
+  ctxNtxIndex?: number;
+  /** Índice de formación ósea P1NP (ratio prototipo; basal ~1.0) — reemplazo bioquímico sin DXA */
+  p1npIndex?: number;
+  /** Adherencia / carga semanal acumulada en equipo resistivo ARED (% del objetivo) */
+  aredLoadPct?: number;
+  /** Variabilidad de frecuencia cardíaca en reposo RMSSD (ms) */
+  hrvRmssdMs?: number;
+  /** Prueba ortostática simplificada: delta FC al incorporarse (+lpm) */
+  orthostaticDeltaHr?: number;
+  /** Prueba ortostática simplificada: variación en PAS al incorporarse (mmHg) */
+  orthostaticDeltaSys?: number;
 }
 
 /** Variables ambientales del módulo presurizado / traje EVA */
@@ -126,6 +142,12 @@ export interface ManualVitalsPatch {
   bodyTempC?: number;
   heartRate?: number;
   spO2?: number;
+  ctxNtxIndex?: number;
+  p1npIndex?: number;
+  aredLoadPct?: number;
+  hrvRmssdMs?: number;
+  orthostaticDeltaHr?: number;
+  orthostaticDeltaSys?: number;
   measuredAt?: string;
 }
 
@@ -221,6 +243,12 @@ export const mockInitialState: Omit<
   glucoseMgDl: 92,
   glucoseContext: 'fasting',
   bodyTempC: 36.7,
+  ctxNtxIndex: 1.02,
+  p1npIndex: 0.98,
+  aredLoadPct: 92,
+  hrvRmssdMs: 46,
+  orthostaticDeltaHr: 11,
+  orthostaticDeltaSys: -4,
 
   // Environment
   co2Level: 600,

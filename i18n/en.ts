@@ -104,6 +104,14 @@ export const en: TranslationDict = {
         label: 'Hidden Renal Injury',
         desc: 'Elevated Cystatin C and ionized calcium despite normal creatinine.',
       },
+      BONE_LOSS: {
+        label: 'Bone Resorption Spike (0 g)',
+        desc: 'Elevated CTX/NTX, suppressed P1NP, low ARED loading (no onboard DXA).',
+      },
+      CARDIO_DECONDITIONING: {
+        label: 'Cardio Deconditioning',
+        desc: 'Suppressed resting HRV (RMSSD) paired with positive orthostatic intolerance.',
+      },
       RESET: {
         label: 'Restore Nominal',
         desc: 'Return to nominal baselines and resume 1 Hz telemetry stream.',

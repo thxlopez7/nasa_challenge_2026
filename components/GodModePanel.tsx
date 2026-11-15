@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { RotateCcw, Siren, Sun, Wind, Activity, WifiOff, Wifi } from 'lucide-react';
+import { RotateCcw, Siren, Sun, Wind, Activity, WifiOff, Wifi, Bone, HeartPulse } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ClinicalAlerts, SimulationScenario } from '../types/telemetry';
 import { useTelemetryStore } from '../store/useTelemetryStore';
@@ -29,6 +29,16 @@ const SCENARIO_META: Record<SimulationScenario, ScenarioMeta> = {
     expectedAlert: 'isRenalWarning',
     styles: 'border-amber-500/60 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20',
   },
+  BONE_LOSS: {
+    icon: Bone,
+    expectedAlert: null,
+    styles: 'border-orange-500/60 bg-orange-500/10 text-orange-200 hover:bg-orange-500/20',
+  },
+  CARDIO_DECONDITIONING: {
+    icon: HeartPulse,
+    expectedAlert: null,
+    styles: 'border-rose-500/60 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20',
+  },
   RESET: {
     icon: RotateCcw,
     expectedAlert: null,
@@ -40,6 +50,8 @@ const SCENARIO_ORDER: SimulationScenario[] = [
   'SOLAR_STORM',
   'CO2_LEAK',
   'RENAL_DAMAGE',
+  'BONE_LOSS',
+  'CARDIO_DECONDITIONING',
   'RESET',
 ];
 
@@ -127,7 +139,7 @@ export function GodModePanel() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {SCENARIO_ORDER.map((scenario) => {
           const meta = SCENARIO_META[scenario];
           const text = t.godMode.scenarios[scenario];

@@ -102,6 +102,14 @@ export const es = {
         label: 'Daño renal oculto',
         desc: 'Cistatina C y Calcio iónico elevados pese a creatinina normal.',
       },
+      BONE_LOSS: {
+        label: 'Desmineralización ósea (0 g)',
+        desc: 'Resorción CTX/NTX alta, P1NP bajo y baja carga ARED (sin DXA a bordo).',
+      },
+      CARDIO_DECONDITIONING: {
+        label: 'Desacondicionamiento cardio',
+        desc: 'HRV reducida y caída ortostática positiva de PA/FC al incorporarse.',
+      },
       RESET: {
         label: 'Restaurar nominal',
         desc: 'Vuelve a telemetría nominal y reanuda la reproducción de 1 Hz.',

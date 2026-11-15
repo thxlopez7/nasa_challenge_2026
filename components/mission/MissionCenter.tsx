@@ -34,6 +34,7 @@ import { demoDaysFor } from '../../utils/demoHistory';
 import DailyEvaluation from './DailyEvaluation';
 import MissionCalendar from './MissionCalendar';
 import TrendChart from './TrendChart';
+import TodayCountermeasures from './TodayCountermeasures';
 
 type Tab = 'today' | 'calendar' | 'trends' | 'achievements';
 type Toast = { id: number; text: string; tone: 'xp' | 'rank' | 'achievement' };
@@ -377,10 +378,17 @@ export function MissionCenter({ preferredProfile }: { preferredProfile?: Mission
 
       {today === null ? (
         <p className="text-sm text-slate-500">Cargando misión…</p>
-      ) : !mission ? (
-        <MissionSetup today={today} preferred={preferredProfile} />
       ) : (
-        <>
+        <div className="space-y-6">
+          <TodayCountermeasures
+            mision={preferredProfile === 'LUNAR_ARTEMIS' ? 'luna' : preferredProfile === 'MARS_CONJUNCTION' ? 'marte' : undefined}
+            todayOverride={today}
+            runWithToast={run}
+          />
+          {!mission ? (
+            <MissionSetup today={today} preferred={preferredProfile} />
+          ) : (
+            <>
 
           {mission.endedOn ? (
             <MissionEnded mission={mission} totalXp={totalXp} />
@@ -464,6 +472,8 @@ export function MissionCenter({ preferredProfile }: { preferredProfile?: Mission
             </button>
           </div>
         </>
+          )}
+        </div>
       )}
 
       <div aria-live="polite" className="pointer-events-none fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
