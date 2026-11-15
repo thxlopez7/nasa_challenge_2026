@@ -12,7 +12,7 @@ import ProfilePicker from '../profile/ProfilePicker';
 import CoverPage from './CoverPage';
 
 /** Rutas internas donde no tiene sentido una intro. */
-const NO_INTRO = ['/test'];
+const NO_INTRO = ['/test', '/sistema'];
 
 /**
  * Entrada a la app, encima de cualquier página: pantalla de título (elegir

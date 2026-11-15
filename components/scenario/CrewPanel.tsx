@@ -26,7 +26,7 @@ export function CrewPanel({ profile }: { profile: CrewProfile }) {
 
 
   return (
-    <section aria-label={t.crew.onBoard} className="grid gap-4 sm:gap-6 rounded-xl border border-slate-800 bg-slate-900 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+    <section aria-label={t.crew.onBoard} className="ev-glass ev-corners grid gap-4 sm:gap-6 rounded-xl p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
       <div className="flex flex-col sm:flex-row items-start gap-3.5 sm:gap-4">
         <CrewAvatar profile={profile} className="h-20 w-20 sm:h-24 sm:w-24 shrink-0 rounded-xl" />
         <div className="min-w-0 w-full space-y-2">

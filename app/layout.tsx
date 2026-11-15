@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Montserrat } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 import IntroGate from "../components/landing/IntroGate";
+import PressEffects from "../components/ui/PressEffects";
 import { I18nProvider } from "../i18n/I18nContext";
 import { StoreHydrator } from "../hooks/useHydrated";
 import { PwaRegistrar } from "../components/PwaRegistrar";
@@ -99,6 +100,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <PwaRegistrar />
           {children}
           <IntroGate />
+          <PressEffects />
         </I18nProvider>
       </body>
     </html>
