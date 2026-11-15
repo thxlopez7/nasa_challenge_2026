@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Moon, Orbit } from 'lucide-react';
 import { MISSION_CHOICES, saveChoice, type MissionSlug } from '../../utils/missionChoice';
 import Starfield from './Starfield';
@@ -17,22 +16,15 @@ const ARRIVAL_MS = 1400;
 const depthOf = (i: number, n: number) => Math.sin((i / (n - 1)) * Math.PI) * 0.9 - 0.2;
 
 /**
- * Intro de ExoVitals: la pantalla de título aparece sola al abrir la app.
+ * Intro de ExoVitals: la pantalla de título (la muestra IntroGate al abrir la app).
  * Se llega en warp, la galaxia se enfoca, EXOVITALS se arma letra a letra con
  * profundidad y se elige misión. Al elegir Luna o Marte, la cámara entra en
- * la galaxia y la intro se reemplaza en el historial por el panel.
+ * la galaxia y se avisa con `onChoose`.
  */
-export function CoverPage() {
-  const router = useRouter();
+export function CoverPage({ onChoose }: { onChoose: (slug: MissionSlug) => void }) {
   const root = useRef<HTMLDivElement>(null);
   const [arriving, setArriving] = useState(true);
   const [leaving, setLeaving] = useState<MissionSlug | null>(null);
-
-  // Precarga el panel para que el salto no espere a la red.
-  useEffect(() => {
-    router.prefetch('/panel?mision=luna');
-    router.prefetch('/panel?mision=marte');
-  }, [router]);
 
   // Llegada automática en warp; después las estrellas se calman.
   useEffect(() => {
@@ -84,8 +76,7 @@ export function CoverPage() {
     saveChoice(slug);
     setLeaving(slug);
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    // `replace`: la intro no queda en el historial; desaparece tras elegir.
-    window.setTimeout(() => router.replace(`/panel?mision=${slug}`), reduced ? 0 : EXIT_MS);
+    window.setTimeout(() => onChoose(slug), reduced ? 0 : EXIT_MS);
   };
 
   return (

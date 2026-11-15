@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { Activity, Moon, Orbit, ScanLine, Sparkles } from 'lucide-react';
+import { useIntroStore } from '../store/useIntroStore';
 import { MISSION_CHOICES, saveChoice, type MissionSlug } from '../utils/missionChoice';
 
 const SLUGS: MissionSlug[] = ['luna', 'marte'];
@@ -13,6 +14,8 @@ const SLUGS: MissionSlug[] = ['luna', 'marte'];
  * actual y el progreso de cada destino.
  */
 export function AppNav({ current, mision }: { current: 'panel' | 'cuerpo'; mision?: MissionSlug }) {
+  const showIntro = useIntroStore((s) => s.show);
+
   // Recuerda la misión activa para la próxima visita.
   useEffect(() => {
     if (mision) saveChoice(mision);
@@ -85,14 +88,15 @@ export function AppNav({ current, mision }: { current: 'panel' | 'cuerpo'; misio
             );
           })}
         </div>
-        <Link
-          href="/"
+        <button
+          type="button"
+          onClick={showIntro}
           title="Ver la intro otra vez"
           aria-label="Ver la intro otra vez"
-          className="rounded-full p-1.5 text-slate-500 hover:text-cyan-300 hover:bg-slate-800 transition"
+          className="rounded-full p-1.5 text-slate-500 hover:text-cyan-300 hover:bg-slate-800 transition cursor-pointer"
         >
           <Sparkles className="h-3.5 w-3.5" aria-hidden />
-        </Link>
+        </button>
       </div>
     </nav>
   );

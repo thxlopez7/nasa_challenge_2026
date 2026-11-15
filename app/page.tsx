@@ -1,6 +1,9 @@
-import CoverPage from '../components/landing/CoverPage';
+import { redirect } from 'next/navigation';
 
-/** Portada: elige la misión (Luna o Marte) y entra al centro de mando. */
+/**
+ * La raíz lleva al centro de mando. La intro (IntroGate, en el layout) se
+ * muestra encima al abrir la app y lleva a la misión elegida.
+ */
 export default function Home() {
-  return <CoverPage />;
+  redirect('/panel');
 }
