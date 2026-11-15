@@ -42,7 +42,7 @@ export function formatPacketDisplayTitle(
   t: ReturnType<typeof useT>['t']
 ): string {
   if (pkt.kind === 'TELEMETRY_SNAPSHOT') {
-    const severity = pkt.priority === 'emergency' ? t.common.critical : t.common.optimal;
+    const severity = pkt.priority === 'emergency' ? t.outbox.priorityUrgent : t.outbox.priorityRoutine;
     return `${t.outbox.packetTelemetry} · ${severity}`;
   }
   if (pkt.kind === 'SBAR_REPORT') {
@@ -219,6 +219,7 @@ export function OutboxPanel({ mision }: { mision?: MissionSlug }) {
             role="group"
             aria-label={t.outbox.speedLabel}
           >
+            <span className="px-2 text-xs text-slate-400">{t.outbox.speedLabel}</span>
             {([1, 60, 600] as OutboxSpeedup[]).map((spd) => (
               <button
                 key={spd}
@@ -268,7 +269,11 @@ export function OutboxPanel({ mision }: { mision?: MissionSlug }) {
                         {formatPacketDisplayTitle(pkt, t)}
                       </span>
                       <span className="text-[11px] font-mono text-slate-400">
-                        {pkt.missionProfileId}
+                        {pkt.missionProfileId === 'LUNAR_ARTEMIS'
+                          ? t.common.moon
+                          : pkt.missionProfileId === 'MARS_CONJUNCTION'
+                            ? t.common.mars
+                            : t.common.iss}
                       </span>
                     </div>
                   </div>

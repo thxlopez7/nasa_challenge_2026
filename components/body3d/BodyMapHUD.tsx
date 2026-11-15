@@ -12,6 +12,7 @@ import {
 import { useSystemTrendSeries } from "../../store/useTelemetryTrend";
 import { useT } from "../../i18n/I18nContext";
 import type { MissionSlug } from "../../utils/missionChoice";
+import { deriveOverallLevel, deriveSystemTiles } from "../../utils/nextAction";
 
 // WebGL sólo existe en el navegador: los visores 3D no se prerenderizan.
 const BodyExperience = dynamic(() => import("./BodyExperience"), {
@@ -387,7 +388,6 @@ export function BodyMapHUD({ mision, scanRun = 0 }: { mision?: MissionSlug; scan
   const trendSeries = useSystemTrendSeries();
 
   const [selectedSystem, setSelectedSystem] = useState<SystemId>("inmune");
-  const [isSurgeonMode, setIsSurgeonMode] = useState<boolean>(false);
   const [emergencyActive, setEmergencyActive] = useState<boolean>(false);
 
   const isEmergency = snapshot.alerts.isEmergency;
@@ -420,25 +420,32 @@ export function BodyMapHUD({ mision, scanRun = 0 }: { mision?: MissionSlug; scan
   const statusLabels: Record<StatusColor, string> = useMemo(
     () => ({
       green: t.common.green,
-      amber: t.common.amber,
+      amber: t.command.mosaic.statuses.amber,
       red: t.common.red,
     }),
     [t]
   );
 
+  // Mismo nivel global que el Centro de mando (motor + Código Rojo + mosaico).
+  const overallLevel = useMemo(
+    () => deriveOverallLevel(snapshot, deriveSystemTiles(snapshot, lang)),
+    [snapshot, lang]
+  );
   const globalStatusText =
-    snapshot.globalSeverity === "CRITICAL"
+    overallLevel === "critical"
       ? t.common.critical
-      : snapshot.globalSeverity === "WARNING"
+      : overallLevel === "warning"
         ? t.common.warning
-        : t.common.optimal;
+        : overallLevel === "watch"
+          ? `${t.common.green} · ${t.command.hero.counts.amber}`
+          : t.common.green;
 
   const globalStatusColor =
-    snapshot.globalSeverity === "CRITICAL"
+    overallLevel === "critical"
       ? STATUS_FILL.red
-      : snapshot.globalSeverity === "WARNING"
-        ? STATUS_FILL.amber
-        : STATUS_FILL.green;
+      : overallLevel === "nominal"
+        ? STATUS_FILL.green
+        : STATUS_FILL.amber;
 
   const systemsData = useMemo<Record<SystemId, SystemViewModel>>(() => {
     const out = {} as Record<SystemId, SystemViewModel>;
@@ -478,10 +485,6 @@ export function BodyMapHUD({ mision, scanRun = 0 }: { mision?: MissionSlug; scan
       ),
     [systemsData]
   );
-  const rows = current.surgeonMetrics.split(" | ").map((m) => {
-    const i = m.indexOf(": ");
-    return i >= 0 ? [m.slice(0, i), m.slice(i + 2)] : [m, ""];
-  });
 
   // Sistemas con problemas: se marcan sobre el holograma.
   const anomalies: Anomaly[] = ids
@@ -576,7 +579,6 @@ export function BodyMapHUD({ mision, scanRun = 0 }: { mision?: MissionSlug; scan
             {t.common.prototypeBadge} · {snapshot.comms.commsMode[lang]}
           </p>
           <h1>{t.bodyHud.overviewHeading}</h1>
-          <p className="dek">{t.bodyHud.disclaimerBanner}</p>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
           <div
@@ -592,22 +594,6 @@ export function BodyMapHUD({ mision, scanRun = 0 }: { mision?: MissionSlug; scan
           >
             <span>{t.bodyHud.globalStatusLabel}:</span>
             <strong>{globalStatusText}</strong>
-          </div>
-          <div role="group" aria-label="View mode" style={{ display: "flex" }}>
-            <button
-              className="btn"
-              aria-pressed={!isSurgeonMode}
-              onClick={() => setIsSurgeonMode(false)}
-            >
-              {t.bodyHud.roleCrew}
-            </button>
-            <button
-              className="btn"
-              aria-pressed={isSurgeonMode}
-              onClick={() => setIsSurgeonMode(true)}
-            >
-              {t.bodyHud.roleSurgeon}
-            </button>
           </div>
           <button
             className="sos"
@@ -757,8 +743,6 @@ export function BodyMapHUD({ mision, scanRun = 0 }: { mision?: MissionSlug; scan
                 {STATUS_ICON[current.status]} {statusLabels[current.status]} ·{" "}
                 <span className="dim mono">{current.metric}</span>
               </p>
-              {!isSurgeonMode ? (
-                <>
                   <div className="sec">
                     <h3>{t.bodyHud.whatToWatch}</h3>
                     <p>{current.crewSummary}</p>
@@ -771,18 +755,6 @@ export function BodyMapHUD({ mision, scanRun = 0 }: { mision?: MissionSlug; scan
                     <h3>{t.bodyHud.recommendedAction}</h3>
                     <p>{current.crewAction}</p>
                   </div>
-                </>
-              ) : (
-                <div className="sec">
-                  <h3>{t.bodyHud.clinicalNotes}</h3>
-                  {rows.map(([k, v]) => (
-                    <div className="mt" key={k}>
-                      <span className="dim">{k}</span>
-                      <span className="mono">{v}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
               <div className="xp-nav">
                 <button
                   className="btn"
@@ -926,7 +898,6 @@ export function BodyMapHUD({ mision, scanRun = 0 }: { mision?: MissionSlug; scan
         </section>
       )}
 
-      <p className="src">{t.common.prototypeBadge}</p>
       <p className="src">
         {lang === "es" ? "Modelos 3D (Sketchfab):" : "3D Models (Sketchfab):"}{" "}
         {ALL_CREDITS.map((c, i) => (

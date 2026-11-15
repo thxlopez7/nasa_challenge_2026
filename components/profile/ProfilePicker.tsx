@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ArrowLeft, Camera, Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 import type { AvatarId, BloodType, CrewProfile, CrewScenario } from '../../types/profile';
-import { useT } from '../../i18n/I18nContext';
+import { DICTS } from '../../i18n/I18nContext';
 import type { TranslationDict } from '../../i18n/es';
 import { DEMO_PROFILES, useProfileStore } from '../../store/useProfileStore';
 import { ROLE_IDS, crewText } from './crewText';
@@ -92,7 +92,8 @@ const field =
 const label = 'block text-xs uppercase tracking-wider text-slate-400 mb-1';
 
 function CreateProfile({ onDone, onCancel }: { onDone: (p: CrewProfile) => void; onCancel: () => void }) {
-  const { t } = useT();
+  // La intro no tiene selector de idioma: siempre en inglés.
+  const t = DICTS.en;
   const f = t.profiles.form;
   const addProfile = useProfileStore((s) => s.addProfile);
   const [avatar, setAvatar] = useState<AvatarId>('oceano');
@@ -275,7 +276,8 @@ function CreateProfile({ onDone, onCancel }: { onDone: (p: CrewProfile) => void;
  * al estilo de los perfiles de una plataforma de streaming.
  */
 export function ProfilePicker({ onPick, onBack }: { onPick: (p: CrewProfile) => void; onBack: () => void }) {
-  const { t } = useT();
+  // La intro no tiene selector de idioma: siempre en inglés.
+  const t = DICTS.en;
   const pt = t.profiles;
   const custom = useProfileStore((s) => s.custom);
   const removeProfile = useProfileStore((s) => s.removeProfile);

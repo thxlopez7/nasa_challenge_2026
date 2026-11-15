@@ -3,7 +3,6 @@
 import {
   AlertOctagon,
   AlertTriangle,
-  CheckCircle2,
   FileText,
   HelpCircle,
 } from 'lucide-react';
@@ -25,29 +24,8 @@ export function ActiveAlertsStrip({
 
   const activeTraces = traces.filter((tr) => tr.triggered);
 
-  if (activeTraces.length === 0) {
-    return (
-      <section
-        aria-label={t.command.alertsStrip.noAlertsTitle}
-        className="rounded-xl border bg-slate-900 p-4 flex items-start gap-3"
-      >
-        <div className="flex items-center gap-2.5 min-w-0">
-          <CheckCircle2
-            className="h-5 w-5 text-emerald-400 shrink-0"
-            aria-hidden
-          />
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-slate-100">
-              {t.command.alertsStrip.noAlertsTitle}
-            </p>
-            <p className="mt-1 text-sm text-slate-400 leading-relaxed">
-              {t.command.alertsStrip.noAlertsDetail}
-            </p>
-          </div>
-        </div>
-      </section>
-    );
-  }
+  // Sin reglas disparadas: la cabecera de estado ya lo dice.
+  if (activeTraces.length === 0) return null;
 
   const hasCritical = activeTraces.some(
     (tr) => tr.configuredSeverity === 'CRITICAL'

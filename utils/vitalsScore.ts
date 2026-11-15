@@ -62,22 +62,22 @@ export const VITALS: VitalDef[] = [
   },
   {
     key: 'co2Level', label: 'CO2 del módulo', unit: 'ppm', digits: 0, better: 'down',
-    threshold: T.co2.minCo2Level, thresholdLabel: `R3 > ${T.co2.minCo2Level}`,
+    threshold: T.co2.minCo2Level, thresholdLabel: `> ${T.co2.minCo2Level} ppm`,
     status: (v) => (v > 5000 ? 'crit' : v > T.co2.minCo2Level ? 'warn' : 'ok'),
   },
   {
     key: 'radiationRate', label: 'Radiación', unit: 'µSv/h', digits: 1, better: 'down',
-    threshold: T.radiation.minRadiationRate, thresholdLabel: `R2 > ${T.radiation.minRadiationRate}`,
+    threshold: T.radiation.minRadiationRate, thresholdLabel: `> ${T.radiation.minRadiationRate} µSv/h`,
     status: (v) => (v > 100 ? 'crit' : v > T.radiation.minRadiationRate ? 'warn' : 'ok'),
   },
   {
     key: 'linfocitos', label: 'Linfocitos', unit: '/µL', digits: 0, better: 'up',
-    threshold: T.radiation.maxLinfocitos, thresholdLabel: `R2 < ${T.radiation.maxLinfocitos}`,
+    threshold: T.radiation.maxLinfocitos, thresholdLabel: `< ${T.radiation.maxLinfocitos} /µL`,
     status: (v) => (v < 800 ? 'crit' : v < T.radiation.maxLinfocitos ? 'warn' : 'ok'),
   },
   {
     key: 'cistatinaC', label: 'Cistatina C', unit: 'mg/L', digits: 2, better: 'down',
-    threshold: T.renal.minCistatinaC, thresholdLabel: `R1 > ${T.renal.minCistatinaC}`,
+    threshold: T.renal.minCistatinaC, thresholdLabel: `> ${T.renal.minCistatinaC} mg/L`,
     status: (v) => (v > 1.35 ? 'crit' : v > T.renal.minCistatinaC ? 'warn' : 'ok'),
   },
 ];
@@ -91,7 +91,9 @@ export function direction(def: VitalDef, from: number, to: number, tolerance: nu
   if (Math.abs(d) < tolerance) return 0;
   if (def.better === 'up') return d > 0 ? 1 : -1;
   if (def.better === 'down') return d < 0 ? 1 : -1;
-  // En rango (FC): mejora si se acerca a 75 lpm.
+  // En rango (FC): dentro de 55–100 lpm ambos valores son normales → estable.
+  if (def.status(from) === 'ok' && def.status(to) === 'ok') return 0;
+  // Fuera de rango: mejora si se acerca a 75 lpm.
   return Math.abs(to - 75) < Math.abs(from - 75) ? 1 : -1;
 }
 

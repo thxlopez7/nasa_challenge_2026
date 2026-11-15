@@ -118,7 +118,7 @@ function DayDetail({ record, date, today, missionDay, phaseName }: {
         <div>
           {header}
           <p className="text-base font-bold text-slate-100 inline-flex items-center gap-2 mt-1">
-            <Icon className="h-4 w-4" aria-hidden /> {t.missionUi.cal.cells[record.status]} · {formatNumber(record.xp, lang)} XP
+            <Icon className="h-4 w-4" aria-hidden /> {t.missionUi.cal.cells[record.status]}
           </p>
           {skipped.length > 0 && (
             <p className="text-xs text-slate-500">
@@ -290,7 +290,6 @@ export function MissionCalendar({
             {weekDays.map((d) => {
               const date = dateOfMissionDay(mission, d);
               const kind = kindOf(date, today, records);
-              const r = records[date];
               const Icon = CELL_STYLE[kind].icon;
               const cellLabel = t.missionUi.cal.cells[kind];
               const formattedDate = formatMissionDay(date, lang);
@@ -313,7 +312,6 @@ export function MissionCalendar({
                     <Icon className="h-3 w-3 shrink-0" aria-hidden />
                     <span className="truncate">{cellLabel}</span>
                   </p>
-                  {r && <p className="text-[11px] text-slate-500 tabular-nums">{formatNumber(r.xp, lang)} XP</p>}
                 </button>
               );
             })}
