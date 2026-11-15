@@ -14,6 +14,7 @@ import {
 import type { DayKey, DayRecord } from '../../types/mission';
 import { RIDGE_THRESHOLDS as T, computeNlr } from '../../utils/clinicalEngine';
 import { formatDay } from '../../utils/missionPlan';
+import { SLEEP_THRESHOLDS as SL } from '../../utils/sleepSensing';
 
 type MetricId =
   | 'cistatinaC'
@@ -23,13 +24,17 @@ type MetricId =
   | 'heartRate'
   | 'radiationAccumulated'
   | 'sleepHours'
+  | 'sleepEfficiency'
+  | 'breathingRate'
+  | 'breathingPauses'
+  | 'roomTemp'
   | 'mood'
   | 'fatigue';
 
 interface MetricDef {
   label: string;
   unit: string;
-  group: 'Biomarcadores' | 'Entorno' | 'Autoevaluación';
+  group: 'Biomarcadores' | 'Entorno' | 'Sueño (sensor)' | 'Autoevaluación';
   read: (r: DayRecord) => number | undefined;
   threshold?: { value: number; label: string };
   digits: number;
@@ -72,10 +77,34 @@ const METRICS: Record<MetricId, MetricDef> = {
     why: 'Dosis total de la misión; los eventos solares se ven como escalones.',
   },
   sleepHours: {
-    label: 'Sueño', unit: 'h', group: 'Autoevaluación', digits: 1,
+    label: 'Horas de sueño', unit: 'h', group: 'Sueño (sensor)', digits: 1,
     read: (r) => r.selfReport?.sleepHours,
-    threshold: { value: 6, label: 'Sueño corto < 6 h' },
+    threshold: { value: SL.minHours, label: `Sueño corto < ${SL.minHours} h` },
     why: 'El sueño corto repetido merece comentarse con el cirujano de vuelo.',
+  },
+  sleepEfficiency: {
+    label: 'Eficiencia del sueño', unit: '%', group: 'Sueño (sensor)', digits: 0,
+    read: (r) => r.selfReport?.sleep?.efficiency,
+    threshold: { value: SL.minEfficiency, label: `Fragmentado < ${SL.minEfficiency}%` },
+    why: 'Tiempo dormido sobre tiempo en el saco: baja con ruido, luz, CO2 o estrés.',
+  },
+  breathingRate: {
+    label: 'Respiración dormido', unit: 'rpm', group: 'Sueño (sensor)', digits: 1,
+    read: (r) => r.selfReport?.sleep?.breathingRate,
+    threshold: { value: SL.breathingRate.max, label: `Alta > ${SL.breathingRate.max} rpm` },
+    why: 'Medida por el eco ultrasónico del pecho; sube con CO2 alto o fiebre.',
+  },
+  breathingPauses: {
+    label: 'Pausas respiratorias', unit: '/h', group: 'Sueño (sensor)', digits: 1,
+    read: (r) => r.selfReport?.sleep?.breathingPauses,
+    threshold: { value: SL.maxBreathingPauses, label: `Aviso ≥ ${SL.maxBreathingPauses} /h` },
+    why: 'Pausas al respirar mientras duermes: vigila la ventilación del módulo.',
+  },
+  roomTemp: {
+    label: 'Temperatura del módulo', unit: '°C', group: 'Entorno', digits: 1,
+    read: (r) => r.selfReport?.sleep?.roomTempC,
+    threshold: { value: SL.roomTemp.max, label: `Cálido > ${SL.roomTemp.max} °C` },
+    why: 'Temperatura media nocturna del módulo de descanso, medida por el sensor.',
   },
   mood: {
     label: 'Ánimo', unit: '/5', group: 'Autoevaluación', digits: 0,
@@ -124,7 +153,7 @@ export function TrendChart({ records }: { records: Record<DayKey, DayRecord> }) 
   const first = values[0];
   const avg = values.length ? values.reduce((a, b) => a + b, 0) / values.length : undefined;
 
-  const groups = ['Biomarcadores', 'Entorno', 'Autoevaluación'] as const;
+  const groups = ['Biomarcadores', 'Entorno', 'Sueño (sensor)', 'Autoevaluación'] as const;
 
   return (
     <div className="space-y-4">

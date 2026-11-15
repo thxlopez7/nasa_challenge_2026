@@ -1,4 +1,5 @@
 import type { AlertSeverity, TelemetryData } from './telemetry';
+import type { SleepSummary } from './sleep';
 
 /**
  * Contrato del Centro de Misión: arco de misión, evaluación diaria,
@@ -38,8 +39,10 @@ export type EvaluationStepId =
 
 /** Autoevaluación del tripulante (escala 1–5) */
 export interface SelfReport {
-  /** Horas de sueño de la última noche */
+  /** Horas de sueño de la última noche (medidas por el sensor ultrasónico) */
   sleepHours: number;
+  /** Informe nocturno del sensor ultrasónico del módulo de descanso */
+  sleep?: SleepSummary;
   /** 1 = muy bajo · 5 = muy bueno */
   mood: number;
   /** 1 = descansado · 5 = agotado */

@@ -7,6 +7,7 @@ import type {
   SelfReport,
 } from '../types/mission';
 import { evaluateTelemetry } from './clinicalEngine';
+import { simulateSleepNight } from './sleepSensing';
 import {
   EVALUATION_STEPS,
   FULL_DAY_BONUS,
@@ -111,8 +112,11 @@ export function generateDemoHistory(today: DayKey): {
       ...evaluateTelemetry(bio, env),
     };
 
+    // El sueño ya no se teclea: sale del sensor ultrasónico del módulo.
+    const night = simulateSleepNight(date, vitals).summary;
     const selfReport: SelfReport = {
-      sleepHours: round(clamp(7 + noise(0.8) - (solarStorm ? 1.2 : 0), 4.5, 9), 1),
+      sleepHours: night.totalHours,
+      sleep: night,
       mood: Math.round(clamp(4 + noise(0.8) - (lowMoodPhase ? 1.6 : 0), 1, 5)),
       fatigue: Math.round(clamp(2.4 + noise(0.8) + (solarStorm ? 1.5 : 0), 1, 5)),
     };

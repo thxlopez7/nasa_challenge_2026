@@ -130,7 +130,13 @@ function DayDetail({ record, date, today, missionDay, phaseName }: {
       <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
         {sr && (
           <>
-            <div><dt className="text-[11px] text-slate-500">Sueño</dt><dd className="tabular-nums">{sr.sleepHours} h</dd></div>
+            <div><dt className="text-[11px] text-slate-500">Sueño</dt><dd className="tabular-nums">{sr.sleepHours} h{sr.sleep && ` · ${sr.sleep.efficiency}%`}</dd></div>
+            {sr.sleep && (
+              <>
+                <div><dt className="text-[11px] text-slate-500">Respiración · pausas</dt><dd className="tabular-nums">{sr.sleep.breathingRate} rpm · {sr.sleep.breathingPauses}/h</dd></div>
+                <div><dt className="text-[11px] text-slate-500">Temp. del módulo</dt><dd className="tabular-nums">{sr.sleep.roomTempC} °C</dd></div>
+              </>
+            )}
             <div><dt className="text-[11px] text-slate-500">Ánimo · Fatiga</dt><dd className="tabular-nums">{sr.mood}/5 · {sr.fatigue}/5</dd></div>
           </>
         )}

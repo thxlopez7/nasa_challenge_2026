@@ -29,7 +29,10 @@ import {
   hasClinicalAlert,
   stepIndexOf,
 } from '../../utils/missionPlan';
+import type { SleepNight } from '../../types/sleep';
+import { simulateSleepNight } from '../../utils/sleepSensing';
 import CoherencePacer from './CoherencePacer';
+import SleepSensorPanel from './SleepSensorPanel';
 import DiagnosticPanel from './DiagnosticPanel';
 
 type Run = (action: () => void) => void;
@@ -175,47 +178,49 @@ function ScaleInput({
   );
 }
 
-function CheckInStep({ run }: { run: Run }) {
+function CheckInStep({ date, run }: { date: DayKey; run: Run }) {
   const submitCheckIn = useMissionStore((s) => s.submitCheckIn);
-  const [report, setReport] = useState<SelfReport>({ sleepHours: 7, mood: 3, fatigue: 2 });
+  const [night, setNight] = useState<SleepNight | null>(null);
+  const [feel, setFeel] = useState({ mood: 3, fatigue: 2 });
+
+  // La noche llega del sensor: las horas de sueño ya no se cargan a mano.
+  const syncNight = () => setNight(simulateSleepNight(date, useTelemetryStore.getState()));
+  const report: SelfReport | null = night
+    ? { sleepHours: night.summary.totalHours, sleep: night.summary, ...feel }
+    : null;
 
   return (
     <div className="space-y-5">
-      <div className="space-y-2">
-        <label htmlFor="sleep" className="text-sm font-semibold text-slate-200 flex justify-between max-w-sm">
-          Horas de sueño
-          <span className="tabular-nums text-cyan-300">{report.sleepHours} h</span>
-        </label>
-        <input
-          id="sleep"
-          type="range"
-          min={3}
-          max={10}
-          step={0.5}
-          value={report.sleepHours}
-          onChange={(e) => setReport({ ...report, sleepHours: Number(e.target.value) })}
-          className="w-full max-w-sm accent-cyan-500"
-        />
-      </div>
+      <SleepSensorPanel night={night} onSync={syncNight} />
       <div className="grid sm:grid-cols-2 gap-5">
         <ScaleInput
           label="Ánimo"
           low="Muy bajo"
           high="Muy bueno"
-          value={report.mood}
-          onChange={(mood) => setReport({ ...report, mood })}
+          value={feel.mood}
+          onChange={(mood) => setFeel({ ...feel, mood })}
         />
         <ScaleInput
           label="Fatiga"
           low="Descansado"
           high="Agotado"
-          value={report.fatigue}
-          onChange={(fatigue) => setReport({ ...report, fatigue })}
+          value={feel.fatigue}
+          onChange={(fatigue) => setFeel({ ...feel, fatigue })}
         />
       </div>
-      <button type="button" className={PRIMARY} onClick={() => run(() => submitCheckIn(report))}>
-        Guardar check-in
-      </button>
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          className={PRIMARY}
+          disabled={!report}
+          onClick={() => report && run(() => submitCheckIn(report))}
+        >
+          Guardar check-in
+        </button>
+        {!report && (
+          <span className="text-xs text-slate-500">Sincroniza primero la noche del sensor.</span>
+        )}
+      </div>
     </div>
   );
 }
@@ -570,7 +575,7 @@ export function DailyEvaluation({
               </button>
             </div>
 
-            {step.id === 'CHECK_IN' && <CheckInStep run={run} />}
+            {step.id === 'CHECK_IN' && <CheckInStep date={session.date} run={run} />}
             {step.id === 'VITALS' && <VitalsStep run={run} />}
             {(step.id === 'RESISTIVE' || step.id === 'AEROBIC') && (
               <ExerciseStep id={step.id} fatigue={session.selfReport?.fatigue} run={run} />
