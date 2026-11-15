@@ -39,7 +39,7 @@ import { CopilotDock } from './command/CopilotDock';
 import { DemoModeDrawer } from './command/DemoModeDrawer';
 import { EmergencyBanner, EmergencyCard } from './command/EmergencyView';
 import { GlobalStatusBar } from './command/GlobalStatusBar';
-import { NextActionBanner } from './command/NextActionBanner';
+import { StatusHero } from './command/StatusHero';
 import { RulesModal } from './command/RulesModal';
 import { SystemDetailDrawer } from './command/SystemDetailDrawer';
 import { SystemMosaic } from './command/SystemMosaic';
@@ -48,7 +48,7 @@ import OutboxPanel from './OutboxPanel';
 import SbarReportModal from './SbarReportModal';
 import SensorSimulator from './SensorSimulator';
 import CrewPanel from './scenario/CrewPanel';
-import LiveEvolution from './vitals/LiveEvolution';
+import LiveEvolution, { useLiveVitalsRecorder } from './vitals/LiveEvolution';
 import type { CrewProfile } from '../types/profile';
 import { scenarioScript } from '../utils/scenarios';
 import BehavioralCheckIn from './mission/BehavioralCheckIn';
@@ -62,6 +62,8 @@ const LOG_SECTIONS: LogSectionId[] = ['vitals', 'poc', 'behavioral'];
 export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; profile?: CrewProfile }) {
   const { t, lang } = useT();
   const snapshot = useClinicalSnapshot(mision);
+  // Un tripulante nuevo empieza su historia en vivo desde cero.
+  useLiveVitalsRecorder(profile?.id ?? 'live');
 
   const records = useMissionStore((s) => s.records);
 
@@ -302,11 +304,11 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
   return (
     <div
       ref={commandRootRef}
-      className="min-h-[calc(100vh-4rem)] bg-slate-950 text-slate-100 font-mono px-3 py-2.5 sm:px-5 sm:py-3"
+      className="cc min-h-[calc(100vh-4rem)] px-3 py-3 sm:px-6 sm:py-5"
     >
       <SensorSimulator key={profile?.id ?? 'live'} frames={script?.frames} loop={script?.loop ?? true} />
 
-      <div className="max-w-[1440px] mx-auto space-y-2.5">
+      <div className="max-w-[1440px] mx-auto space-y-4">
         {/* Global compact telemetry + comms + Demo drawer gear bar */}
         <GlobalStatusBar snapshot={snapshot} />
 
@@ -318,7 +320,7 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
           <div
             role="tablist"
             aria-label={t.command.tabs.tablistAria}
-            className="flex flex-wrap items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/75 p-1"
+            className="flex flex-wrap items-center gap-1 border-b border-[var(--cc-line)]"
           >
             {tabsMeta.map(({ id, label, Icon }, idx) => {
               const selected = activeTab === id;
@@ -336,10 +338,10 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
                   tabIndex={selected ? 0 : -1}
                   onClick={() => selectTabWithSync(id)}
                   onKeyDown={(e) => handleTabKeyDown(e, idx)}
-                  className={`min-h-[44px] inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold uppercase tracking-wider cursor-pointer transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
+                  className={`-mb-px min-h-[48px] inline-flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold cursor-pointer transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 rounded-t-md ${
                     selected
-                      ? 'bg-cyan-500 text-slate-950 shadow-sm'
-                      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                      ? 'border-cyan-400 text-white'
+                      : 'border-transparent text-slate-400 hover:text-slate-100 hover:border-slate-600'
                   }`}
                 >
                   <Icon className="h-4 w-4 shrink-0" aria-hidden />
@@ -351,30 +353,29 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
         </nav>
 
         {/* Workspace + Sticky Collapsible Copilot Column */}
-        <div className="flex flex-col xl:flex-row gap-3 items-start">
+        <div className="flex flex-col xl:flex-row gap-4 items-start">
           <div className="flex-1 min-w-0 w-full">
             {activeTab === 'hoy' && (
               <div
                 role="tabpanel"
                 id="panel-hoy"
                 aria-labelledby="tab-hoy"
-                className="space-y-2.5"
+                className="space-y-4"
               >
                 {isEmergencyActive && !showFullPanelInEmergency ? (
                   <EmergencyCard snapshot={snapshot} mision={mision} />
                 ) : (
                   <>
-                    {profile && <CrewPanel profile={profile} />}
-                    <NextActionBanner recommendation={nextAction} />
+                    <StatusHero snapshot={snapshot} tiles={tiles} recommendation={nextAction} />
                     <SystemMosaic tiles={tiles} />
-                    <LiveEvolution key={profile?.id ?? 'live'} />
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 items-stretch">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
                       <ActiveAlertsStrip
                         traces={snapshot.ruleTraces}
                         onOpenSbar={() => setSbarOpen(true)}
                       />
                       <TodayRoutineCard mision={mision} />
                     </div>
+                    {profile && <CrewPanel profile={profile} />}
                   </>
                 )}
               </div>
@@ -390,10 +391,10 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
                 <div className="rounded-xl border border-slate-800 bg-slate-900/90 px-4 py-3 space-y-2.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <h2 className="text-sm font-bold uppercase tracking-wider text-cyan-400">
+                      <h2 className="text-xl font-semibold text-slate-50">
                         {t.command.logTab.title}
                       </h2>
-                      <p className="text-xs text-slate-400">
+                      <p className="text-sm text-slate-400">
                         {t.command.logTab.subtitle}
                       </p>
                     </div>
@@ -469,14 +470,15 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
                 aria-labelledby="tab-mision"
                 className="space-y-4"
               >
-                <div className="rounded-xl border border-slate-800 bg-slate-900/90 px-4 py-3">
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-cyan-400">
+                <div className="px-1 pt-1">
+                  <h2 className="text-xl font-semibold text-slate-50">
                     {t.command.missionTab.title}
                   </h2>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-sm text-slate-400">
                     {t.command.missionTab.subtitle}
                   </p>
                 </div>
+                <LiveEvolution key={profile?.id ?? 'live'} />
                 <TodayCountermeasures
                   mision={mision}
                   todayOverride={todayKey}
@@ -493,11 +495,11 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
                 aria-labelledby="tab-tierra"
                 className="space-y-4"
               >
-                <div className="rounded-xl border border-slate-800 bg-slate-900/90 px-4 py-3">
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-cyan-400">
+                <div className="px-1 pt-1">
+                  <h2 className="text-xl font-semibold text-slate-50">
                     {t.command.earthTab.title}
                   </h2>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-sm text-slate-400">
                     {t.command.earthTab.subtitle}
                   </p>
                 </div>

@@ -274,3 +274,76 @@ em, i, .italic {
   0%, 100% { box-shadow: 0 0 0 rgba(239, 68, 68, 0); }
   50% { box-shadow: 0 0 22px rgba(239, 68, 68, 0.45); }
 }
+
+/* ---------------- Centro de mando (.cc) ----------------
+   Sistema visual inspirado en las consolas de Mission Control y NASA Eyes:
+   fondo espacio profundo, tarjetas con filo fino, sans legible para leer y
+   mono tabular solo para telemetría. Cian = acción; verde/ámbar/rojo = estado. */
+.cc {
+  --cc-bg: #050912;
+  --cc-panel: #0a1220;
+  --cc-panel-2: #0d1828;
+  --cc-line: rgba(148, 163, 184, 0.14);
+  --cc-line-strong: rgba(148, 163, 184, 0.26);
+  --cc-text: #e6edf7;
+  --cc-muted: #93a3b8;
+  --cc-accent: #22d3ee;
+  background:
+    radial-gradient(1200px 500px at 15% -10%, rgba(34, 211, 238, 0.07), transparent 60%),
+    radial-gradient(900px 400px at 100% 0%, rgba(59, 130, 246, 0.06), transparent 60%),
+    var(--cc-bg);
+  color: var(--cc-text);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+/* Legibilidad: dentro del panel, nada por debajo de 12 px ni en peso fino. */
+.cc .text-xs, .cc .text-sm, .cc .text-\[9px\], .cc .text-\[10px\],
+.cc .text-\[11px\], .cc .text-\[12px\] {
+  font-weight: 400;
+}
+.cc .text-\[9px\], .cc .text-\[10px\], .cc .text-\[11px\] {
+  font-size: 12px;
+  line-height: 1.35;
+}
+.cc h1, .cc h2, .cc h3, .cc h4, .cc strong, .cc b,
+.cc .font-bold, .cc .font-black, .cc .font-semibold {
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-weight: 650;
+}
+.cc .font-black { font-weight: 750; }
+.cc .tracking-wider { letter-spacing: 0.06em; }
+.cc .text-slate-400 { color: var(--cc-muted); }
+.cc .text-slate-500 { color: #7d8ca1; }
+
+/* Tarjeta base: superficie elevada con filo de luz superior. */
+.cc .rounded-xl.border {
+  border-color: var(--cc-line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 24px -16px rgba(0, 0, 0, 0.8);
+}
+.cc .bg-slate-900, .cc .bg-slate-900\/90, .cc .bg-slate-900\/75 {
+  background-color: var(--cc-panel);
+}
+.cc .bg-slate-950, .cc .bg-slate-950\/70, .cc .bg-slate-950\/60 {
+  background-color: var(--cc-panel-2);
+}
+.cc .border-slate-800, .cc .border-slate-700 { border-color: var(--cc-line-strong); }
+
+/* Utilidades del panel */
+.cc-eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cc-muted);
+}
+.cc-num {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+/* Mono solo para cifras: el texto corrido heredado en mono pasa a sans. */
+.cc .font-mono:not(.tabular-nums):not(.cc-num) {
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}

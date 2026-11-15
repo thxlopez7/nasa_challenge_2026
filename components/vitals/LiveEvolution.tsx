@@ -164,18 +164,11 @@ function DailyChart({ meta, records, live, t }: {
 /* ------------------------------------------------------------------ */
 
 /**
- * Evolución del tripulante: índice de salud y signos vitales segundo a
- * segundo, y la tendencia día a día con el día de hoy en vivo. Cuando entra
- * en crisis vital, las tarjetas afectadas se ponen en rojo y laten.
+ * Graba una lectura por segundo (también si el God Mode congela los datos).
+ * Vive en el Centro de mando para que la historia siga corriendo aunque la
+ * gráfica esté en otra pestaña.
  */
-export function LiveEvolution() {
-  const { t: dict } = useT();
-  const samples = useVitalsHistory((s) => s.samples);
-  const records = useMissionStore((s) => s.records);
-  const t = useTelemetryStore();
-  const e = dict.evolution;
-
-  // Graba una lectura por segundo (también si el God Mode congela los datos).
+export function useLiveVitalsRecorder(resetKey?: string) {
   useEffect(() => {
     const { push, clear } = useVitalsHistory.getState();
     clear();
@@ -188,7 +181,21 @@ export function LiveEvolution() {
       window.clearInterval(id);
       unsub();
     };
-  }, []);
+  }, [resetKey]);
+}
+
+/**
+ * Evolución del tripulante: índice de salud y signos vitales segundo a
+ * segundo, y la tendencia día a día con el día de hoy en vivo. Cuando entra
+ * en crisis vital, las tarjetas afectadas se ponen en rojo y laten.
+ */
+export function LiveEvolution() {
+  const { t: dict } = useT();
+  const samples = useVitalsHistory((s) => s.samples);
+  const records = useMissionStore((s) => s.records);
+  const t = useTelemetryStore();
+  const e = dict.evolution;
+
 
   const score = healthScore(t);
   const band = bandOf(score);

@@ -294,8 +294,8 @@ export const en: TranslationDict = {
       nominalCta: 'View mission',
     },
     alertsStrip: {
-      noAlertsTitle: 'No active alerts',
-      noAlertsDetail: 'All deterministic clinical rules are within nominal limits.',
+      noAlertsTitle: 'No clinical-engine alerts',
+      noAlertsDetail: 'No deterministic rule is firing. Systems under early watch are flagged in the mosaic.',
       activeAlertsTitle: 'Active clinical alerts',
       whyBtn: 'Why?',
       sbarBtn: 'Generate SBAR',
@@ -315,6 +315,21 @@ export const en: TranslationDict = {
       doneLabel: 'Done',
       openEvaluationCta: 'Guided evaluation',
     },
+    hero: {
+      eyebrow: 'Crew status',
+      nominalTitle: 'All systems nominal',
+      nominalDetail: 'All 8 systems are within range. Continue with today’s routine.',
+      watchTitle: 'Nominal, under watch',
+      watchDetail: (n: number, names: string) =>
+        `${n === 1 ? '1 system' : `${n} systems`} under early watch: ${names}. No clinical rules firing.`,
+      warningTitle: 'Needs attention',
+      warningDetail: (names: string) => `Review: ${names}.`,
+      criticalTitle: 'Critical situation',
+      criticalDetail: (names: string) => `Act now on: ${names}.`,
+      missingSuffix: (n: number) => `${n} missing`,
+      nextLabel: 'Next step',
+      counts: { green: 'in range', amber: 'watch', red: 'critical', missing: 'no data' },
+    },
     mosaic: {
       title: 'Physiological status by system',
       guideButtonAria: 'Open educational guide for this system',
@@ -323,7 +338,7 @@ export const en: TranslationDict = {
       openDetailAria: 'Open full details for',
       statuses: {
         green: 'Nominal',
-        amber: 'Caution',
+        amber: 'Watch',
         red: 'Critical',
         missing: 'Missing',
       },

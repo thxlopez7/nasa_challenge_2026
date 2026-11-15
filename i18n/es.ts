@@ -292,8 +292,8 @@ export const es = {
       nominalCta: 'Ver misión',
     },
     alertsStrip: {
-      noAlertsTitle: 'Sin alertas activas',
-      noAlertsDetail: 'Todas las reglas clínicas deterministas están en rango nominal.',
+      noAlertsTitle: 'Sin alertas del motor clínico',
+      noAlertsDetail: 'Ninguna regla determinista está disparada. Los sistemas en vigilancia temprana se marcan en el mosaico.',
       activeAlertsTitle: 'Alertas clínicas activas',
       whyBtn: '¿Por qué?',
       sbarBtn: 'Generar SBAR',
@@ -313,6 +313,21 @@ export const es = {
       doneLabel: 'Listo',
       openEvaluationCta: 'Evaluación guiada',
     },
+    hero: {
+      eyebrow: 'Estado de la tripulación',
+      nominalTitle: 'Todo en orden',
+      nominalDetail: 'Los 8 sistemas están dentro de rango. Sigue con la rutina del día.',
+      watchTitle: 'Nominal, con vigilancia',
+      watchDetail: (n: number, names: string) =>
+        `${n === 1 ? '1 sistema' : `${n} sistemas`} en vigilancia temprana: ${names}. Sin reglas clínicas disparadas.`,
+      warningTitle: 'Requiere atención',
+      warningDetail: (names: string) => `Revisa: ${names}.`,
+      criticalTitle: 'Situación crítica',
+      criticalDetail: (names: string) => `Actúa ya sobre: ${names}.`,
+      missingSuffix: (n: number) => `${n} sin dato`,
+      nextLabel: 'Próximo paso',
+      counts: { green: 'en rango', amber: 'vigilar', red: 'crítico', missing: 'sin dato' },
+    },
     mosaic: {
       title: 'Estado fisiológico por sistema',
       guideButtonAria: 'Abrir guía educativa de este sistema',
@@ -321,7 +336,7 @@ export const es = {
       openDetailAria: 'Abrir detalle completo de',
       statuses: {
         green: 'Nominal',
-        amber: 'Atención',
+        amber: 'Vigilar',
         red: 'Crítico',
         missing: 'Sin dato',
       },

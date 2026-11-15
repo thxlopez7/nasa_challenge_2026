@@ -16,7 +16,6 @@ import { useMissionStore } from '../../store/useMissionStore';
 import { useOutboxStore } from '../../store/useOutboxStore';
 import { useCommandUiStore } from '../../store/useCommandUiStore';
 import type { AlertSeverity } from '../../types/telemetry';
-import { formatDurationSec } from '../../utils/formatters';
 import { missionDayOf, toDayKey } from '../../utils/missionPlan';
 
 const STATUS_STYLE: Record<AlertSeverity, string> = {
@@ -45,6 +44,14 @@ export function GlobalStatusBar({ snapshot }: { snapshot: ClinicalSnapshot }) {
         ? t.common.mars
         : t.common.iss;
 
+  // Latencia en el mismo formato que el copiloto: nominal + rango.
+  const { oneWayLatencyNominalSec: nom, oneWayLatencySecMin: lo, oneWayLatencySecMax: hi } =
+    snapshot.comms;
+  const latencyText =
+    nom >= 60
+      ? `~${Math.round(nom / 60)} min (${Math.round(lo / 60)}–${Math.round(hi / 60)})`
+      : `${nom.toLocaleString(lang, { maximumFractionDigits: 1 })} s`;
+
   const missionDay = mission ? missionDayOf(mission, toDayKey(new Date())) : null;
 
   const StatusIcon =
@@ -64,7 +71,7 @@ export function GlobalStatusBar({ snapshot }: { snapshot: ClinicalSnapshot }) {
   return (
     <header
       aria-label={t.nav.sectionCommand}
-      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-900/90 px-3 py-2"
+      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-slate-900 px-3 py-2"
     >
       <div className="flex flex-wrap items-center gap-2 min-w-0">
         {/* Global Status Pill: Icon + Word + Color */}
@@ -134,7 +141,7 @@ export function GlobalStatusBar({ snapshot }: { snapshot: ClinicalSnapshot }) {
           <span className="tabular-nums">
             {isOffline
               ? t.command.statusBar.offlineTag
-              : formatDurationSec(snapshot.comms.oneWayLatencyNominalSec, lang)}
+              : latencyText}
           </span>
           {queuedCount > 0 && (
             <span className="ml-0.5 rounded-full bg-cyan-500/20 border border-cyan-500/40 px-1.5 py-0.5 text-[10px] font-bold text-cyan-200 tabular-nums">
