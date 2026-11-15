@@ -339,6 +339,10 @@ export const useTelemetryStore = create<TelemetryState>()(
         });
       },
 
+      setSimulateOffline: (offline: boolean) => {
+        set({ simulateOffline: Boolean(offline) });
+      },
+
       triggerCodeRed: () => {
         set({
           isEmergency: true,

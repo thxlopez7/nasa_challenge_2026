@@ -3,6 +3,9 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import SensorSimulator from '../../components/SensorSimulator';
 import { useTelemetryStore } from '../../store/useTelemetryStore';
+import { advanceOutboxPackets } from '../../store/useOutboxStore';
+import { evaluateRulesWithTrace } from '../../utils/clinicalEngine';
+import { runLocalTriage } from '../../utils/localTriage';
 
 interface AuditLogEntry {
   id: string;
@@ -326,6 +329,81 @@ export default function QAStressTestDashboard() {
     }
   };
 
+  const handleOfflineOutboxAndTriageTest = async () => {
+    setIsApiTesting(true);
+    try {
+      const sampleBioEnv = {
+        heartRate: 84,
+        spO2: 98,
+        cistatinaC: 0.9,
+        creatinina: 1.0,
+        calcioIonico: 1.15,
+        linfocitos: 1500,
+        neutrofilos: 3000,
+        cortisol: 12,
+        co2Level: 4300,
+        radiationRate: 15,
+        radiationAccumulated: 45,
+        isEmergency: false,
+      };
+      const traces = evaluateRulesWithTrace(sampleBioEnv);
+      const localReport = runLocalTriage(sampleBioEnv, traces, 'es', 'cefalea intensa');
+      const triageOk = localReport.matchedProtocolIds.includes('R3_CO2_SUBCLINICAL');
+
+      const pktList = advanceOutboxPackets(
+        [
+          {
+            id: 'qa-mars-1',
+            kind: 'SBAR_REPORT',
+            title: 'QA Mars SBAR',
+            missionProfileId: 'MARS_CONJUNCTION',
+            priority: 'priority',
+            payload: localReport.sbarSummary,
+            createdAtMs: 1000,
+            oneWayLatencySec: 1200,
+            remainingSec: 1200,
+            status: 'queued',
+            attempts: 0,
+          },
+        ],
+        {
+          deltaRealSec: 2.5,
+          speedup: 600,
+          offline: false,
+          conjunctionBlackout: false,
+          nowMs: 3500,
+        }
+      );
+      const outboxOk = pktList[0]?.status === 'delivered';
+
+      const offlineRes = await fetch('/api/triage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: 'test link loss',
+          telemetry: sampleBioEnv,
+          simulateOffline: true,
+        }),
+      });
+      const offlineApiOk = offlineRes.status === 503;
+
+      appendLog({
+        level: triageOk && outboxOk && offlineApiOk ? 'PASS' : 'ERROR',
+        testName: 'TEST P4: Triaje Local Offline + Outbox Mars (×600) + API 503',
+        status: offlineRes.status,
+        details: `LocalTriage=${triageOk}, OutboxDelivered=${outboxOk}, SimulatedOfflineHTTP=${offlineRes.status}.`,
+      });
+    } catch (error: unknown) {
+      appendLog({
+        level: 'ERROR',
+        testName: 'TEST P4 (Excepción)',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      });
+    } finally {
+      setIsApiTesting(false);
+    }
+  };
+
   const rawSerializableState = {
     heartRate,
     spO2,
@@ -558,7 +636,7 @@ export default function QAStressTestDashboard() {
               ráfagas concurrentes (<code>Promise.all</code>).
             </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <button
                 type="button"
                 disabled={isApiTesting}
@@ -584,6 +662,15 @@ export default function QAStressTestDashboard() {
                 className="p-3 rounded-lg bg-fuchsia-950/70 hover:bg-fuchsia-900/80 disabled:opacity-50 border border-fuchsia-600 text-fuchsia-200 text-xs font-bold uppercase tracking-wider transition cursor-pointer"
               >
                 Test: Estrés de Red (5x Promise.all)
+              </button>
+
+              <button
+                type="button"
+                disabled={isApiTesting}
+                onClick={handleOfflineOutboxAndTriageTest}
+                className="p-3 rounded-lg bg-cyan-950/70 hover:bg-cyan-900/80 disabled:opacity-50 border border-cyan-600 text-cyan-200 text-xs font-bold uppercase tracking-wider transition cursor-pointer"
+              >
+                Test: Offline / Outbox / SBAR
               </button>
             </div>
 

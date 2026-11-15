@@ -8,6 +8,7 @@ import QuickMeasurementPanel from './mission/QuickMeasurementPanel';
 import BehavioralCheckIn from './mission/BehavioralCheckIn';
 import RuleTrace from './RuleTrace';
 import RulesAndLimitationsSection from './RulesAndLimitationsSection';
+import OutboxPanel from './OutboxPanel';
 import { useClinicalSnapshot } from '../store/selectors';
 import { useT } from '../i18n/I18nContext';
 import type { AlertSeverity } from '../types/telemetry';
@@ -232,6 +233,7 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
             <QuickMeasurementPanel />
             <BehavioralCheckIn />
             <GodModePanel />
+            <OutboxPanel mision={mision} />
           </div>
 
           <div className="lg:col-span-1">

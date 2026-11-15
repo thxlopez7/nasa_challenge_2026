@@ -4,6 +4,7 @@ import "./globals.css";
 import IntroGate from "../components/landing/IntroGate";
 import { I18nProvider } from "../i18n/I18nContext";
 import { StoreHydrator } from "../hooks/useHydrated";
+import { PwaRegistrar } from "../components/PwaRegistrar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,6 +26,7 @@ export const metadata: Metadata = {
   title: "ExoVitals · Medicina de vuelo autónoma",
   description:
     "Monitorización clínica a bordo para misiones de larga duración. NASA Space Apps Challenge 2026.",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -36,6 +38,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <I18nProvider>
           <StoreHydrator />
+          <PwaRegistrar />
           {children}
           <IntroGate />
         </I18nProvider>

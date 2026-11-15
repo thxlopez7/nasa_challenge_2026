@@ -159,6 +159,8 @@ export interface TelemetryState extends Biomarkers, Environment, ClinicalAlerts 
   sharePsychWithAi?: boolean;
   /** Nivel de escalamiento recomendado para el tripulante */
   escalationLevel?: EscalationLevel;
+  /** Simulación manual de pérdida de enlace Tierra–nave */
+  simulateOffline?: boolean;
 
   /** Fusiona lecturas parciales de sensores y recalcula alertas clínicas */
   updateSensors: (data: Partial<Biomarkers & Environment>) => void;
@@ -168,6 +170,8 @@ export interface TelemetryState extends Biomarkers, Environment, ClinicalAlerts 
   submitBehavioralCheckIn: (input: BehavioralCheckInInput) => void;
   /** Cambia la autorización de compartir datos conductuales con IA */
   setSharePsychWithAi: (share: boolean) => void;
+  /** Activa o desactiva la simulación de pérdida de enlace */
+  setSimulateOffline: (offline: boolean) => void;
   /** Activa manualmente el protocolo de emergencia crítica */
   triggerCodeRed: () => void;
   /** Inyecta un escenario de simulación predefinido o restaura los valores nominales */
@@ -181,6 +185,7 @@ export type TelemetryData = Omit<
   | 'logManualVitals'
   | 'submitBehavioralCheckIn'
   | 'setSharePsychWithAi'
+  | 'setSimulateOffline'
   | 'triggerCodeRed'
   | 'simulateScenario'
   | 'isManualOverride'
@@ -198,6 +203,7 @@ export const mockInitialState: Omit<
   | 'logManualVitals'
   | 'submitBehavioralCheckIn'
   | 'setSharePsychWithAi'
+  | 'setSimulateOffline'
   | 'triggerCodeRed'
   | 'simulateScenario'
 > = {
@@ -229,6 +235,7 @@ export const mockInitialState: Omit<
 
   // Metadatos y escalamiento (determinísticos para SSR)
   isManualOverride: false,
+  simulateOffline: false,
   source: 'sensor',
   sharePsychWithAi: false,
   escalationLevel: 'self-manage',

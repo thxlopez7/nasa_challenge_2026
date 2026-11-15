@@ -44,6 +44,7 @@ export interface ClinicalSnapshot {
   globalSeverity: AlertSeverity;
   escalationLevel: EscalationLevel;
   isManualOverride: boolean;
+  simulateOffline: boolean;
   measuredAt?: string;
   source?: MeasurementSource;
   indicatorMeta?: Partial<Record<TrackedIndicatorKey, IndicatorMeta>>;
@@ -376,6 +377,7 @@ export function useClinicalSnapshot(misionSlug?: MissionSlug): ClinicalSnapshot 
       isRadiationWarning: s.isRadiationWarning,
       isCo2Warning: s.isCo2Warning,
       isManualOverride: s.isManualOverride,
+      simulateOffline: Boolean(s.simulateOffline),
       measuredAt: s.measuredAt,
       source: s.source,
       indicatorMeta: s.indicatorMeta,
@@ -477,6 +479,7 @@ export function useClinicalSnapshot(misionSlug?: MissionSlug): ClinicalSnapshot 
     globalSeverity: getAlertSeverity(alerts),
     escalationLevel,
     isManualOverride: telemetry.isManualOverride,
+    simulateOffline: Boolean(telemetry.simulateOffline),
     measuredAt: telemetry.measuredAt,
     source: telemetry.source,
     indicatorMeta: telemetry.indicatorMeta,

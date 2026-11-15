@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { RotateCcw, Siren, Sun, Wind, Activity } from 'lucide-react';
+import { RotateCcw, Siren, Sun, Wind, Activity, WifiOff, Wifi } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ClinicalAlerts, SimulationScenario } from '../types/telemetry';
 import { useTelemetryStore } from '../store/useTelemetryStore';
@@ -44,9 +44,11 @@ const SCENARIO_ORDER: SimulationScenario[] = [
 ];
 
 export function GodModePanel() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const simulateScenario = useTelemetryStore((s) => s.simulateScenario);
   const triggerCodeRed = useTelemetryStore((s) => s.triggerCodeRed);
+  const simulateOffline = useTelemetryStore((s) => Boolean(s.simulateOffline));
+  const setSimulateOffline = useTelemetryStore((s) => s.setSimulateOffline);
   const isEmergency = useTelemetryStore((s) => s.isEmergency);
   const isRenalWarning = useTelemetryStore((s) => s.isRenalWarning);
   const isRadiationWarning = useTelemetryStore((s) => s.isRadiationWarning);
@@ -84,19 +86,45 @@ export function GodModePanel() {
           </h2>
           <p className="text-xs text-slate-400 mt-1">{t.godMode.subtitle}</p>
         </div>
-        <button
-          type="button"
-          onClick={triggerCodeRed}
-          aria-pressed={isEmergency}
-          className={`min-h-[44px] inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-xs font-bold uppercase tracking-wider transition cursor-pointer ${
-            isEmergency
-              ? 'border-red-500 bg-red-600 text-white animate-pulse'
-              : 'border-red-500/70 bg-red-500/10 text-red-300 hover:bg-red-500/20'
-          }`}
-        >
-          <Siren className="h-4 w-4" aria-hidden />
-          {isEmergency ? t.godMode.codeRedButtonActive : t.godMode.codeRedButtonIdle}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSimulateOffline(!simulateOffline)}
+            aria-pressed={simulateOffline}
+            className={`min-h-[44px] inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border text-xs font-bold uppercase tracking-wider transition cursor-pointer ${
+              simulateOffline
+                ? 'border-amber-500 bg-amber-500/20 text-amber-200'
+                : 'border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800'
+            }`}
+          >
+            {simulateOffline ? (
+              <WifiOff className="h-4 w-4 text-amber-300" aria-hidden />
+            ) : (
+              <Wifi className="h-4 w-4 text-emerald-400" aria-hidden />
+            )}
+            {lang === 'es'
+              ? simulateOffline
+                ? 'Enlace caído (Simulado)'
+                : 'Simular pérdida de enlace'
+              : simulateOffline
+                ? 'Link Loss Active'
+                : 'Simulate Link Loss'}
+          </button>
+
+          <button
+            type="button"
+            onClick={triggerCodeRed}
+            aria-pressed={isEmergency}
+            className={`min-h-[44px] inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-xs font-bold uppercase tracking-wider transition cursor-pointer ${
+              isEmergency
+                ? 'border-red-500 bg-red-600 text-white animate-pulse'
+                : 'border-red-500/70 bg-red-500/10 text-red-300 hover:bg-red-500/20'
+            }`}
+          >
+            <Siren className="h-4 w-4" aria-hidden />
+            {isEmergency ? t.godMode.codeRedButtonActive : t.godMode.codeRedButtonIdle}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">

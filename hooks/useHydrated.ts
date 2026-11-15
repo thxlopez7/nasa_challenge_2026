@@ -3,6 +3,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 import { useMissionStore } from '../store/useMissionStore';
+import { useOutboxStore } from '../store/useOutboxStore';
 
 const emptySubscribe = () => () => {};
 
@@ -26,6 +27,7 @@ export function StoreHydrator() {
   useEffect(() => {
     void useTelemetryStore.persist.rehydrate();
     void useMissionStore.persist.rehydrate();
+    void useOutboxStore.persist.rehydrate();
   }, []);
 
   return null;
