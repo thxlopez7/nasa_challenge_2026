@@ -257,7 +257,7 @@ function CreateProfile({ onDone, onCancel }: { onDone: (p: CrewProfile) => void;
       {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
 
       <div className="flex flex-wrap gap-3">
-        <button type="submit" className="rounded-lg bg-white px-6 py-2.5 text-sm font-black uppercase tracking-wider text-black hover:bg-cyan-200 transition cursor-pointer">
+        <button type="submit" data-ev-press className="rounded-lg bg-white px-6 py-2.5 text-sm font-black uppercase tracking-wider text-black hover:bg-cyan-200 transition cursor-pointer">
           {f.submit}
         </button>
         <button type="button" onClick={onCancel} className="rounded-lg border border-slate-500 px-6 py-2.5 text-sm uppercase tracking-wider text-slate-300 hover:border-white hover:text-white transition cursor-pointer">

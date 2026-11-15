@@ -1200,6 +1200,12 @@ export const es = {
       spO2: 'Hipoxemia < 90 %',
     },
   },
+  ui: {
+    status: { nominal: 'Nominal', caution: 'Precaución', critical: 'Crítico' },
+    loading: 'Adquiriendo telemetría…',
+    sessionTrend: 'Tendencia de la sesión',
+    range: 'Rango',
+  },
 } as const;
 
 type DeepWiden<T> = T extends (...args: infer A) => infer R

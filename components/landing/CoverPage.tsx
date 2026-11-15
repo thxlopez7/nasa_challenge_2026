@@ -157,6 +157,7 @@ export function CoverPage({ onChoose }: { onChoose: (slug: MissionSlug) => void 
                     onClick={() => go(slug)}
                     disabled={!!leaving}
                     aria-label={ci.enterMissionAria(missionName, tagline)}
+                    data-ev-press
                     className={`cover-mission group inline-flex items-center gap-2.5 rounded-full border px-4 py-2 text-sm font-display font-bold tracking-wider backdrop-blur-md transition cursor-pointer disabled:cursor-default ${
                       slug === 'marte'
                         ? 'border-orange-300/50 bg-orange-500/10 text-orange-100 hover:bg-orange-500/25 hover:border-orange-200'

@@ -234,10 +234,10 @@ export function EarthAlert({ profile, mision }: { profile: CrewProfile; mision?:
           </div>
           <p className="text-6xl font-thin tabular-nums text-red-300" aria-live="assertive">{left}</p>
           <div className="flex flex-wrap justify-center gap-3">
-            <button type="button" onClick={confirmConscious} className="rounded-lg bg-white px-6 py-3 text-base font-black uppercase tracking-wider text-black hover:bg-slate-200 transition cursor-pointer">
+            <button type="button" data-ev-press onClick={confirmConscious} className="rounded-lg bg-white px-6 py-3 text-base font-black uppercase tracking-wider text-black hover:bg-slate-200 transition cursor-pointer">
               {t.earthAlert.conscious}
             </button>
-            <button type="button" onClick={() => send(t.earthAlert.triggerManual)} className="rounded-lg border border-red-400 px-6 py-3 text-base font-black uppercase tracking-wider text-red-200 hover:bg-red-500/20 transition cursor-pointer">
+            <button type="button" data-ev-press onClick={() => send(t.earthAlert.triggerManual)} className="rounded-lg border border-red-400 px-6 py-3 text-base font-black uppercase tracking-wider text-red-200 hover:bg-red-500/20 transition cursor-pointer">
               {t.earthAlert.sendNow}
             </button>
           </div>

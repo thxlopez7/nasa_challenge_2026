@@ -80,11 +80,12 @@ const SYSTEM_META: Record<
 
 // Color + forma + texto: nunca solo color
 const STATUS_ICON: Record<StatusColor, string> = { green: "✓", amber: "▲", red: "■" };
-const STATUS_FILL: Record<StatusColor, string> = { green: "#5fd39a", amber: "#ffa23a", red: "#ff5547" };
+// Paleta EXOVITALS: cian nominal, ámbar precaución, rojo crítico (+ forma y texto).
+const STATUS_FILL: Record<StatusColor, string> = { green: "#00E5FF", amber: "#FFB703", red: "#FF3B4E" };
 const ORDER: StatusColor[] = ["red", "amber", "green"];
 
 const GLOBAL_CSS = `
-:root{--bg:#05070a;--line:#555b66;--ink:#f5f5f2;--dim:#b4b8bf;--y:#ffe600;--b:#1a73c8;--c:#00a8e8;--red:#ff5547}
+:root{--bg:#0B132B;--line:#2A3A5E;--ink:#FFFFFF;--dim:#8D99AE;--y:#00E5FF;--b:#00E5FF;--c:#00E5FF;--red:#FF3B4E;--amber:#FFB703;--surface:#1C2541}
 .hud,.fam{font-family:var(--font-roboto-condensed),system-ui,-apple-system,sans-serif}
 .hud h1,.hud h2,.fam h1,.fam h2,.disp{font-family:var(--font-roboto-condensed),system-ui,sans-serif}
 .hud{min-height:100vh;background:var(--bg);color:var(--ink);font-size:18px;padding:20px 28px 32px}
@@ -138,7 +139,7 @@ const GLOBAL_CSS = `
 }
 @keyframes xpIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes xpFade{from{opacity:0}to{opacity:1}}
-@keyframes xpGlow{0%,100%{box-shadow:0 0 0 0 rgba(255,230,0,.0)}50%{box-shadow:0 0 22px 2px rgba(255,230,0,.45)}}
+@keyframes xpGlow{0%,100%{box-shadow:0 0 0 1px rgba(0,229,255,.35),0 0 10px rgba(0,229,255,.15)}50%{box-shadow:0 0 0 1px rgba(0,229,255,.8),0 0 26px rgba(0,229,255,.45)}}
 @keyframes xpPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,85,71,.7)}50%{box-shadow:0 0 0 6px rgba(255,85,71,0)}}
 .body3d-overlay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none}
 .body3d-loading{margin:0;color:var(--dim);font:500 14px 'IBM Plex Mono',monospace;white-space:nowrap}
@@ -235,7 +236,45 @@ const GLOBAL_CSS = `
   .xp-phase{left:12px;top:12px;transform:none;font-size:13px;padding:5px 10px}
   .xp-skip{top:52px;right:12px;min-height:36px;font-size:14px}
   .xp-detail{grid-template-columns:1fr}
-}`;
+}
+/* ===== Estética EXOVITALS (sistema de diseño, components/ui) ===== */
+.stripe{height:2px;background:linear-gradient(90deg,transparent,var(--c),transparent);opacity:.8}
+.top h1{font-weight:900;letter-spacing:-.01em}
+.dek{color:#B9C2D3;border-top:1px solid rgba(0,229,255,.18)}
+.kick{color:var(--c);font:500 12px var(--font-geist-mono),ui-monospace,monospace;letter-spacing:.28em}
+.btn{border-radius:8px;border:1px solid rgba(0,229,255,.32);background:rgba(28,37,65,.6);color:var(--c);font:500 13px var(--font-geist-mono),ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;transition:background .2s,box-shadow .2s,border-color .2s,transform .12s}
+.btn:hover{border-color:var(--c);background:rgba(0,229,255,.1);box-shadow:0 0 16px rgba(0,229,255,.25)}
+.btn:active{transform:scale(.96)}
+.btn[aria-pressed=true]{background:var(--c);border-color:var(--c);color:var(--bg);font-weight:700;box-shadow:0 0 0 1px rgba(0,229,255,.6),0 0 20px rgba(0,229,255,.35)}
+.sos{border-radius:8px;background:var(--red);color:#fff;font:700 15px var(--font-geist-mono),ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;box-shadow:0 0 0 1px rgba(255,59,78,.5),0 0 22px rgba(255,59,78,.35);transition:box-shadow .2s,transform .12s,filter .2s}
+.sos:hover{filter:brightness(1.1);box-shadow:0 0 0 1px rgba(255,59,78,.9),0 0 32px rgba(255,59,78,.55)}
+.sos:active{transform:scale(.96)}
+.bar{border-radius:4px;background:var(--c);color:var(--bg)}
+.srow[aria-pressed=true] .bar{background:#fff}
+.sec,.mt,.organ3d{border-color:rgba(0,229,255,.14)}
+.sec p::before{color:var(--c)}
+.xp-stage{border:1px solid rgba(0,229,255,.16);border-radius:14px;background:radial-gradient(ellipse at 50% 42%,#1C2541 0%,#0E1733 50%,var(--bg) 82%);box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 14px 40px rgba(0,0,0,.35)}
+.xp-stage::before,.xp-stage::after{width:18px;height:18px;border-width:1px;opacity:.75}
+.xp-panel{border-radius:12px;background:linear-gradient(180deg,rgba(28,37,65,.82),rgba(11,19,43,.84));border:1px solid rgba(0,229,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 10px 30px rgba(0,0,0,.35)}
+.xp-phase{border-radius:6px;background:rgba(11,19,43,.8);border-color:rgba(0,229,255,.35);font:500 12px var(--font-geist-mono),ui-monospace,monospace;letter-spacing:.24em}
+.xp-phase-n{color:var(--amber)}
+.xp-skip{border-radius:8px;background:rgba(28,37,65,.7);border-color:rgba(0,229,255,.32);color:var(--c);font:500 12px var(--font-geist-mono),ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase}
+.xp-skip:hover{border-color:var(--c);box-shadow:0 0 16px rgba(0,229,255,.25)}
+.xp-hint{border-radius:6px;background:rgba(11,19,43,.8)}
+.xp-progress{height:4px;border-radius:2px;background:rgba(42,58,94,.7)}
+.xp-progress>div{background:var(--c);box-shadow:0 0 10px var(--c)}
+.xp-finding{border-radius:0 6px 6px 0;background:rgba(255,59,78,.08)}
+.xp-finding.is-amber{border-left-color:var(--amber);background:rgba(255,183,3,.07)}
+.xp-finding.is-amber .xp-finding-icon{background:var(--amber)}
+.xp-cta{border-radius:8px;background:var(--c);color:var(--bg);font:700 15px var(--font-geist-mono),ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;transition:transform .12s,filter .2s}
+.xp-cta:hover{filter:brightness(1.1)}
+.xp-cta:active{transform:scale(.96)}
+.xp-sys{border-radius:8px}
+.xp-sys[aria-pressed=true]{border-color:var(--c);background:rgba(0,229,255,.07)}
+.xp-card{border-radius:12px;border-color:rgba(0,229,255,.16);background:linear-gradient(180deg,rgba(28,37,65,.7),rgba(11,19,43,.75))}
+.organ3d-canvas{border-radius:10px;border:1px solid rgba(0,229,255,.16);background:radial-gradient(ellipse at 50% 50%,#1C2541 0%,var(--bg) 72%)}
+.body3d-label{background:rgba(11,19,43,.88);border-radius:0 4px 4px 0}
+.body3d-num{background:var(--c);color:var(--bg)}`;
 
 const STEPS = [
   { tag: "Seguridad 0G", title: "Detente. No flotes", kit: "Correas azules", chip: "bg-sky-500 text-[#0b0d11]",
@@ -711,6 +750,7 @@ export function BodyMapHUD({ mision, scanRun = 0 }: { mision?: MissionSlug; scan
                     )}
                   </p>
                   <button
+                    data-ev-press
                     className="xp-cta"
                     onClick={() =>
                       explore(anomalies.find((a) => a.severity === 2)?.id ?? anomalies[0]?.id)

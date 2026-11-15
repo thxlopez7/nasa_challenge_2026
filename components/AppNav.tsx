@@ -206,6 +206,7 @@ export function AppNav({ mision }: { mision?: MissionSlug }) {
         <button
           type="button"
           onClick={() => showIntro('title')}
+          data-ev-press
           title={t.nav.replayIntroTitle}
           className="min-h-[44px] inline-flex items-center gap-1.5 rounded-full border border-cyan-500/40 px-3 text-cyan-200 hover:bg-cyan-500/15 transition cursor-pointer"
         >
