@@ -71,11 +71,13 @@ export const en: TranslationDict = {
     },
     rules: {
       nephropathyName: 'Hidden Nephropathy',
-      nephropathyCondition: 'CysC > 1.15 mg/L · Ca²⁺ > 1.25 mmol/L · Normal Cr or CysC/Cr dissociation > 1.2',
+      nephropathyCondition:
+        'CysC > 1.15 mg/L · Ca²⁺ > 1.25 mmol/L · Creatinine ≤ 1.10 or CysC/Cr ratio (dissociation) > 1.2',
       radiationName: 'Radiation Immunosuppression (GCR/SPE)',
       radiationCondition: 'Rate > 50 µSv/h or Acc. > 50 mSv · Lymphocytes < 1000/µL · NLR > 3.0',
       co2Name: 'CO₂ Pocket / Subclinical Hypercapnia',
-      co2Condition: 'CO₂ > 3500 ppm (prototype early-warning threshold) with SpO₂ ≥ 96%',
+      co2Condition:
+        'CO₂ > 3500 ppm (prototype early-warning threshold, below NASA operational limits of 4–5.3 mmHg) with SpO₂ ≥ 96%',
       emergencyName: 'Medical Emergency / Code Red',
       emergencyCondition: 'Manual crew trigger or critical clinical anomaly',
     },

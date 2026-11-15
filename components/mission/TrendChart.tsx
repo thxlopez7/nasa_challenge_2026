@@ -46,7 +46,7 @@ const METRICS: Record<MetricId, MetricDef> = {
     label: 'Cistatina C', unit: 'mg/L', group: 'Biomarcadores', digits: 2,
     read: (r) => r.vitals?.cistatinaC,
     threshold: { value: T.renal.minCistatinaC, label: `R1 > ${T.renal.minCistatinaC}` },
-    why: 'Función renal: en microgravedad puede subir aunque la creatinina siga normal.',
+    why: 'Marcador renal mucho menos dependiente de la masa muscular; puede subir aunque la creatinina basal baje en microgravedad.',
   },
   calcioIonico: {
     label: 'Calcio iónico', unit: 'mmol/L', group: 'Biomarcadores', digits: 2,

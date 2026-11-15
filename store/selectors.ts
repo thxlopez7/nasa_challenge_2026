@@ -3,7 +3,9 @@
 import { useShallow } from 'zustand/react/shallow';
 import { useTelemetryStore } from './useTelemetryStore';
 import { useMissionStore } from './useMissionStore';
-import { computeNlr, getAlertSeverity } from '../utils/clinicalEngine';
+import { computeNlr, evaluateRulesWithTrace, getAlertSeverity } from '../utils/clinicalEngine';
+import { resolveMissionProfileHook } from '../config/missionProfile';
+import type { RuleEvaluationTrace } from '../config/rules';
 import { getMissionComms, type MissionCommsProfile, type SupportedLang } from '../config/missionComms';
 import { MISSION_CHOICES, type MissionSlug } from '../utils/missionChoice';
 import { deriveEscalationLevel } from '../utils/behavioralScoring';
@@ -38,6 +40,7 @@ export interface ClinicalSnapshot {
   biomarkers: Biomarkers;
   environment: Environment;
   alerts: ClinicalAlerts;
+  ruleTraces: RuleEvaluationTrace[];
   globalSeverity: AlertSeverity;
   escalationLevel: EscalationLevel;
   isManualOverride: boolean;
@@ -456,10 +459,21 @@ export function useClinicalSnapshot(misionSlug?: MissionSlug): ClinicalSnapshot 
       behavioralCheckIn: telemetry.behavioralCheckIn,
     });
 
+  const ruleTraces: RuleEvaluationTrace[] = evaluateRulesWithTrace(
+    {
+      ...biomarkers,
+      ...environment,
+      isEmergency: alerts.isEmergency,
+      behavioralCheckIn: telemetry.behavioralCheckIn,
+    },
+    resolveMissionProfileHook(missionProfileId)
+  );
+
   return {
     biomarkers,
     environment,
     alerts,
+    ruleTraces,
     globalSeverity: getAlertSeverity(alerts),
     escalationLevel,
     isManualOverride: telemetry.isManualOverride,

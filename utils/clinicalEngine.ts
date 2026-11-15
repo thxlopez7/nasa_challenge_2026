@@ -1,3 +1,12 @@
+import {
+  CLINICAL_RULE_THRESHOLDS,
+  CLINICAL_RULES,
+  type ComparisonOperator,
+  type CriterionTrace,
+  type RuleEvaluationInput,
+  type RuleEvaluationTrace,
+} from '../config/rules';
+import type { MissionProfileHook } from '../config/missionProfile';
 import type {
   AlertSeverity,
   Biomarkers,
@@ -7,47 +16,24 @@ import type {
 } from '../types/telemetry';
 
 /**
- * Motor Clínico Determinista Edge-First — Matriz RIDGE.
+ * Motor Clínico Determinista Edge-First — Matriz RIDGE y Trazabilidad de Reglas.
  *
  * Funciones puras, sin I/O ni dependencia de la Tierra: se ejecutan a bordo en
- * cada tick de telemetría (latencia cero). El contrato `ClinicalAlerts` expone
+ * cada tick de telemetría (latencia < 1 ms). El contrato `ClinicalAlerts` expone
  * tres banderas automáticas más la emergencia manual:
  *
  *   R — Radiation       → isRadiationWarning (Regla 2)
  *   G — Gravity         → isRenalWarning     (Regla 1)
  *   E — Hostile Env.    → isCo2Warning       (Regla 3)
- *   I / D — Isolation y Distance no tienen bandera en el contrato: se abordan
- *   con las contramedidas de bienestar y la arquitectura offline-first.
+ *   I / D — Isolation y Distance se abordan con el check-in conductual,
+ *   contramedidas y arquitectura offline-first.
  */
 
-/** Umbrales clínicos de cada regla. Única fuente de verdad para motor y UI. */
+/** Umbrales clínicos de cada regla. Respaldados por `config/rules.ts` (única fuente de verdad). */
 export const RIDGE_THRESHOLDS = {
-  renal: {
-    /** Creatinina normal o baja (mg/dL): enmascara el daño en microgravedad */
-    maxCreatinina: 1.1,
-    /** Cistatina C elevada (mg/L) */
-    minCistatinaC: 1.15,
-    /** Calcio iónico elevado (mmol/L): resorción ósea */
-    minCalcioIonico: 1.25,
-    /** Ratio Cistatina C / Creatinina cuando ambas suben en daño renal franco */
-    minCisCrRatio: 1.2,
-  },
-  radiation: {
-    /** Tasa de dosis actual (µSv/h) */
-    minRadiationRate: 50.0,
-    /** Dosis acumulada de misión (mSv) */
-    minRadiationAccumulated: 50.0,
-    /** Linfopenia (cél/µL) */
-    maxLinfocitos: 1000,
-    /** Ratio neutrófilos / linfocitos */
-    minNlr: 3.0,
-  },
-  co2: {
-    /** Hipercapnia ambiental (ppm) */
-    minCo2Level: 3500,
-    /** SpO2 conservada (%): el CO2 no se manifiesta en el pulsioxímetro */
-    minSpO2: 96,
-  },
+  renal: CLINICAL_RULE_THRESHOLDS.renal,
+  radiation: CLINICAL_RULE_THRESHOLDS.radiation,
+  co2: CLINICAL_RULE_THRESHOLDS.co2,
 } as const;
 
 type SensorReadings = Biomarkers & Environment;
@@ -59,7 +45,7 @@ const isValidReading = (value: number): boolean =>
 
 /**
  * Ratio neutrófilos / linfocitos (NLR).
- * Devuelve `Infinity` con linfocitos en 0 y neutrófilos presentes (linfopenia
+ * Devuelve `Infinity` con linfocitos en 0 y neutrófilos presentes positivos (linfopenia
  * absoluta), y `NaN` si ninguna lectura es interpretable o si hay valores negativos.
  */
 export function computeNlr(
@@ -176,4 +162,150 @@ export function getAlertSeverity(alerts: ClinicalAlerts): AlertSeverity {
 /** Atajo para componentes que ya tienen el estado completo del store. */
 export function getTelemetrySeverity(data: TelemetryData): AlertSeverity {
   return getAlertSeverity(data);
+}
+
+function compareCriterion(
+  actual: number,
+  operator: ComparisonOperator,
+  threshold: number
+): boolean {
+  switch (operator) {
+    case '>':
+      return actual > threshold;
+    case '>=':
+      return actual >= threshold;
+    case '<':
+      return actual < threshold;
+    case '<=':
+      return actual <= threshold;
+    case '==':
+      return actual === threshold;
+  }
+}
+
+/**
+ * Evalúa todas las reglas declarativas de `config/rules.ts` y produce la traza
+ * explicable por criterio (`passed`, `missing`, `actualValue`, `threshold`).
+ * Función pura y determinista (< 1 ms).
+ * `_profileHook` queda reservado para integración futura del bloque P5.
+ */
+export function evaluateRulesWithTrace(
+  readings: Partial<RuleEvaluationInput>,
+  _profileHook?: MissionProfileHook
+): RuleEvaluationTrace[] {
+  void _profileHook;
+
+  const safeInput: RuleEvaluationInput = {
+    heartRate: readings.heartRate ?? Number.NaN,
+    spO2: readings.spO2 ?? Number.NaN,
+    cistatinaC: readings.cistatinaC ?? Number.NaN,
+    creatinina: readings.creatinina ?? Number.NaN,
+    calcioIonico: readings.calcioIonico ?? Number.NaN,
+    linfocitos: readings.linfocitos ?? Number.NaN,
+    neutrofilos: readings.neutrofilos ?? Number.NaN,
+    cortisol: readings.cortisol ?? Number.NaN,
+    systolicMmHg: readings.systolicMmHg,
+    diastolicMmHg: readings.diastolicMmHg,
+    glucoseMgDl: readings.glucoseMgDl,
+    glucoseContext: readings.glucoseContext,
+    bodyTempC: readings.bodyTempC,
+    co2Level: readings.co2Level ?? Number.NaN,
+    radiationRate: readings.radiationRate ?? Number.NaN,
+    radiationAccumulated: readings.radiationAccumulated ?? Number.NaN,
+    isEmergency: readings.isEmergency,
+    behavioralCheckIn: readings.behavioralCheckIn,
+  };
+
+  return CLINICAL_RULES.map((rule) => {
+    const criteriaTrace: CriterionTrace[] = rule.criteria.map((c) => {
+      const thresholdValue =
+        typeof c.threshold === 'function' ? c.threshold(safeInput) : c.threshold;
+      const thresholdNote = c.thresholdNote ? c.thresholdNote(safeInput) : undefined;
+      const raw = c.extract(safeInput);
+
+      const isValidExtracted =
+        typeof raw === 'number' &&
+        !Number.isNaN(raw) &&
+        (c.allowInfinity ? true : Number.isFinite(raw));
+
+      if (!isValidExtracted) {
+        return {
+          id: c.id,
+          label: c.label,
+          group: c.group,
+          operator: c.operator,
+          threshold: thresholdValue,
+          thresholdNote,
+          actualValue: null,
+          unit: c.unit,
+          decimals: c.decimals ?? 2,
+          passed: false,
+          missing: true,
+        };
+      }
+
+      return {
+        id: c.id,
+        label: c.label,
+        group: c.group,
+        operator: c.operator,
+        threshold: thresholdValue,
+        thresholdNote,
+        actualValue: raw,
+        unit: c.unit,
+        decimals: c.decimals ?? 2,
+        passed: compareCriterion(raw, c.operator, thresholdValue),
+        missing: false,
+      };
+    });
+
+    const hasMissingInputs = criteriaTrace.some((c) => c.missing);
+
+    const allGroup = criteriaTrace.filter((c) => c.group === 'all');
+    const allGroupPassed = allGroup.every((c) => c.passed && !c.missing);
+
+    const orGroupNames = new Set(
+      criteriaTrace
+        .filter((c) => c.group.startsWith('or:'))
+        .map((c) => c.group)
+    );
+
+    let allOrGroupsPassed = true;
+    for (const groupName of orGroupNames) {
+      const members = criteriaTrace.filter((c) => c.group === groupName);
+      if (!members.some((c) => c.passed && !c.missing)) {
+        allOrGroupsPassed = false;
+        break;
+      }
+    }
+
+    const triggered =
+      criteriaTrace.length > 0 && allGroupPassed && allOrGroupsPassed;
+
+    const escalation =
+      rule.id === 'R8_BEHAVIORAL_RISK' && safeInput.behavioralCheckIn?.selfHarmFlag
+        ? 'emergency'
+        : rule.escalation;
+
+    return {
+      ruleId: rule.id,
+      shortCode: rule.shortCode,
+      version: rule.version,
+      system: rule.system,
+      severity: triggered ? rule.severity : 'OPTIMAL',
+      configuredSeverity: rule.severity,
+      escalation,
+      triggered,
+      hasMissingInputs,
+      title: rule.title,
+      summary: rule.summary,
+      rationale: rule.rationale,
+      limitations: rule.limitations,
+      actionSummary: rule.actionSummary,
+      source: rule.source,
+      verified: rule.verified,
+      verificationTodo: rule.verificationTodo,
+      criteria: criteriaTrace,
+    };
+  });
 }

@@ -69,11 +69,13 @@ export const es = {
     },
     rules: {
       nephropathyName: 'Nefropatía oculta',
-      nephropathyCondition: 'CisC > 1,15 mg/L · Ca²⁺ > 1,25 mmol/L · Creatinina normal o disociación CisC/Cr > 1,2',
+      nephropathyCondition:
+        'CisC > 1,15 mg/L · Ca²⁺ > 1,25 mmol/L · Creatinina ≤ 1,10 o razón CisC/Cr (disociación) > 1,2',
       radiationName: 'Inmunosupresión por radiación (GCR/SPE)',
       radiationCondition: 'Tasa > 50 µSv/h o Acum. > 50 mSv · Linfocitos < 1000/µL · NLR > 3,0',
       co2Name: 'Bolsa de CO₂ / Hipercapnia subclínica',
-      co2Condition: 'CO₂ > 3500 ppm (alerta temprana del prototipo) con SpO₂ ≥ 96%',
+      co2Condition:
+        'CO₂ > 3500 ppm (umbral de alerta temprana del prototipo, inferior a límites operativos NASA de 4–5,3 mmHg) con SpO₂ ≥ 96%',
       emergencyName: 'Emergencia médica / Código Rojo',
       emergencyCondition: 'Activación manual de tripulación o anomalía clínica crítica',
     },

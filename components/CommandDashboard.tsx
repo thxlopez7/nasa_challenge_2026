@@ -6,6 +6,8 @@ import SensorSimulator from './SensorSimulator';
 import MissionCenter from './mission/MissionCenter';
 import QuickMeasurementPanel from './mission/QuickMeasurementPanel';
 import BehavioralCheckIn from './mission/BehavioralCheckIn';
+import RuleTrace from './RuleTrace';
+import RulesAndLimitationsSection from './RulesAndLimitationsSection';
 import { useClinicalSnapshot } from '../store/selectors';
 import { useT } from '../i18n/I18nContext';
 import type { AlertSeverity } from '../types/telemetry';
@@ -24,47 +26,6 @@ function fmtRatio(value: number): string {
   return value.toFixed(2);
 }
 
-function RuleRow({
-  title,
-  rule,
-  active,
-  activeLabel,
-  nominalLabel,
-  critical = false,
-}: {
-  title: string;
-  rule: string;
-  active: boolean;
-  activeLabel: string;
-  nominalLabel: string;
-  critical?: boolean;
-}) {
-  const on = critical ? 'text-red-400' : 'text-amber-400';
-  return (
-    <div
-      className={`flex items-center justify-between gap-4 rounded-lg border p-4 transition-colors ${
-        active
-          ? critical
-            ? 'border-red-500/70 bg-red-500/10'
-            : 'border-amber-500/70 bg-amber-500/10'
-          : 'border-slate-800 bg-slate-950/60'
-      }`}
-    >
-      <div className="min-w-0">
-        <p className="text-sm font-semibold text-slate-100">{title}</p>
-        <p className="text-xs text-slate-400 font-mono mt-0.5">{rule}</p>
-      </div>
-      <span
-        className={`shrink-0 text-xs font-bold uppercase px-2 py-0.5 rounded ${
-          active ? `${on} bg-slate-950/50` : 'text-cyan-400'
-        }`}
-      >
-        {active ? activeLabel : nominalLabel}
-      </span>
-    </div>
-  );
-}
-
 /** Centro de mando: telemetría unificada, reglas clínicas, God Mode, copiloto IA y Centro de misión. */
 export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
   const { t, lang } = useT();
@@ -72,7 +33,7 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
   const {
     biomarkers,
     environment,
-    alerts,
+    ruleTraces,
     globalSeverity,
     escalationLevel,
     nlr,
@@ -191,7 +152,7 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
                     <span className="text-sm text-slate-400">mg/L</span>
                   </p>
                   <p className="text-xs text-slate-400 mt-1">
-                    Cr: {biomarkers.creatinina.toFixed(2)} · CisC/Cr: {cisCRatio.toFixed(2)} · Ca²⁺:{' '}
+                    Cr: {biomarkers.creatinina.toFixed(2)} · {lang === 'es' ? 'CisC/Cr (disoc.)' : 'CysC/Cr (dissoc.)'}: {cisCRatio.toFixed(2)} · Ca²⁺:{' '}
                     {biomarkers.calcioIonico.toFixed(2)}
                   </p>
                 </div>
@@ -259,43 +220,13 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
               </div>
             </section>
 
-            {/* Matriz de reglas clínicas */}
+            {/* Matriz explicable de reglas clínicas */}
             <section className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
               <h2 className="text-lg font-bold text-cyan-400 uppercase tracking-wider">
                 {t.dashboard.rulesTitle}
               </h2>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <RuleRow
-                  title={`R1 · ${t.dashboard.rules.nephropathyName}`}
-                  rule={t.dashboard.rules.nephropathyCondition}
-                  active={alerts.isRenalWarning}
-                  activeLabel={t.dashboard.activeAlert}
-                  nominalLabel={t.dashboard.nominalClear}
-                />
-                <RuleRow
-                  title={`R2 · ${t.dashboard.rules.radiationName}`}
-                  rule={t.dashboard.rules.radiationCondition}
-                  active={alerts.isRadiationWarning}
-                  activeLabel={t.dashboard.activeAlert}
-                  nominalLabel={t.dashboard.nominalClear}
-                />
-                <RuleRow
-                  title={`R3 · ${t.dashboard.rules.co2Name}`}
-                  rule={t.dashboard.rules.co2Condition}
-                  active={alerts.isCo2Warning}
-                  activeLabel={t.dashboard.activeAlert}
-                  nominalLabel={t.dashboard.nominalClear}
-                />
-                <RuleRow
-                  title={`R4 · ${t.dashboard.rules.emergencyName}`}
-                  rule={t.dashboard.rules.emergencyCondition}
-                  active={alerts.isEmergency}
-                  activeLabel={t.dashboard.activeAlert}
-                  nominalLabel={t.dashboard.nominalClear}
-                  critical
-                />
-              </div>
+              <RuleTrace traces={ruleTraces} />
             </section>
 
             <QuickMeasurementPanel />
@@ -309,6 +240,7 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
         </div>
 
         <MissionCenter preferredProfile={mision ? MISSION_CHOICES[mision].profileId : undefined} />
+        <RulesAndLimitationsSection />
       </div>
     </div>
   );
