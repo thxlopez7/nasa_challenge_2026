@@ -9,6 +9,7 @@ import {
 } from 'react';
 import {
   BookOpen,
+  ChevronDown,
   ClipboardPlus,
   Clock,
   Compass,
@@ -55,6 +56,33 @@ import BehavioralCheckIn from './mission/BehavioralCheckIn';
 import MissionCenter from './mission/MissionCenter';
 import QuickMeasurementPanel from './mission/QuickMeasurementPanel';
 import TodayCountermeasures from './mission/TodayCountermeasures';
+
+/** Sección plegable de la pestaña Seguimiento: resume sin esconder datos. */
+function TrackingSection({
+  title,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <details
+      open={defaultOpen}
+      className="group rounded-xl border border-[var(--cc-line)] bg-[var(--cc-panel)]/60 [&_summary::-webkit-details-marker]:hidden"
+    >
+      <summary className="flex min-h-[52px] cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-base font-semibold text-slate-100 hover:bg-white/[0.03] rounded-xl">
+        <span>{title}</span>
+        <ChevronDown
+          className="h-5 w-5 shrink-0 text-slate-400 transition-transform group-open:rotate-180"
+          aria-hidden
+        />
+      </summary>
+      <div className="space-y-4 px-3 pb-3 sm:px-4 sm:pb-4">{children}</div>
+    </details>
+  );
+}
 
 const TAB_ORDER: CommandTabId[] = ['hoy', 'registrar', 'mision', 'tierra'];
 const LOG_SECTIONS: LogSectionId[] = ['vitals', 'poc', 'behavioral'];
@@ -310,7 +338,7 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
 
       <div className="max-w-[1440px] mx-auto space-y-4">
         {/* Global compact telemetry + comms + Demo drawer gear bar */}
-        <GlobalStatusBar snapshot={snapshot} />
+        <GlobalStatusBar snapshot={snapshot} tiles={tiles} />
 
         {/* Persistent Code Red / Emergency Banner across all 4 tabs */}
         {isEmergencyActive && <EmergencyBanner />}
@@ -468,7 +496,7 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
                 role="tabpanel"
                 id="panel-mision"
                 aria-labelledby="tab-mision"
-                className="space-y-4"
+                className="space-y-3"
               >
                 <div className="px-1 pt-1">
                   <h2 className="text-xl font-semibold text-slate-50">
@@ -478,13 +506,19 @@ export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; pr
                     {t.command.missionTab.subtitle}
                   </p>
                 </div>
-                <LiveEvolution key={profile?.id ?? 'live'} />
-                <TodayCountermeasures
-                  mision={mision}
-                  todayOverride={todayKey}
-                  compactMode
-                />
-                <MissionCenter preferredProfile={preferredProfile} />
+                <TrackingSection title={t.command.missionTab.sectionTrends} defaultOpen>
+                  <LiveEvolution key={profile?.id ?? 'live'} />
+                </TrackingSection>
+                <TrackingSection title={t.command.missionTab.sectionCountermeasures}>
+                  <TodayCountermeasures
+                    mision={mision}
+                    todayOverride={todayKey}
+                    compactMode
+                  />
+                </TrackingSection>
+                <TrackingSection title={t.command.missionTab.sectionHistory}>
+                  <MissionCenter preferredProfile={preferredProfile} />
+                </TrackingSection>
               </div>
             )}
 

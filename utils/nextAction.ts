@@ -240,7 +240,8 @@ export function deriveSystemTiles(
 
   // 3. Radiation
   const radTraces = tracesFor(['R2_RADIATION_IMMUNOSUPPRESSION']);
-  const radStatus: TileStatus = alerts.isRadiationWarning
+  const radStatus: TileStatus =
+    alerts.isRadiationWarning || environment.radiationRate >= T.radiation.minRadiationRate
     ? 'red'
     : environment.radiationRate > T.radiation.minRadiationRate * 0.8 ||
         environment.radiationAccumulated > 35
@@ -461,4 +462,26 @@ export function deriveSystemTiles(
       relatedTraces: neuralTraces,
     },
   ];
+}
+
+export type OverallLevel = 'nominal' | 'watch' | 'warning' | 'critical';
+
+/**
+ * Nivel global único para la barra de estado y la cabecera de Hoy:
+ * combina el motor clínico (severidad, Código Rojo) con el mosaico.
+ */
+export function deriveOverallLevel(
+  snapshot: Pick<ClinicalSnapshot, 'globalSeverity' | 'escalationLevel' | 'alerts'>,
+  tiles: Pick<SystemTileData, 'status'>[]
+): OverallLevel {
+  if (
+    snapshot.globalSeverity === 'CRITICAL' ||
+    snapshot.escalationLevel === 'emergency' ||
+    snapshot.alerts.isEmergency ||
+    tiles.some((t) => t.status === 'red')
+  )
+    return 'critical';
+  if (snapshot.globalSeverity === 'WARNING') return 'warning';
+  if (tiles.some((t) => t.status === 'amber')) return 'watch';
+  return 'nominal';
 }

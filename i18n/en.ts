@@ -260,7 +260,7 @@ export const en: TranslationDict = {
       tablistAria: 'Command Center sections',
       today: 'Today',
       log: 'Log',
-      mission: 'Mission',
+      mission: 'Tracking',
       earth: 'Earth Link',
     },
     statusBar: {
@@ -388,8 +388,11 @@ export const en: TranslationDict = {
       freshnessTitle: 'Measurement freshness:',
     },
     missionTab: {
-      title: 'Mission, countermeasures & history',
-      subtitle: 'Prioritized daily countermeasures, weekly streak, and mission log.',
+      title: 'Crew tracking',
+      subtitle: 'Vital-sign trends, today’s countermeasures, and mission history.',
+      sectionTrends: 'Vital signs & trend',
+      sectionCountermeasures: 'Today’s countermeasures',
+      sectionHistory: 'Mission history & progress',
       countermeasuresSummary: "Today's countermeasure plan",
       showDetails: 'Details',
       hideDetails: 'Hide',

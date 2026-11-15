@@ -23,7 +23,8 @@ const NOMINAL: Full = {
   neutrofilos: 3000,
   cortisol: 11,
   co2Level: 650,
-  radiationRate: 0.4,
+  // Fondo GCR en tránsito: misma escala que el dataset en vivo (~15 µSv/h).
+  radiationRate: 15,
   radiationAccumulated: 45,
 };
 
@@ -118,7 +119,7 @@ function stableFrames(base: Full): ScenarioFrame[] {
     neutrofilos: Math.round(c.neutrofilos + Math.sin(t / 27) * 80),
     cortisol: Number((c.cortisol + Math.sin(t / 35)).toFixed(1)),
     co2Level: Math.round(c.co2Level + Math.sin(t / 15) * 80 + wobble(t, 2) * 30),
-    radiationRate: Number((0.45 + Math.sin(t / 20) * 0.1).toFixed(2)),
+    radiationRate: Number((15 + Math.sin(t / 20) * 1.5).toFixed(1)),
     radiationAccumulated: Number(((base.radiationAccumulated ?? 45) + t * 0.002).toFixed(1)),
   }));
 }
@@ -138,7 +139,7 @@ export function scenarioScript(
       if (typeof v === 'number' && Number.isFinite(v)) base[k] = v;
     }
     // Lo ambiental del día anterior no se arrastra: hoy empieza normal.
-    base.radiationRate = Math.min(base.radiationRate, scenario === 'critical' ? 30 : 0.5);
+    base.radiationRate = Math.min(base.radiationRate, scenario === 'critical' ? 30 : 18);
     base.co2Level = Math.min(base.co2Level, scenario === 'critical' ? 1400 : 850);
   }
   return scenario === 'critical'

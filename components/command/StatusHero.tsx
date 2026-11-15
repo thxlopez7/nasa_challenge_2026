@@ -4,14 +4,16 @@ import { AlertOctagon, AlertTriangle, CheckCircle2, Eye } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useT } from '../../i18n/I18nContext';
 import type { ClinicalSnapshot } from '../../store/selectors';
+import { deriveOverallLevel } from '../../utils/nextAction';
 import type {
   NextActionRecommendation,
   SystemTileData,
   TileStatus,
+  OverallLevel,
 } from '../../utils/nextAction';
 import { NextActionBanner } from './NextActionBanner';
 
-type HeroLevel = 'nominal' | 'watch' | 'warning' | 'critical';
+type HeroLevel = OverallLevel;
 
 const LEVEL_STYLE: Record<
   HeroLevel,
@@ -76,14 +78,7 @@ export function StatusHero({
   const missing = byStatus('missing');
   const names = (list: SystemTileData[]) => list.map((x) => x.shortTitle).join(', ');
 
-  const level: HeroLevel =
-    snapshot.globalSeverity === 'CRITICAL' || red.length > 0
-      ? 'critical'
-      : snapshot.globalSeverity === 'WARNING'
-        ? 'warning'
-        : amber.length > 0
-          ? 'watch'
-          : 'nominal';
+  const level: HeroLevel = deriveOverallLevel(snapshot, tiles);
 
   const title =
     level === 'critical'

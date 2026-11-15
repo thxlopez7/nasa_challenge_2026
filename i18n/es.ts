@@ -258,7 +258,7 @@ export const es = {
       tablistAria: 'Secciones del Centro de Mando',
       today: 'Hoy',
       log: 'Registrar',
-      mission: 'Misión',
+      mission: 'Seguimiento',
       earth: 'Tierra',
     },
     statusBar: {
@@ -386,8 +386,11 @@ export const es = {
       freshnessTitle: 'Frescura de mediciones:',
     },
     missionTab: {
-      title: 'Misión, contramedidas e historial',
-      subtitle: 'Contramedidas diarias priorizadas, progresión semanal y bitácora.',
+      title: 'Seguimiento del tripulante',
+      subtitle: 'Tendencia de signos vitales, contramedidas de hoy e historial de la misión.',
+      sectionTrends: 'Signos vitales y tendencia',
+      sectionCountermeasures: 'Contramedidas de hoy',
+      sectionHistory: 'Historial y progreso de la misión',
       countermeasuresSummary: 'Plan de contramedidas de hoy',
       showDetails: 'Ver detalle',
       hideDetails: 'Ocultar',

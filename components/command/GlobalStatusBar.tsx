@@ -17,6 +17,7 @@ import { useOutboxStore } from '../../store/useOutboxStore';
 import { useCommandUiStore } from '../../store/useCommandUiStore';
 import type { AlertSeverity } from '../../types/telemetry';
 import { missionDayOf, toDayKey } from '../../utils/missionPlan';
+import { deriveOverallLevel, type SystemTileData } from '../../utils/nextAction';
 
 const STATUS_STYLE: Record<AlertSeverity, string> = {
   OPTIMAL: 'border-emerald-500/50 bg-emerald-500/10 text-emerald-200',
@@ -24,7 +25,13 @@ const STATUS_STYLE: Record<AlertSeverity, string> = {
   CRITICAL: 'border-red-500 bg-red-500/20 text-red-100',
 };
 
-export function GlobalStatusBar({ snapshot }: { snapshot: ClinicalSnapshot }) {
+export function GlobalStatusBar({
+  snapshot,
+  tiles,
+}: {
+  snapshot: ClinicalSnapshot;
+  tiles: SystemTileData[];
+}) {
   const { lang, t } = useT();
   const packets = useOutboxStore((s) => s.packets);
   const conjunctionBlackout = useOutboxStore((s) => s.conjunctionBlackout);
@@ -54,19 +61,21 @@ export function GlobalStatusBar({ snapshot }: { snapshot: ClinicalSnapshot }) {
 
   const missionDay = mission ? missionDayOf(mission, toDayKey(new Date())) : null;
 
+  // Mismo nivel que la cabecera de Hoy (motor + Código Rojo + mosaico).
+  const level = deriveOverallLevel(snapshot, tiles);
+  const severity: AlertSeverity =
+    level === 'critical' ? 'CRITICAL' : level === 'warning' || level === 'watch' ? 'WARNING' : 'OPTIMAL';
   const StatusIcon =
-    snapshot.globalSeverity === 'CRITICAL'
-      ? AlertOctagon
-      : snapshot.globalSeverity === 'WARNING'
-        ? AlertTriangle
-        : CheckCircle2;
+    level === 'critical' ? AlertOctagon : level === 'nominal' ? CheckCircle2 : AlertTriangle;
 
   const statusWord =
-    snapshot.globalSeverity === 'CRITICAL'
+    level === 'critical'
       ? t.common.critical
-      : snapshot.globalSeverity === 'WARNING'
+      : level === 'warning'
         ? t.common.warning
-        : t.common.green;
+        : level === 'watch'
+          ? `${t.common.green} · ${t.command.hero.counts.amber}`
+          : t.common.green;
 
   return (
     <header
@@ -76,7 +85,7 @@ export function GlobalStatusBar({ snapshot }: { snapshot: ClinicalSnapshot }) {
       <div className="flex flex-wrap items-center gap-2 min-w-0">
         {/* Global Status Pill: Icon + Word + Color */}
         <span
-          className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider ${STATUS_STYLE[snapshot.globalSeverity]}`}
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider ${STATUS_STYLE[severity]}`}
         >
           <StatusIcon className="h-4 w-4 shrink-0" aria-hidden />
           <span>{statusWord}</span>
