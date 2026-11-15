@@ -1,6 +1,7 @@
 'use client';
 
 import GodModePanel from '../components/GodModePanel';
+import Landing from '../components/landing/Landing';
 import MedicalCopilot from '../components/MedicalCopilot';
 import SensorSimulator from '../components/SensorSimulator';
 import MissionCenter from '../components/mission/MissionCenter';
@@ -99,6 +100,7 @@ export default function DevTelemetryDashboard() {
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 font-mono p-4 sm:p-6 lg:p-10">
+      <Landing />
       <SensorSimulator />
 
       <div className="max-w-7xl mx-auto space-y-8">
