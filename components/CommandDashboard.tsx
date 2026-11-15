@@ -14,6 +14,7 @@ import { useClinicalSnapshot } from '../store/selectors';
 import { useT } from '../i18n/I18nContext';
 import type { AlertSeverity } from '../types/telemetry';
 import { RIDGE_THRESHOLDS as T } from '../utils/clinicalEngine';
+import { formatDecimal, formatNumber } from '../utils/formatters';
 import { MISSION_CHOICES, type MissionSlug } from '../utils/missionChoice';
 
 const SEVERITY_STYLE: Record<AlertSeverity, string> = {
@@ -22,10 +23,10 @@ const SEVERITY_STYLE: Record<AlertSeverity, string> = {
   CRITICAL: 'border-red-500 bg-red-500/15 text-red-300 animate-pulse',
 };
 
-function fmtRatio(value: number): string {
+function fmtRatio(value: number, lang: 'es' | 'en'): string {
   if (Number.isNaN(value)) return '—';
   if (!Number.isFinite(value)) return '∞';
-  return value.toFixed(2);
+  return formatDecimal(value, 2, lang);
 }
 
 /** Centro de mando: telemetría unificada, reglas clínicas, God Mode, copiloto IA y Centro de misión. */
@@ -49,19 +50,16 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
   const escalationBadge =
     escalationLevel === 'emergency'
       ? {
-          text: lang === 'es' ? 'ESCALAMIENTO: EMERGENCIA' : 'ESCALATION: EMERGENCY',
+          text: t.dashboardExtra.escalationEmergency,
           styles: 'border-red-500 bg-red-500/20 text-red-200',
         }
       : escalationLevel === 'notify-flight-surgeon'
         ? {
-            text:
-              lang === 'es'
-                ? 'ESCALAMIENTO: NOTIFICAR CIRUJANO DE VUELO'
-                : 'ESCALATION: NOTIFY FLIGHT SURGEON',
+            text: t.dashboardExtra.escalationSurgeon,
             styles: 'border-amber-500/80 bg-amber-500/15 text-amber-200',
           }
         : {
-            text: lang === 'es' ? 'ESCALAMIENTO: AUTOCUIDADO' : 'ESCALATION: SELF-MANAGE',
+            text: t.dashboardExtra.escalationSelf,
             styles: 'border-emerald-500/60 bg-emerald-500/10 text-emerald-200',
           };
 
@@ -120,7 +118,7 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
                 </h2>
                 <span className="text-xs text-slate-400">
                   {t.dashboard.sleepToday}:{' '}
-                  {sleepHoursRecorded !== null ? `${sleepHoursRecorded.toFixed(1)} h` : t.common.noRecordToday}
+                  {sleepHoursRecorded !== null ? `${formatDecimal(sleepHoursRecorded, 1, lang)} h` : t.common.noRecordToday}
                 </span>
               </div>
 
@@ -129,15 +127,11 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-cyan-300">
                     <Radio className="h-4 w-4 animate-pulse" aria-hidden />
-                    <span>
-                      {lang === 'es'
-                        ? 'Sensores integrados y cabina · Flujo continuo 1 Hz'
-                        : 'Wearable & Cabin Sensors · 1 Hz Continuous Stream'}
-                    </span>
+                    <span>{t.dashboardExtra.streamSectionTitle}</span>
                   </div>
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/40 bg-cyan-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase text-cyan-200">
                     <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" aria-hidden />
-                    {lang === 'es' ? '1 Hz · EN VIVO' : '1 Hz · LIVE'}
+                    {t.dashboardExtra.streamLiveBadge}
                   </span>
                 </div>
 
@@ -146,17 +140,17 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-xs text-slate-400 uppercase">{t.dashboard.kpis.heartRate}</p>
                       <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300">
-                        1 Hz · Wearable
+                        {t.dashboardExtra.wearable1Hz}
                       </span>
                     </div>
                     <p className="text-2xl font-bold tabular-nums">
-                      {Math.round(biomarkers.heartRate)}{' '}
-                      <span className="text-sm text-slate-400">{lang === 'es' ? 'lpm' : 'bpm'}</span>
+                      {formatNumber(Math.round(biomarkers.heartRate), lang)}{' '}
+                      <span className="text-sm text-slate-400">{t.dashboardExtra.bpmUnit}</span>
                     </p>
                     <p className="text-xs text-slate-400">
-                      {t.dashboard.kpis.spo2}: <strong className="text-slate-200">{biomarkers.spO2}%</strong> · HRV (RMSSD):{' '}
+                      {t.dashboard.kpis.spo2}: <strong className="text-slate-200">{formatNumber(biomarkers.spO2, lang)}%</strong> · HRV (RMSSD):{' '}
                       <strong className="text-slate-200">
-                        {biomarkers.hrvRmssdMs !== undefined ? `${biomarkers.hrvRmssdMs.toFixed(1)} ms` : '—'}
+                        {biomarkers.hrvRmssdMs !== undefined ? `${formatDecimal(biomarkers.hrvRmssdMs, 1, lang)} ms` : '—'}
                       </strong>
                     </p>
                   </div>
@@ -165,14 +159,14 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-xs text-slate-400 uppercase">{t.dashboard.kpis.co2Level}</p>
                       <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300">
-                        1 Hz · ECLSS
+                        {t.dashboardExtra.eclss1Hz}
                       </span>
                     </div>
                     <p className="text-2xl font-bold tabular-nums">
-                      {Math.round(environment.co2Level)} <span className="text-sm text-slate-400">ppm</span>
+                      {formatNumber(Math.round(environment.co2Level), lang)} <span className="text-sm text-slate-400">ppm</span>
                     </p>
                     <p className="text-xs text-slate-400">
-                      {lang === 'es' ? 'Umbral prototipo' : 'Prototype alert'}: &gt; {T.co2.minCo2Level} ppm
+                      {t.dashboardExtra.prototypeAlertThreshold}: &gt; {formatNumber(T.co2.minCo2Level, lang)} ppm
                     </p>
                   </div>
 
@@ -180,16 +174,16 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-xs text-slate-400 uppercase">{t.dashboard.kpis.radiation}</p>
                       <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300">
-                        1 Hz · HERA
+                        {t.dashboardExtra.hera1Hz}
                       </span>
                     </div>
                     <p className="text-2xl font-bold tabular-nums">
-                      {environment.radiationRate.toFixed(1)}{' '}
+                      {formatDecimal(environment.radiationRate, 1, lang)}{' '}
                       <span className="text-sm text-slate-400">µSv/h</span>
                     </p>
                     <p className="text-xs text-slate-400">
-                      {lang === 'es' ? 'Dosis acumulada' : 'Accumulated dose'}:{' '}
-                      <strong className="text-slate-200">{environment.radiationAccumulated.toFixed(1)} mSv</strong>
+                      {t.dashboardExtra.accumulatedDoseLabel}:{' '}
+                      <strong className="text-slate-200">{formatDecimal(environment.radiationAccumulated, 1, lang)} mSv</strong>
                     </p>
                   </div>
                 </div>
@@ -201,26 +195,16 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
                   <div>
                     <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-300">
                       <FlaskConical className="h-4 w-4" aria-hidden />
-                      <span>
-                        {lang === 'es'
-                          ? 'Cartuchos Point-of-Care (POC) y medición rápida Spot · Muestra fija'
-                          : 'Point-of-Care Cartridges (POC) & Fast Spot Readings · Sample & Hold'}
-                      </span>
+                      <span>{t.dashboardExtra.pocSectionTitle}</span>
                     </div>
                     <p className="text-[11px] text-slate-400 mt-0.5">
-                      {lang === 'es'
-                        ? 'No oscilan segundo a segundo: el valor permanece fijo hasta procesar un nuevo cartucho capilar/saliva o lectura Spot.'
-                        : 'Held constant between pulls — values update only when a new POC blood/saliva cartridge or Spot check is recorded.'}
+                      {t.dashboardExtra.pocSectionDesc}
                     </p>
                   </div>
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase text-amber-200">
                     {snapshot.indicatorMeta?.bloodPanel?.source === 'manual'
-                      ? lang === 'es'
-                        ? 'POC · CARGA MANUAL'
-                        : 'POC · MANUAL LOG'
-                      : lang === 'es'
-                        ? 'POC · LOTE POR ETAPA'
-                        : 'POC · BATCH HOLD'}
+                      ? t.dashboardExtra.pocManualLogBadge
+                      : t.dashboardExtra.pocBatchHoldBadge}
                   </span>
                 </div>
 
@@ -230,53 +214,53 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-xs text-slate-400 uppercase">{t.dashboard.kpis.cystatinC}</p>
                       <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300">
-                        Cartucho POC · i-STAT
+                        {t.dashboardExtra.istatTag}
                       </span>
                     </div>
                     <p className="text-2xl font-bold tabular-nums">
-                      {biomarkers.cistatinaC.toFixed(2)}{' '}
+                      {formatDecimal(biomarkers.cistatinaC, 2, lang)}{' '}
                       <span className="text-sm text-slate-400">mg/L</span>
                     </p>
                     <p className="text-xs text-slate-400">
-                      Cr: {biomarkers.creatinina.toFixed(2)} · {lang === 'es' ? 'CisC/Cr' : 'CysC/Cr'}:{' '}
-                      {cisCRatio.toFixed(2)} · Ca²⁺: {biomarkers.calcioIonico.toFixed(2)}
+                      Cr: {formatDecimal(biomarkers.creatinina, 2, lang)} · {t.dashboardExtra.ciscCrLabel}:{' '}
+                      {formatDecimal(cisCRatio, 2, lang)} · Ca²⁺: {formatDecimal(biomarkers.calcioIonico, 2, lang)}
                     </p>
                   </div>
 
                   <div className="bg-slate-950/50 border border-amber-500/25 rounded-lg p-4 space-y-1.5">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-xs text-slate-400 uppercase">
-                        {lang === 'es' ? 'Panel Inmune y Cortisol' : 'Immune & Cortisol Panel'}
+                        {t.dashboardExtra.immuneCortisolTitle}
                       </p>
                       <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300">
-                        Cartucho POC · rHEALTH
+                        {t.dashboardExtra.rhealthTag}
                       </span>
                     </div>
                     <p className="text-2xl font-bold tabular-nums">
-                      {Math.round(biomarkers.linfocitos)}{' '}
-                      <span className="text-sm text-slate-400">{lang === 'es' ? 'linf/µL' : 'lymph/µL'}</span>
+                      {formatNumber(Math.round(biomarkers.linfocitos), lang)}{' '}
+                      <span className="text-sm text-slate-400">{t.dashboardExtra.lymphUnit}</span>
                     </p>
                     <p className="text-xs text-slate-400">
-                      Neut: {Math.round(biomarkers.neutrofilos)} · NLR: {fmtRatio(nlr)} · {t.dashboard.kpis.cortisol}:{' '}
-                      {biomarkers.cortisol.toFixed(1)}
+                      {t.dashboardExtra.neutShort}: {formatNumber(Math.round(biomarkers.neutrofilos), lang)} · NLR: {fmtRatio(nlr, lang)} · {t.dashboard.kpis.cortisol}:{' '}
+                      {formatDecimal(biomarkers.cortisol, 1, lang)}
                     </p>
                   </div>
 
                   <div className="bg-slate-950/50 border border-amber-500/25 rounded-lg p-4 space-y-1.5">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-xs text-slate-400 uppercase">
-                        {lang === 'es' ? 'Recambio óseo (sin DXA)' : 'Bone Turnover (no DXA)'}
+                        {t.dashboardExtra.boneTurnoverTitle}
                       </p>
                       <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300">
-                        Cartucho POC · Óseo
+                        {t.dashboardExtra.boneTag}
                       </span>
                     </div>
                     <p className="text-2xl font-bold tabular-nums">
-                      {biomarkers.ctxNtxIndex !== undefined ? `${biomarkers.ctxNtxIndex.toFixed(2)}x` : '—'}{' '}
+                      {biomarkers.ctxNtxIndex !== undefined ? `${formatDecimal(biomarkers.ctxNtxIndex, 2, lang)}x` : '—'}{' '}
                       <span className="text-sm text-slate-400">CTX/NTX</span>
                     </p>
                     <p className="text-xs text-slate-400">
-                      P1NP: {biomarkers.p1npIndex !== undefined ? `${biomarkers.p1npIndex.toFixed(2)}x` : '—'} · ARED:{' '}
+                      P1NP: {biomarkers.p1npIndex !== undefined ? `${formatDecimal(biomarkers.p1npIndex, 2, lang)}x` : '—'} · ARED:{' '}
                       {biomarkers.aredLoadPct !== undefined ? `${Math.round(biomarkers.aredLoadPct)}%` : '—'}
                     </p>
                   </div>
@@ -287,11 +271,11 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
                   <div className="bg-slate-950/40 border border-emerald-500/20 rounded-lg p-3.5 space-y-1">
                     <div className="flex items-center justify-between gap-1">
                       <p className="text-[11px] text-slate-400 uppercase">
-                        {lang === 'es' ? 'Presión arterial' : 'Blood Pressure'}
+                        {t.dashboardExtra.bloodPressure}
                       </p>
                       <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase text-emerald-300">
                         <Zap className="h-2.5 w-2.5" aria-hidden />
-                        Spot
+                        {t.dashboardExtra.spotTag}
                       </span>
                     </div>
                     <p className="text-lg font-bold tabular-nums">
@@ -299,9 +283,9 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
                       <span className="text-xs text-slate-400">mmHg</span>
                     </p>
                     <p className="text-[11px] text-slate-400">
-                      {lang === 'es' ? 'ΔFC ortostático:' : 'Orthostatic ΔHR:'}{' '}
+                      {t.dashboardExtra.orthostaticDeltaHr}:{' '}
                       {biomarkers.orthostaticDeltaHr !== undefined
-                        ? `+${Math.round(biomarkers.orthostaticDeltaHr)} bpm`
+                        ? `+${Math.round(biomarkers.orthostaticDeltaHr)} ${t.dashboardExtra.bpmUnit}`
                         : '—'}
                     </p>
                   </div>
@@ -309,11 +293,11 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
                   <div className="bg-slate-950/40 border border-emerald-500/20 rounded-lg p-3.5 space-y-1">
                     <div className="flex items-center justify-between gap-1">
                       <p className="text-[11px] text-slate-400 uppercase">
-                        {lang === 'es' ? 'Glucosa capilar' : 'Capillary Glucose'}
+                        {t.dashboardExtra.capillaryGlucose}
                       </p>
                       <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase text-emerald-300">
                         <Zap className="h-2.5 w-2.5" aria-hidden />
-                        Spot
+                        {t.dashboardExtra.spotTag}
                       </span>
                     </div>
                     <p className="text-lg font-bold tabular-nums">
@@ -321,12 +305,8 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
                       <span className="text-xs text-slate-400">
                         mg/dL (
                         {biomarkers.glucoseContext === 'postprandial'
-                          ? lang === 'es'
-                            ? 'posprandial'
-                            : 'postprandial'
-                          : lang === 'es'
-                            ? 'ayunas'
-                            : 'fasting'}
+                          ? t.dashboardExtra.postprandial
+                          : t.dashboardExtra.fasting}
                         )
                       </span>
                     </p>
@@ -335,15 +315,15 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
                   <div className="bg-slate-950/40 border border-emerald-500/20 rounded-lg p-3.5 space-y-1">
                     <div className="flex items-center justify-between gap-1">
                       <p className="text-[11px] text-slate-400 uppercase">
-                        {lang === 'es' ? 'Temperatura corporal' : 'Body Temperature'}
+                        {t.dashboardExtra.bodyTemp}
                       </p>
                       <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase text-emerald-300">
                         <Zap className="h-2.5 w-2.5" aria-hidden />
-                        Spot
+                        {t.dashboardExtra.spotTag}
                       </span>
                     </div>
                     <p className="text-lg font-bold tabular-nums">
-                      {biomarkers.bodyTempC !== undefined ? biomarkers.bodyTempC.toFixed(1) : '—'}{' '}
+                      {biomarkers.bodyTempC !== undefined ? formatDecimal(biomarkers.bodyTempC, 1, lang) : '—'}{' '}
                       <span className="text-xs text-slate-400">°C</span>
                     </p>
                   </div>
@@ -351,18 +331,16 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
                   <div className="bg-slate-950/40 border border-slate-800/80 rounded-lg p-3.5 space-y-1">
                     <div className="flex items-center justify-between gap-1">
                       <p className="text-[11px] text-slate-400 uppercase">
-                        {lang === 'es' ? 'Riesgo conductual' : 'Behavioral Risk'}
+                        {t.dashboardExtra.behavioralRisk}
                       </p>
                       <span className="text-[9px] font-bold uppercase text-slate-400">
-                        {lang === 'es' ? 'Diario' : 'Daily'}
+                        {t.dashboardExtra.dailyTag}
                       </span>
                     </div>
                     <p className="text-lg font-bold tabular-nums">
                       {behavioralCheckIn
                         ? `${behavioralCheckIn.behavioralRiskIndex} / 100`
-                        : lang === 'es'
-                          ? 'Sin check-in'
-                          : 'Pending'}
+                        : t.dashboardExtra.pendingCheckIn}
                     </p>
                   </div>
                 </div>

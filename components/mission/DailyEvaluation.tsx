@@ -25,10 +25,15 @@ import {
   FULL_DAY_BONUS,
   HYDRATION_TARGET,
   MAX_DAILY_XP,
-  buildDiagnosis,
   hasClinicalAlert,
   stepIndexOf,
 } from '../../utils/missionPlan';
+import {
+  buildLocalizedDiagnosis,
+  getLocalizedEvaluationSteps,
+} from '../../utils/missionPlanL10n';
+import { formatDecimal, formatNumber } from '../../utils/formatters';
+import { useT } from '../../i18n/I18nContext';
 import type { SleepNight } from '../../types/sleep';
 import { simulateSleepNight } from '../../utils/sleepSensing';
 import CoherencePacer from './CoherencePacer';
@@ -88,18 +93,26 @@ function useLiveTelemetry(): TelemetryData {
 /* ------------------------------------------------------------------ */
 
 function Stepper({ session }: { session: EvaluationSession }) {
+  const { lang, t } = useT();
   const goToStep = useMissionStore((s) => s.goToStep);
-  const current = EVALUATION_STEPS[session.stepIndex].id;
+  const steps = getLocalizedEvaluationSteps(lang);
+  const current = steps[session.stepIndex].id;
 
   return (
     <ol className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0">
-      {EVALUATION_STEPS.map((step, i) => {
+      {steps.map((step, i) => {
         const done = session.completedSteps.includes(step.id);
         const skipped = session.skippedSteps.includes(step.id);
         const active = step.id === current;
         const reachable = session.status === 'ACTIVE' && !done && step.id !== 'DEBRIEF';
         const Icon = done ? CheckCircle2 : skipped ? CornerDownRight : Circle;
-        const state = done ? 'hecho' : skipped ? 'omitido' : active ? 'actual' : 'pendiente';
+        const state = done
+          ? t.missionUi.eval.states.done
+          : skipped
+            ? t.missionUi.eval.states.skipped
+            : active
+              ? t.missionUi.eval.states.current
+              : t.missionUi.eval.states.pending;
 
         return (
           <li key={step.id} className="shrink-0">
@@ -108,7 +121,7 @@ function Stepper({ session }: { session: EvaluationSession }) {
               disabled={!reachable && !active}
               onClick={() => goToStep(step.id)}
               aria-current={active ? 'step' : undefined}
-              aria-label={`Paso ${i + 1}: ${step.title} (${state})`}
+              aria-label={`${t.missionUi.eval.stepPrefix} ${i + 1}: ${step.title} (${state})`}
               className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm transition ${
                 active
                   ? 'bg-cyan-500/15 text-cyan-200 font-semibold'
@@ -125,7 +138,9 @@ function Stepper({ session }: { session: EvaluationSession }) {
               />
               <span className="whitespace-nowrap">{step.short}</span>
               {skipped && (
-                <span className="ml-auto text-[10px] uppercase tracking-wider">omitido</span>
+                <span className="ml-auto text-[10px] uppercase tracking-wider">
+                  {t.missionUi.eval.skippedTag}
+                </span>
               )}
             </button>
           </li>
@@ -179,6 +194,7 @@ function ScaleInput({
 }
 
 function CheckInStep({ date, run }: { date: DayKey; run: Run }) {
+  const { t } = useT();
   const submitCheckIn = useMissionStore((s) => s.submitCheckIn);
   const [night, setNight] = useState<SleepNight | null>(null);
   const [feel, setFeel] = useState({ mood: 3, fatigue: 2 });
@@ -194,16 +210,16 @@ function CheckInStep({ date, run }: { date: DayKey; run: Run }) {
       <SleepSensorPanel night={night} onSync={syncNight} />
       <div className="grid sm:grid-cols-2 gap-5">
         <ScaleInput
-          label="Ánimo"
-          low="Muy bajo"
-          high="Muy bueno"
+          label={t.missionUi.eval.moodLabel}
+          low={t.missionUi.eval.moodLow}
+          high={t.missionUi.eval.moodHigh}
           value={feel.mood}
           onChange={(mood) => setFeel({ ...feel, mood })}
         />
         <ScaleInput
-          label="Fatiga"
-          low="Descansado"
-          high="Agotado"
+          label={t.missionUi.eval.fatigueLabel}
+          low={t.missionUi.eval.fatigueLow}
+          high={t.missionUi.eval.fatigueHigh}
           value={feel.fatigue}
           onChange={(fatigue) => setFeel({ ...feel, fatigue })}
         />
@@ -215,10 +231,10 @@ function CheckInStep({ date, run }: { date: DayKey; run: Run }) {
           disabled={!report}
           onClick={() => report && run(() => submitCheckIn(report))}
         >
-          Guardar check-in
+          {t.missionUi.eval.saveCheckInBtn}
         </button>
         {!report && (
-          <span className="text-xs text-slate-500">Sincroniza primero la noche del sensor.</span>
+          <span className="text-xs text-slate-500">{t.missionUi.eval.syncFirstHint}</span>
         )}
       </div>
     </div>
@@ -226,6 +242,7 @@ function CheckInStep({ date, run }: { date: DayKey; run: Run }) {
 }
 
 function VitalsStep({ run }: { run: Run }) {
+  const { lang, t } = useT();
   const captureVitals = useMissionStore((s) => s.captureVitals);
   const pause = useMissionStore((s) => s.pause);
   const live = useLiveTelemetry();
@@ -238,17 +255,18 @@ function VitalsStep({ run }: { run: Run }) {
       if (hasClinicalAlert(vitals)) pause('CLINICAL_ALERT');
     });
 
+  const vr = t.missionUi.eval.vitalsRows;
   const rows: [string, string][] = [
-    ['Frecuencia cardíaca', `${live.heartRate} bpm`],
-    ['SpO2', `${live.spO2}%`],
-    ['CO2', `${live.co2Level} ppm`],
-    ['Cistatina C', `${live.cistatinaC.toFixed(2)} mg/L`],
-    ['Creatinina', `${live.creatinina.toFixed(2)} mg/dL`],
-    ['Calcio iónico', `${live.calcioIonico.toFixed(2)} mmol/L`],
-    ['Linfocitos', `${live.linfocitos} cél/µL`],
-    ['Cortisol', `${live.cortisol.toFixed(1)} ng/mL`],
-    ['Radiación', `${live.radiationRate} µSv/h`],
-    ['Dosis acumulada', `${live.radiationAccumulated.toFixed(1)} mSv`],
+    [vr.hr, `${formatNumber(live.heartRate, lang)} bpm`],
+    [vr.spo2, `${formatNumber(live.spO2, lang)}%`],
+    [vr.co2, `${formatNumber(live.co2Level, lang)} ppm`],
+    [vr.cysC, `${formatDecimal(live.cistatinaC, 2, lang)} mg/L`],
+    [vr.cr, `${formatDecimal(live.creatinina, 2, lang)} mg/dL`],
+    [vr.ca, `${formatDecimal(live.calcioIonico, 2, lang)} mmol/L`],
+    [vr.lymph, `${formatNumber(live.linfocitos, lang)} ${t.dashboardExtra.lymphUnit}`],
+    [vr.cortisol, `${formatDecimal(live.cortisol, 1, lang)} ng/mL`],
+    [vr.radRate, `${formatNumber(live.radiationRate, lang)} µSv/h`],
+    [vr.radAcc, `${formatDecimal(live.radiationAccumulated, 1, lang)} mSv`],
   ];
 
   return (
@@ -261,12 +279,9 @@ function VitalsStep({ run }: { run: Run }) {
           </div>
         ))}
       </dl>
-      <p className="text-xs text-slate-400">
-        Si el motor RIDGE detecta una alerta, la evaluación se pausa sola y te
-        muestra el diagnóstico antes de seguir.
-      </p>
+      <p className="text-xs text-slate-400">{t.missionUi.eval.vitalsHint}</p>
       <button type="button" className={PRIMARY} onClick={capture}>
-        Registrar lectura
+        {t.missionUi.eval.captureVitalsBtn}
       </button>
     </div>
   );
@@ -281,6 +296,7 @@ function ExerciseStep({
   fatigue?: number;
   run: Run;
 }) {
+  const { t } = useT();
   const completeStep = useMissionStore((s) => s.completeStep);
   const skipStep = useMissionStore((s) => s.skipStep);
 
@@ -288,16 +304,15 @@ function ExerciseStep({
     <div className="space-y-5">
       {fatigue !== undefined && fatigue >= 4 && (
         <p className="rounded-lg border border-amber-500/50 bg-amber-500/5 p-3 text-sm text-amber-200">
-          Registraste fatiga alta. Adaptar u omitir la sesión de hoy también es
-          una decisión válida.
+          {t.missionUi.eval.highFatigueHint}
         </p>
       )}
       <div className="flex flex-wrap gap-3">
         <button type="button" className={PRIMARY} onClick={() => run(() => completeStep(id))}>
-          <Check className="h-4 w-4" aria-hidden /> Sesión completada
+          <Check className="h-4 w-4" aria-hidden /> {t.missionUi.eval.sessionCompleteBtn}
         </button>
         <button type="button" className={SECONDARY} onClick={() => run(() => skipStep(id))}>
-          Omitir hoy
+          {t.missionUi.eval.skipTodayBtn}
         </button>
       </div>
     </div>
@@ -305,12 +320,16 @@ function ExerciseStep({
 }
 
 function HydrationStep({ count, run }: { count: number; run: Run }) {
+  const { t } = useT();
   const logHydration = useMissionStore((s) => s.logHydration);
   const skipStep = useMissionStore((s) => s.skipStep);
 
   return (
     <div className="space-y-5">
-      <div className="flex gap-3" aria-label={`${count} de ${HYDRATION_TARGET} tomas`}>
+      <div
+        className="flex gap-3"
+        aria-label={`${count} ${t.missionUi.eval.hydrationAriaPrefix} ${HYDRATION_TARGET}`}
+      >
         {Array.from({ length: HYDRATION_TARGET }, (_, i) => (
           <Droplets
             key={i}
@@ -321,10 +340,10 @@ function HydrationStep({ count, run }: { count: number; run: Run }) {
       </div>
       <div className="flex flex-wrap gap-3">
         <button type="button" className={PRIMARY} onClick={() => run(logHydration)}>
-          Registrar toma ({count}/{HYDRATION_TARGET})
+          {t.missionUi.eval.hydrationBtn} ({count}/{HYDRATION_TARGET})
         </button>
         <button type="button" className={SECONDARY} onClick={() => run(() => skipStep('HYDRATION'))}>
-          Omitir hoy
+          {t.missionUi.eval.skipTodayBtn}
         </button>
       </div>
     </div>
@@ -332,6 +351,7 @@ function HydrationStep({ count, run }: { count: number; run: Run }) {
 }
 
 function MindStep({ run }: { run: Run }) {
+  const { t } = useT();
   const completeStep = useMissionStore((s) => s.completeStep);
   const skipStep = useMissionStore((s) => s.skipStep);
 
@@ -339,55 +359,57 @@ function MindStep({ run }: { run: Run }) {
     <div className="space-y-5">
       <CoherencePacer onComplete={() => run(() => completeStep('MIND'))} />
       <button type="button" className={SECONDARY} onClick={() => run(() => skipStep('MIND'))}>
-        Omitir hoy
+        {t.missionUi.eval.skipTodayBtn}
       </button>
     </div>
   );
 }
 
 function DebriefStep({ session, run }: { session: EvaluationSession; run: Run }) {
+  const { lang, t } = useT();
   const finishDay = useMissionStore((s) => s.finishDay);
   const goToStep = useMissionStore((s) => s.goToStep);
-  const required = EVALUATION_STEPS.filter((s) => s.id !== 'DEBRIEF');
+  const steps = getLocalizedEvaluationSteps(lang);
+  const required = steps.filter((s) => s.id !== 'DEBRIEF');
   const complete = required.every((s) => session.completedSteps.includes(s.id));
   const pending = required.filter(
     (s) => !session.completedSteps.includes(s.id)
   );
   const diagnosis = session.vitals
-    ? buildDiagnosis(session.vitals, session.selfReport)
+    ? buildLocalizedDiagnosis(session.vitals, session.selfReport, lang)
     : null;
 
   return (
     <div className="space-y-5">
       <div className="grid sm:grid-cols-3 gap-3">
         <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-          <p className="text-[11px] uppercase text-slate-500">Pasos</p>
+          <p className="text-[11px] uppercase text-slate-500">{t.missionUi.eval.debriefSteps}</p>
           <p className="text-xl font-bold tabular-nums">
             {session.completedSteps.length}/{required.length}
           </p>
         </div>
         <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-          <p className="text-[11px] uppercase text-slate-500">XP de hoy</p>
+          <p className="text-[11px] uppercase text-slate-500">{t.missionUi.eval.debriefXpToday}</p>
           <p className="text-xl font-bold tabular-nums">
-            {session.xp + (complete ? FULL_DAY_BONUS : 0)}
-            <span className="text-sm text-slate-500"> / {MAX_DAILY_XP}</span>
+            {formatNumber(session.xp + (complete ? FULL_DAY_BONUS : 0), lang)}
+            <span className="text-sm text-slate-500"> / {formatNumber(MAX_DAILY_XP, lang)}</span>
           </p>
         </div>
         <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-          <p className="text-[11px] uppercase text-slate-500">Bono día completo</p>
+          <p className="text-[11px] uppercase text-slate-500">{t.missionUi.eval.debriefFullBonus}</p>
           <p className={`text-xl font-bold ${complete ? 'text-cyan-300' : 'text-slate-600'}`}>
-            {complete ? `+${FULL_DAY_BONUS}` : 'Pendiente'}
+            {complete ? `+${FULL_DAY_BONUS}` : t.missionUi.eval.debriefPending}
           </p>
         </div>
       </div>
 
       {diagnosis && (
-        <DiagnosticPanel diagnosis={diagnosis} title="Diagnóstico de la lectura de hoy" />
+        <DiagnosticPanel diagnosis={diagnosis} title={t.missionUi.eval.debriefTodayDiag} />
       )}
 
       {pending.length > 0 && (
         <div className="text-sm text-slate-400 space-y-2">
-          <p>Aún puedes completar lo que omitiste:</p>
+          <p>{t.missionUi.eval.debriefSkippedHint}</p>
           <div className="flex flex-wrap gap-2">
             {pending.map((s) => (
               <button
@@ -404,7 +426,7 @@ function DebriefStep({ session, run }: { session: EvaluationSession; run: Run })
       )}
 
       <button type="button" className={PRIMARY} onClick={() => run(finishDay)}>
-        Cerrar el día
+        {t.missionUi.eval.debriefFinishBtn}
       </button>
     </div>
   );
@@ -413,19 +435,17 @@ function DebriefStep({ session, run }: { session: EvaluationSession; run: Run })
 /* ------------------------------------------------------------------ */
 
 function PausedView({ session, run }: { session: EvaluationSession; run: Run }) {
+  const { lang, t } = useT();
   const resume = useMissionStore((s) => s.resume);
   const closeAsExcused = useMissionStore((s) => s.closeAsExcused);
   const live = useLiveTelemetry();
-  const diagnosis = buildDiagnosis(live, session.selfReport);
+  const steps = getLocalizedEvaluationSteps(lang);
+  const diagnosis = buildLocalizedDiagnosis(live, session.selfReport, lang);
   const codeRed = live.isEmergency;
-  const required = EVALUATION_STEPS.length - 1;
+  const required = steps.length - 1;
   const medical = session.pauseReason !== 'USER' || diagnosis.severity !== 'OPTIMAL';
 
-  const reasonText = {
-    USER: 'Pausaste la evaluación. Tu progreso de hoy está guardado.',
-    CLINICAL_ALERT: 'El motor RIDGE detectó una alerta al registrar tus biomarcadores.',
-    CODE_RED: 'Se activó el Code Red. La evaluación se detuvo automáticamente.',
-  }[session.pauseReason ?? 'USER'];
+  const reasonText = t.missionUi.eval.pauseReasons[session.pauseReason ?? 'USER'];
 
   return (
     <div className="space-y-5">
@@ -434,16 +454,16 @@ function PausedView({ session, run }: { session: EvaluationSession; run: Run }) 
           {codeRed ? <Siren className="h-5 w-5" aria-hidden /> : <Pause className="h-5 w-5" aria-hidden />}
         </span>
         <div>
-          <h3 className="text-lg font-bold text-slate-100">Evaluación en pausa</h3>
+          <h3 className="text-lg font-bold text-slate-100">{t.missionUi.eval.pausedTitle}</h3>
           <p className="text-sm text-slate-400">{reasonText}</p>
           <p className="text-xs text-slate-500 mt-1 tabular-nums">
-            Progreso guardado: {session.completedSteps.length} de {required} pasos ·
-            se reanuda en «{EVALUATION_STEPS[session.stepIndex].short}»
+            {t.missionUi.eval.savedProgress} {session.completedSteps.length} {t.missionUi.eval.ofLabel} {required} {t.missionUi.eval.stepsUnit} ·{' '}
+            {t.missionUi.eval.resumesAt} «{steps[session.stepIndex].short}»
           </p>
         </div>
       </div>
 
-      <DiagnosticPanel diagnosis={diagnosis} title="Diagnóstico en tiempo real" />
+      <DiagnosticPanel diagnosis={diagnosis} title={t.missionUi.eval.realtimeDiagTitle} />
 
       <div className="flex flex-wrap gap-3">
         <button
@@ -452,23 +472,22 @@ function PausedView({ session, run }: { session: EvaluationSession; run: Run }) 
           disabled={codeRed}
           onClick={() => run(resume)}
         >
-          <Play className="h-4 w-4" aria-hidden /> Reanudar evaluación
+          <Play className="h-4 w-4" aria-hidden /> {t.missionUi.eval.resumeBtn}
         </button>
         {medical && (
           <button type="button" className={SECONDARY} onClick={() => run(closeAsExcused)}>
-            Cerrar el día por motivo médico
+            {t.missionUi.eval.closeExcusedBtn}
           </button>
         )}
       </div>
       {codeRed && (
         <p className="text-xs text-red-300">
-          Podrás reanudar cuando se desactive el Code Red.
+          {t.missionUi.eval.codeRedResumeHint}
         </p>
       )}
       {medical && (
         <p className="text-xs text-slate-500">
-          Un día cerrado por motivo médico cuenta para tu meta semanal: cuidarte
-          nunca te penaliza.
+          {t.missionUi.eval.excusedNote}
         </p>
       )}
     </div>
@@ -486,11 +505,13 @@ export function DailyEvaluation({
   missionDay: number;
   run: Run;
 }) {
+  const { lang, t } = useT();
   const session = useMissionStore((s) => s.session);
   const record = useMissionStore((s) => s.records[today]);
   const startEvaluation = useMissionStore((s) => s.startEvaluation);
   const pause = useMissionStore((s) => s.pause);
   const isEmergency = useTelemetryStore((s) => s.isEmergency);
+  const steps = getLocalizedEvaluationSteps(lang);
 
   // Code Red durante la evaluación → pausa automática.
   useEffect(() => {
@@ -498,26 +519,24 @@ export function DailyEvaluation({
   }, [isEmergency, session?.status, pause]);
 
   if (record && !session) {
-    const diagnosis = record.vitals ? buildDiagnosis(record.vitals, record.selfReport) : null;
-    const label = {
-      COMPLETE: 'Día completo',
-      PARTIAL: 'Día parcial',
-      EXCUSED: 'Día cerrado por motivo médico',
-    }[record.status];
+    const diagnosis = record.vitals
+      ? buildLocalizedDiagnosis(record.vitals, record.selfReport, lang)
+      : null;
+    const label = t.missionUi.eval.closedStatuses[record.status];
     return (
       <div className="space-y-5">
         <div className="flex items-start gap-3">
           <CheckCircle2 className="h-8 w-8 text-cyan-400 shrink-0" aria-hidden />
           <div>
             <h3 className="text-lg font-bold text-slate-100">
-              Evaluación del día {missionDay} cerrada · {label}
+              {t.missionUi.eval.closedHeadingPrefix} {missionDay} {t.missionUi.eval.closedHeadingSuffix} · {label}
             </h3>
             <p className="text-sm text-slate-400">
-              Ganaste {record.xp} XP. La próxima evaluación se abre mañana.
+              {t.missionUi.eval.closedEarnedPrefix} {formatNumber(record.xp, lang)} {t.missionUi.eval.closedNextTomorrow}
             </p>
           </div>
         </div>
-        {diagnosis && <DiagnosticPanel diagnosis={diagnosis} title="Diagnóstico de hoy" />}
+        {diagnosis && <DiagnosticPanel diagnosis={diagnosis} title={t.missionUi.eval.closedDiagTitle} />}
       </div>
     );
   }
@@ -526,15 +545,15 @@ export function DailyEvaluation({
     return (
       <div className="space-y-5">
         <div>
-          <h3 className="text-lg font-bold text-slate-100">Evaluación del día {missionDay}</h3>
+          <h3 className="text-lg font-bold text-slate-100">
+            {t.missionUi.eval.startTitlePrefix} {missionDay}
+          </h3>
           <p className="text-sm text-slate-400 mt-1">
-            {EVALUATION_STEPS.length} pasos guiados, de principio a fin. Puedes
-            pausar en cualquier momento, ver tu diagnóstico y seguir donde lo
-            dejaste.
+            {steps.length} {t.missionUi.eval.startBodySuffix}
           </p>
         </div>
         <ol className="grid sm:grid-cols-2 gap-2">
-          {EVALUATION_STEPS.map((s, i) => (
+          {steps.map((s, i) => (
             <li key={s.id} className="flex items-start gap-3 rounded-lg border border-slate-800 bg-slate-950/60 p-3">
               <span className="h-6 w-6 shrink-0 rounded-full bg-slate-800 text-xs font-bold text-slate-300 flex items-center justify-center">
                 {i + 1}
@@ -542,20 +561,22 @@ export function DailyEvaluation({
               <div>
                 <p className="text-sm font-semibold text-slate-200">{s.title}</p>
                 <p className="text-xs text-slate-500">
-                  {s.xp > 0 ? `+${s.xp} XP` : `+${FULL_DAY_BONUS} XP si completas todo`}
+                  {s.xp > 0
+                    ? `+${s.xp} XP`
+                    : `${t.missionUi.eval.completeAllBonusPrefix}${FULL_DAY_BONUS} ${t.missionUi.eval.completeAllBonusSuffix}`}
                 </p>
               </div>
             </li>
           ))}
         </ol>
         <button type="button" className={PRIMARY} onClick={() => run(() => startEvaluation(today))}>
-          <Play className="h-4 w-4" aria-hidden /> Comenzar evaluación
+          <Play className="h-4 w-4" aria-hidden /> {t.missionUi.eval.startBtn}
         </button>
       </div>
     );
   }
 
-  const step = EVALUATION_STEPS[session.stepIndex];
+  const step = steps[session.stepIndex];
 
   return (
     <div className="grid lg:grid-cols-[200px_1fr] gap-6">
@@ -569,13 +590,13 @@ export function DailyEvaluation({
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-wider text-cyan-500">
-                  Paso {stepIndexOf(step.id) + 1} de {EVALUATION_STEPS.length}
+                  {t.missionUi.eval.stepPrefix} {stepIndexOf(step.id) + 1} {t.missionUi.eval.ofLabel} {EVALUATION_STEPS.length}
                 </p>
                 <h3 className="text-lg font-bold text-slate-100">{step.title}</h3>
                 <p className="text-sm text-slate-400">{step.description}</p>
               </div>
               <button type="button" className={SECONDARY} onClick={() => pause('USER')}>
-                <Pause className="h-4 w-4" aria-hidden /> Pausar
+                <Pause className="h-4 w-4" aria-hidden /> {t.missionUi.eval.pauseBtn}
               </button>
             </div>
 

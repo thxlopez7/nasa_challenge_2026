@@ -2,12 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Play, Square } from 'lucide-react';
+import { useT } from '../../i18n/I18nContext';
 
 const SESSION_SECONDS = 60;
 const PHASE_SECONDS = 5;
 
 /** Respiración guiada a 6 ciclos/min: 5 s inhalar · 5 s exhalar. */
 export function CoherencePacer({ onComplete }: { onComplete: () => void }) {
+  const { t } = useT();
   const [elapsed, setElapsed] = useState<number | null>(null);
   const running = elapsed !== null;
   const onCompleteRef = useRef(onComplete);
@@ -50,24 +52,30 @@ export function CoherencePacer({ onComplete }: { onComplete: () => void }) {
       </div>
       <div className="flex-1 min-w-40">
         <p className="text-lg font-semibold text-slate-100" aria-live="polite">
-          {running ? (inhaling ? 'Inhala…' : 'Exhala…') : 'Listo cuando tú lo estés'}
+          {running
+            ? inhaling
+              ? t.missionUi.coherence.inhale
+              : t.missionUi.coherence.exhale
+            : t.missionUi.coherence.ready}
         </p>
         <p className="text-xs text-slate-400 tabular-nums mt-1">
-          {running ? `${remaining} s restantes` : '1 minuto · 5 s inhalar · 5 s exhalar'}
+          {running
+            ? `${remaining} ${t.missionUi.coherence.secRemaining}`
+            : t.missionUi.coherence.subtitle}
         </p>
       </div>
       <button
         type="button"
         onClick={() => setElapsed(running ? null : 0)}
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-cyan-500/60 bg-cyan-500/10 text-cyan-300 text-sm font-semibold hover:bg-cyan-500/20 transition cursor-pointer"
+        className="inline-flex items-center gap-2 min-h-[44px] px-4 py-2 rounded-lg border border-cyan-500/60 bg-cyan-500/10 text-cyan-300 text-sm font-semibold hover:bg-cyan-500/20 transition cursor-pointer"
       >
         {running ? (
           <>
-            <Square className="h-4 w-4" aria-hidden /> Detener
+            <Square className="h-4 w-4" aria-hidden /> {t.missionUi.coherence.stopBtn}
           </>
         ) : (
           <>
-            <Play className="h-4 w-4" aria-hidden /> Empezar
+            <Play className="h-4 w-4" aria-hidden /> {t.missionUi.coherence.startBtn}
           </>
         )}
       </button>

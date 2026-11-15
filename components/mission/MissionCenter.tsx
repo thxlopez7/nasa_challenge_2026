@@ -16,11 +16,9 @@ import type { LucideIcon } from 'lucide-react';
 import type { DayKey, Mission, MissionProfileId } from '../../types/mission';
 import { selectTotalXp, useMissionStore } from '../../store/useMissionStore';
 import {
-  MISSION_PROFILES,
+  RANKS,
   WEEKLY_TARGET_DAYS,
   computeAchievements,
-  formatDay,
-  getProfile,
   missionDayOf,
   missionWeekOf,
   phaseOfDay,
@@ -30,6 +28,16 @@ import {
   weekProgress,
   weeklyStreak,
 } from '../../utils/missionPlan';
+import {
+  computeLocalizedAchievements,
+  formatMissionDay,
+  getLocalizedAllProfiles,
+  getLocalizedProfile,
+  getLocalizedRankFor,
+  localizeRank,
+} from '../../utils/missionPlanL10n';
+import { formatNumber } from '../../utils/formatters';
+import { useT } from '../../i18n/I18nContext';
 import { demoDaysFor } from '../../utils/demoHistory';
 import DailyEvaluation from './DailyEvaluation';
 import MissionCalendar from './MissionCalendar';
@@ -37,13 +45,16 @@ import TrendChart from './TrendChart';
 import TodayCountermeasures from './TodayCountermeasures';
 
 type Tab = 'today' | 'calendar' | 'trends' | 'achievements';
-type Toast = { id: number; text: string; tone: 'xp' | 'rank' | 'achievement' };
+type Toast =
+  | { id: number; kind: 'xp'; xpAmount: number; tone: 'xp' }
+  | { id: number; kind: 'rank'; rankLevel: number; tone: 'rank' }
+  | { id: number; kind: 'achievement'; achievementId: string; tone: 'achievement' };
 
-const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
-  { id: 'today', label: 'Hoy', icon: ClipboardCheck },
-  { id: 'calendar', label: 'Calendario', icon: CalendarDays },
-  { id: 'trends', label: 'Tendencias', icon: TrendingUp },
-  { id: 'achievements', label: 'Logros', icon: Award },
+const TAB_DEFS: { id: Tab; icon: LucideIcon }[] = [
+  { id: 'today', icon: ClipboardCheck },
+  { id: 'calendar', icon: CalendarDays },
+  { id: 'trends', icon: TrendingUp },
+  { id: 'achievements', icon: Award },
 ];
 
 const TOAST_STYLE: Record<Toast['tone'], string> = {
@@ -55,24 +66,24 @@ const TOAST_STYLE: Record<Toast['tone'], string> = {
 /* ------------------------------------------------------------------ */
 
 function MissionSetup({ today, preferred }: { today: DayKey; preferred?: MissionProfileId }) {
+  const { lang, t } = useT();
   const startMission = useMissionStore((s) => s.startMission);
   const loadDemoHistory = useMissionStore((s) => s.loadDemoHistory);
   const [profileId, setProfileId] = useState<MissionProfileId>(preferred ?? 'MARS_CONJUNCTION');
   const activeProfileId = preferred ?? profileId;
+  const profiles = getLocalizedAllProfiles(lang);
 
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-xl font-bold text-slate-100">Prepara tu misión</h3>
+        <h3 className="text-xl font-bold text-slate-100">{t.missionUi.setup.heading}</h3>
         <p className="text-sm text-slate-400 mt-1 max-w-2xl">
-          Cada día harás una evaluación guiada: check-in, biomarcadores,
-          contramedidas y un cierre con diagnóstico. El calendario guarda cómo
-          responde tu cuerpo semana a semana hasta el último día de la misión.
+          {t.missionUi.setup.body}
         </p>
       </div>
 
-      <div role="radiogroup" aria-label="Perfil de misión" className={`grid gap-3 ${preferred ? 'max-w-xl' : 'md:grid-cols-3'}`}>
-        {Object.values(MISSION_PROFILES)
+      <div role="radiogroup" aria-label={t.missionUi.setup.radioAria} className={`grid gap-3 ${preferred ? 'max-w-xl' : 'md:grid-cols-3'}`}>
+        {profiles
           .filter((p) => !preferred || p.id === preferred)
           .map((p) => {
           const active = activeProfileId === p.id;
@@ -89,7 +100,7 @@ function MissionSetup({ today, preferred }: { today: DayKey; preferred?: Mission
             >
               <div className="flex items-center justify-between">
                 <p className="font-bold text-slate-100">{p.name}</p>
-                <span className="text-xs text-slate-400 tabular-nums">{totalDays(p)} días</span>
+                <span className="text-xs text-slate-400 tabular-nums">{formatNumber(totalDays(p), lang)} {t.missionUi.setup.daysUnit}</span>
               </div>
               <p className="text-sm text-slate-400">{p.summary}</p>
               <div className="flex gap-[2px] h-2 rounded-full overflow-hidden" aria-hidden>
@@ -103,7 +114,7 @@ function MissionSetup({ today, preferred }: { today: DayKey; preferred?: Mission
               </div>
               <ul className="text-xs text-slate-500 space-y-0.5">
                 {p.phases.map((ph) => (
-                  <li key={ph.id}>{ph.name} · {ph.days} días</li>
+                  <li key={ph.id}>{ph.name} · {formatNumber(ph.days, lang)} {t.missionUi.setup.daysUnit}</li>
                 ))}
               </ul>
             </button>
@@ -117,14 +128,14 @@ function MissionSetup({ today, preferred }: { today: DayKey; preferred?: Mission
           onClick={() => startMission(activeProfileId, today)}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-cyan-500 text-slate-950 font-bold hover:bg-cyan-400 transition cursor-pointer"
         >
-          <Rocket className="h-4 w-4" aria-hidden /> Iniciar misión hoy
+          <Rocket className="h-4 w-4" aria-hidden /> {t.missionUi.setup.startBtn}
         </button>
         <button
           type="button"
           onClick={() => loadDemoHistory(today, activeProfileId)}
           className="px-4 py-2.5 rounded-lg border border-slate-700 text-slate-300 text-sm font-semibold hover:bg-slate-800 transition cursor-pointer"
         >
-          Ver demo con {demoDaysFor(activeProfileId)} días simulados
+          {t.missionUi.setup.demoBtnPrefix} {formatNumber(demoDaysFor(activeProfileId), lang)} {t.missionUi.setup.demoBtnSuffix}
         </button>
       </div>
     </div>
@@ -138,12 +149,13 @@ function MissionHeader({ mission, today, totalXp }: {
   today: DayKey;
   totalXp: number;
 }) {
+  const { lang, t } = useT();
   const records = useMissionStore((s) => s.records);
-  const profile = getProfile(mission.profileId);
+  const profile = getLocalizedProfile(mission.profileId, lang);
   const total = totalDays(profile);
   const day = Math.min(Math.max(1, missionDayOf(mission, today)), total);
   const { phase, dayInPhase } = phaseOfDay(profile, day);
-  const { rank, next, progress } = rankFor(totalXp);
+  const { rank, next, progress } = getLocalizedRankFor(totalXp, lang);
   const week = missionWeekOf(day);
   const weekDone = Math.min(weekProgress(records, week), WEEKLY_TARGET_DAYS);
   const streak = weeklyStreak(records, week);
@@ -155,14 +167,14 @@ function MissionHeader({ mission, today, totalXp }: {
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <p className="text-sm text-slate-400">
             {profile.name} · <span className="text-slate-200 font-semibold">{phase.name}</span>{' '}
-            <span className="tabular-nums">(día {dayInPhase} de {phase.days})</span>
+            <span className="tabular-nums">({t.missionUi.header.dayInPhasePrefix} {dayInPhase} {t.missionUi.header.ofLabel} {phase.days})</span>
           </p>
           <p className="text-sm tabular-nums">
-            <span className="text-2xl font-bold text-slate-100">Día {day}</span>
+            <span className="text-2xl font-bold text-slate-100">{t.missionUi.header.dayPrefix} {day}</span>
             <span className="text-slate-500"> / {total}</span>
           </p>
         </div>
-        <div className="flex gap-[2px]" aria-label={`Progreso de misión: día ${day} de ${total}`}>
+        <div className="flex gap-[2px]" aria-label={`${t.missionUi.header.progressAriaPrefix} ${day} ${t.missionUi.header.ofLabel} ${total}`}>
           {profile.phases.map((ph, i) => {
             const start = profile.phases.slice(0, i).reduce((s, x) => s + x.days, 0);
             const filled = Math.min(1, Math.max(0, (day - start) / ph.days));
@@ -174,9 +186,9 @@ function MissionHeader({ mission, today, totalXp }: {
           })}
         </div>
         <div className="flex justify-between text-[11px] text-slate-500 gap-2">
-          <span>Inicio · {formatDay(mission.startDate)}</span>
+          <span>{t.missionUi.header.startPrefix} · {formatMissionDay(mission.startDate, lang)}</span>
           <span>{phase.description}</span>
-          <span className="tabular-nums whitespace-nowrap">{total - day} días restantes</span>
+          <span className="tabular-nums whitespace-nowrap">{formatNumber(total - day, lang)} {t.missionUi.header.daysRemainingSuffix}</span>
         </div>
       </div>
 
@@ -187,11 +199,11 @@ function MissionHeader({ mission, today, totalXp }: {
             <Trophy className="h-4 w-4 text-amber-500" aria-hidden />
             {rank.title}
           </p>
-          <span className="text-xs text-slate-500">Rango {rank.level}</span>
+          <span className="text-xs text-slate-500">{t.missionUi.header.rankPrefix} {rank.level}</span>
         </div>
         <div
           role="progressbar"
-          aria-label="Progreso al siguiente rango"
+          aria-label={t.missionUi.header.progressRankAria}
           aria-valuenow={Math.round(progress * 100)}
           aria-valuemin={0}
           aria-valuemax={100}
@@ -200,13 +212,13 @@ function MissionHeader({ mission, today, totalXp }: {
           <div className="h-full bg-cyan-400 transition-[width] duration-700" style={{ width: `${progress * 100}%` }} />
         </div>
         <p className="text-[11px] text-slate-500 tabular-nums">
-          {totalXp.toLocaleString('es')} XP
-          {next ? ` · ${(next.minXp - totalXp).toLocaleString('es')} para ${next.title}` : ' · rango máximo'}
+          {formatNumber(totalXp, lang)} XP
+          {next ? ` · ${formatNumber(next.minXp - totalXp, lang)} ${t.missionUi.header.xpNextPrefix} ${next.title}` : ` · ${t.missionUi.header.xpMaxSuffix}`}
         </p>
         <div className="pt-1">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-slate-300">Meta semana {week}</span>
-            <span className="text-slate-500 tabular-nums">{weekDone}/{WEEKLY_TARGET_DAYS} días</span>
+            <span className="text-slate-300">{t.missionUi.header.weekGoalPrefix} {week}</span>
+            <span className="text-slate-500 tabular-nums">{weekDone}/{WEEKLY_TARGET_DAYS} {t.missionUi.header.daysUnit}</span>
           </div>
           <div className="flex gap-1 mt-1.5" aria-hidden>
             {Array.from({ length: WEEKLY_TARGET_DAYS }, (_, i) => (
@@ -215,8 +227,8 @@ function MissionHeader({ mission, today, totalXp }: {
           </div>
           <p className="text-[11px] text-slate-500 mt-1.5">
             {streak > 0
-              ? `${streak} ${streak === 1 ? 'semana' : 'semanas'} seguidas cumpliendo la meta`
-              : 'Un día de descanso por semana no rompe nada'}
+              ? `${streak} ${streak === 1 ? t.missionUi.header.streakOne : t.missionUi.header.streakMany}`
+              : t.missionUi.header.streakHint}
           </p>
         </div>
       </div>
@@ -227,11 +239,12 @@ function MissionHeader({ mission, today, totalXp }: {
 /* ------------------------------------------------------------------ */
 
 function MissionEnded({ mission, totalXp }: { mission: Mission; totalXp: number }) {
+  const { lang, t } = useT();
   const records = useMissionStore((s) => s.records);
   const resetAll = useMissionStore((s) => s.resetAll);
   const list = Object.values(records);
-  const { rank } = rankFor(totalXp);
-  const profile = getProfile(mission.profileId);
+  const { rank } = getLocalizedRankFor(totalXp, lang);
+  const profile = getLocalizedProfile(mission.profileId, lang);
   const unlocked = computeAchievements(mission, records).filter((a) => a.unlocked).length;
 
   return (
@@ -240,37 +253,37 @@ function MissionEnded({ mission, totalXp }: { mission: Mission; totalXp: number 
         <Flag className="h-8 w-8 text-cyan-400" aria-hidden />
         <div>
           <h3 className="text-xl font-bold text-slate-100">
-            {mission.aborted ? 'Misión finalizada antes de tiempo' : '¡Misión cumplida!'}
+            {mission.aborted ? t.missionUi.ended.abortedTitle : t.missionUi.ended.completedTitle}
           </h3>
           <p className="text-sm text-slate-400">
-            {profile.name} · {formatDay(mission.startDate)} → {mission.endedOn && formatDay(mission.endedOn)}
+            {profile.name} · {formatMissionDay(mission.startDate, lang)} → {mission.endedOn && formatMissionDay(mission.endedOn, lang)}
           </p>
         </div>
       </div>
       <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          ['Días evaluados', list.length],
-          ['Días completos', list.filter((r) => r.status === 'COMPLETE').length],
-          ['Rango final', rank.title],
-          ['Logros', unlocked],
+          [t.missionUi.ended.daysEvaluated, list.length],
+          [t.missionUi.ended.completeDays, list.filter((r) => r.status === 'COMPLETE').length],
+          [t.missionUi.ended.finalRank, rank.title],
+          [t.missionUi.ended.achievements, unlocked],
         ].map(([k, v]) => (
-          <div key={k as string} className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+          <div key={String(k)} className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
             <dt className="text-[11px] uppercase text-slate-500">{k}</dt>
             <dd className="text-lg font-bold text-slate-100">{v}</dd>
           </div>
         ))}
       </dl>
       <p className="text-sm text-slate-400">
-        Tu historial sigue disponible en el calendario y las tendencias.
+        {t.missionUi.ended.historyNote}
       </p>
       <button
         type="button"
         onClick={() => {
-          if (window.confirm('¿Empezar una misión nueva? Se borrará el historial actual.')) resetAll();
+          if (window.confirm(t.missionUi.ended.confirmNew)) resetAll();
         }}
         className="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 text-sm font-bold hover:bg-cyan-400 cursor-pointer"
       >
-        Preparar nueva misión
+        {t.missionUi.ended.newMissionBtn}
       </button>
     </div>
   );
@@ -279,6 +292,7 @@ function MissionEnded({ mission, totalXp }: { mission: Mission; totalXp: number 
 /* ------------------------------------------------------------------ */
 
 export function MissionCenter({ preferredProfile }: { preferredProfile?: MissionProfileId } = {}) {
+  const { lang, t } = useT();
   const [today, setToday] = useState<DayKey | null>(null);
   const [tab, setTab] = useState<Tab>('today');
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -315,7 +329,7 @@ export function MissionCenter({ preferredProfile }: { preferredProfile?: Mission
     };
   }, [syncDay]);
 
-  /** Ejecuta una acción y convierte lo ganado en notificaciones. */
+  /** Ejecuta una acción y convierte lo ganado en notificaciones (paylod estructurado reactivo al idioma). */
   const run = useCallback((action: () => void) => {
     const read = () => {
       const s = useMissionStore.getState();
@@ -335,25 +349,37 @@ export function MissionCenter({ preferredProfile }: { preferredProfile?: Mission
 
     const next: Toast[] = [];
     if (after.xp > before.xp) {
-      next.push({ id: ++toastSeq.current, tone: 'xp', text: `+${after.xp - before.xp} XP` });
+      next.push({ id: ++toastSeq.current, tone: 'xp', kind: 'xp', xpAmount: after.xp - before.xp });
     }
     if (after.rank.level > before.rank.level) {
-      next.push({ id: ++toastSeq.current, tone: 'rank', text: `Nuevo rango: ${after.rank.title}` });
+      next.push({ id: ++toastSeq.current, tone: 'rank', kind: 'rank', rankLevel: after.rank.level });
     }
     if (s.mission) {
       for (const a of computeAchievements(s.mission, s.records)) {
         if (a.unlocked && !before.unlocked.has(a.id)) {
-          next.push({ id: ++toastSeq.current, tone: 'achievement', text: `Logro: ${a.title}` });
+          next.push({ id: ++toastSeq.current, tone: 'achievement', kind: 'achievement', achievementId: a.id });
         }
       }
     }
     if (next.length === 0) return;
-    setToasts((t) => [...t, ...next].slice(-4));
-    const ids = new Set(next.map((t) => t.id));
-    setTimeout(() => setToasts((t) => t.filter((x) => !ids.has(x.id))), 3500);
+    setToasts((prev) => [...prev, ...next].slice(-4));
+    const ids = new Set(next.map((item) => item.id));
+    setTimeout(() => setToasts((prev) => prev.filter((x) => !ids.has(x.id))), 3500);
   }, []);
 
-  const achievements = mission ? computeAchievements(mission, records) : [];
+  const achievements = mission ? computeLocalizedAchievements(mission, records, lang) : [];
+
+  const renderToastText = (toast: Toast): string => {
+    if (toast.kind === 'xp') {
+      return `+${formatNumber(toast.xpAmount, lang)} XP`;
+    }
+    if (toast.kind === 'rank') {
+      const baseRank = RANKS.find((r) => r.level === toast.rankLevel) ?? RANKS[0];
+      return `${t.missionUi.toastRankPrefix} ${localizeRank(baseRank, lang).title}`;
+    }
+    const found = achievements.find((a) => a.id === toast.achievementId);
+    return `${t.missionUi.toastAchievementPrefix} ${found ? found.title : toast.achievementId}`;
+  };
 
   return (
     <section
@@ -363,21 +389,21 @@ export function MissionCenter({ preferredProfile }: { preferredProfile?: Mission
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 id="mission-center-title" className="text-lg font-bold text-cyan-400 uppercase tracking-wider">
-            Centro de misión
+            {t.missionUi.title}
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Evaluación diaria, contramedidas y seguimiento del cuerpo a lo largo de la misión.
+            {t.missionUi.subtitle}
           </p>
         </div>
         {mission?.simulatedHistory && (
           <span className="text-[11px] uppercase tracking-wider text-amber-300 border border-amber-500/60 rounded px-2 py-1">
-            Historial simulado · demo
+            {t.missionUi.simulatedDemoBadge}
           </span>
         )}
       </div>
 
       {today === null ? (
-        <p className="text-sm text-slate-500">Cargando misión…</p>
+        <p className="text-sm text-slate-500">{t.missionUi.loading}</p>
       ) : (
         <div className="space-y-6">
           <TodayCountermeasures
@@ -396,22 +422,22 @@ export function MissionCenter({ preferredProfile }: { preferredProfile?: Mission
             <MissionHeader mission={mission} today={today} totalXp={totalXp} />
           )}
 
-          <div role="tablist" aria-label="Secciones del centro de misión" className="flex gap-1 border-b border-slate-800 overflow-x-auto">
-            {TABS.filter((t) => !(mission.endedOn && t.id === 'today')).map((t) => {
-              const Icon = t.icon;
-              const active = tab === t.id || (mission.endedOn && tab === 'today' && t.id === 'calendar');
+          <div role="tablist" aria-label={t.missionUi.tablistAria} className="flex gap-1 border-b border-slate-800 overflow-x-auto">
+            {TAB_DEFS.filter((tabItem) => !(mission.endedOn && tabItem.id === 'today')).map((tabItem) => {
+              const Icon = tabItem.icon;
+              const active = tab === tabItem.id || (mission.endedOn && tab === 'today' && tabItem.id === 'calendar');
               return (
                 <button
-                  key={t.id}
+                  key={tabItem.id}
                   type="button"
                   role="tab"
                   aria-selected={!!active}
-                  onClick={() => setTab(t.id)}
+                  onClick={() => setTab(tabItem.id)}
                   className={`inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold border-b-2 -mb-px whitespace-nowrap cursor-pointer ${
                     active ? 'border-cyan-400 text-cyan-200' : 'border-transparent text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  <Icon className="h-4 w-4" aria-hidden /> {t.label}
+                  <Icon className="h-4 w-4" aria-hidden /> {t.missionUi.tabs[tabItem.id]}
                 </button>
               );
             })}
@@ -435,9 +461,9 @@ export function MissionCenter({ preferredProfile }: { preferredProfile?: Mission
                     }`}
                   >
                     {a.unlocked ? (
-                      <Award className="h-6 w-6 text-amber-400 shrink-0" aria-label="Desbloqueado" />
+                      <Award className="h-6 w-6 text-amber-400 shrink-0" aria-label={t.missionUi.unlockedAria} />
                     ) : (
-                      <Lock className="h-6 w-6 text-slate-600 shrink-0" aria-label="Bloqueado" />
+                      <Lock className="h-6 w-6 text-slate-600 shrink-0" aria-label={t.missionUi.lockedAria} />
                     )}
                     <div>
                       <p className={`text-sm font-bold ${a.unlocked ? 'text-slate-100' : 'text-slate-400'}`}>{a.title}</p>
@@ -454,21 +480,21 @@ export function MissionCenter({ preferredProfile }: { preferredProfile?: Mission
               <button
                 type="button"
                 onClick={() => {
-                  if (window.confirm('¿Finalizar la misión hoy? El historial se conserva.')) abortMission(today);
+                  if (window.confirm(t.missionUi.confirmAbort)) abortMission(today);
                 }}
                 className="text-slate-500 hover:text-amber-300 cursor-pointer"
               >
-                Finalizar misión
+                {t.missionUi.abortBtn}
               </button>
             )}
             <button
               type="button"
               onClick={() => {
-                if (window.confirm('¿Borrar la misión y todo su historial?')) resetAll();
+                if (window.confirm(t.missionUi.confirmReset)) resetAll();
               }}
               className="text-slate-500 hover:text-red-300 cursor-pointer"
             >
-              Borrar datos de misión
+              {t.missionUi.resetBtn}
             </button>
           </div>
         </>
@@ -477,13 +503,13 @@ export function MissionCenter({ preferredProfile }: { preferredProfile?: Mission
       )}
 
       <div aria-live="polite" className="pointer-events-none fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
-        {toasts.map((t) => (
+        {toasts.map((toast) => (
           <div
-            key={t.id}
-            className={`inline-flex items-center gap-2 rounded-lg border bg-slate-950/95 px-3 py-2 text-sm font-semibold shadow-lg shadow-black/40 animate-[toast-in_200ms_ease-out] ${TOAST_STYLE[t.tone]}`}
+            key={toast.id}
+            className={`inline-flex items-center gap-2 rounded-lg border bg-slate-950/95 px-3 py-2 text-sm font-semibold shadow-lg shadow-black/40 animate-[toast-in_200ms_ease-out] ${TOAST_STYLE[toast.tone]}`}
           >
             <Sparkles className="h-4 w-4 shrink-0" aria-hidden />
-            {t.text}
+            {renderToastText(toast)}
           </div>
         ))}
       </div>

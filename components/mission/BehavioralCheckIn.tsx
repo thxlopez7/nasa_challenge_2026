@@ -9,24 +9,17 @@ import { computeBehavioralRiskIndex } from '../../utils/behavioralScoring';
 
 type ScaleKey = 'mood' | 'sleepQuality' | 'fatigue' | 'stress' | 'workload' | 'socialContact';
 
-interface ScaleSpec {
-  key: ScaleKey;
-  label: { es: string; en: string };
-  lowLabel: { es: string; en: string };
-  highLabel: { es: string; en: string };
-}
-
-const SCALES: ScaleSpec[] = [
-  { key: 'mood', label: { es: 'Estado de ánimo', en: 'Mood' }, lowLabel: { es: '1 Muy bajo', en: '1 Very low' }, highLabel: { es: '5 Óptimo', en: '5 Great' } },
-  { key: 'sleepQuality', label: { es: 'Calidad de sueño', en: 'Sleep quality' }, lowLabel: { es: '1 Fragmentado', en: '1 Poor' }, highLabel: { es: '5 Reparador', en: '5 Restorative' } },
-  { key: 'fatigue', label: { es: 'Fatiga física/mental', en: 'Fatigue' }, lowLabel: { es: '1 Descansado', en: '1 Rested' }, highLabel: { es: '5 Agotado', en: '5 Exhausted' } },
-  { key: 'stress', label: { es: 'Estrés percibido', en: 'Perceived stress' }, lowLabel: { es: '1 Calma', en: '1 Calm' }, highLabel: { es: '5 Máximo', en: '5 High' } },
-  { key: 'workload', label: { es: 'Carga de trabajo', en: 'Workload' }, lowLabel: { es: '1 Ligera', en: '1 Light' }, highLabel: { es: '5 Sobrecarga', en: '5 Overloaded' } },
-  { key: 'socialContact', label: { es: 'Contacto social / equipo', en: 'Social connection' }, lowLabel: { es: '1 Aislado', en: '1 Isolated' }, highLabel: { es: '5 Conectado', en: '5 Connected' } },
+const SCALE_KEYS: ScaleKey[] = [
+  'mood',
+  'sleepQuality',
+  'fatigue',
+  'stress',
+  'workload',
+  'socialContact',
 ];
 
 export function BehavioralCheckIn() {
-  const { lang } = useT();
+  const { lang, t } = useT();
   const snapshot = useClinicalSnapshot();
   const submitBehavioralCheckIn = useTelemetryStore((s) => s.submitBehavioralCheckIn);
   const setSharePsychWithAi = useTelemetryStore((s) => s.setSharePsychWithAi);
@@ -54,11 +47,11 @@ export function BehavioralCheckIn() {
   });
   const phq2Total = phq2Anhedonia + phq2Dysphoria;
 
-  const phqOptions: Array<{ value: 0 | 1 | 2 | 3; label: { es: string; en: string } }> = [
-    { value: 0, label: { es: '0 · Nunca', en: '0 · Not at all' } },
-    { value: 1, label: { es: '1 · Varios días', en: '1 · Several days' } },
-    { value: 2, label: { es: '2 · > mitad días', en: '2 · > half days' } },
-    { value: 3, label: { es: '3 · Casi diario', en: '3 · Nearly every day' } },
+  const phqOptions: Array<{ value: 0 | 1 | 2 | 3; label: string }> = [
+    { value: 0, label: t.behavioral.phqOptions.o0 },
+    { value: 1, label: t.behavioral.phqOptions.o1 },
+    { value: 2, label: t.behavioral.phqOptions.o2 },
+    { value: 3, label: t.behavioral.phqOptions.o3 },
   ];
 
   const handleSubmit = () => {
@@ -74,6 +67,8 @@ export function BehavioralCheckIn() {
     setSavedAt(nowIso);
   };
 
+  void lang;
+
   return (
     <section
       aria-labelledby="behavioral-checkin-title"
@@ -82,17 +77,17 @@ export function BehavioralCheckIn() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-[11px] uppercase tracking-widest text-cyan-400">
-            {lang === 'es' ? 'RIESGO NASA: AISLAMIENTO Y CONFINAMIENTO' : 'NASA RISK: ISOLATION & CONFINEMENT'}
+            {t.behavioral.eyebrow}
           </p>
           <h2 id="behavioral-checkin-title" className="text-lg font-bold text-slate-100 uppercase tracking-wider flex items-center gap-2 mt-0.5">
             <Brain className="h-5 w-5 text-cyan-400" aria-hidden />
-            <span>{lang === 'es' ? 'Check-in Conductual Diario y PHQ-2' : 'Daily Behavioral & PHQ-2 Check-In'}</span>
+            <span>{t.behavioral.title}</span>
           </h2>
         </div>
 
         <div className="bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-right">
           <p className="text-[10px] uppercase text-slate-400">
-            {lang === 'es' ? 'Índice conductual' : 'Behavioral risk index'}
+            {t.behavioral.riskIndexLabel}
           </p>
           <p
             className={`text-xl font-bold tabular-nums ${
@@ -106,57 +101,58 @@ export function BehavioralCheckIn() {
 
       {/* 6 escalas rápidas (1–5) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {SCALES.map((s) => (
-          <div key={s.key} className="bg-slate-950/60 border border-slate-800 rounded-lg p-3.5 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-slate-200">{s.label[lang]}</span>
-              <span className="text-[11px] text-slate-400">
-                {s.lowLabel[lang]} ↔ {s.highLabel[lang]}
-              </span>
+        {SCALE_KEYS.map((key) => {
+          const spec = t.behavioral.scales[key];
+          return (
+            <div key={key} className="bg-slate-950/60 border border-slate-800 rounded-lg p-3.5 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-200">{spec.label}</span>
+                <span className="text-[11px] text-slate-400">
+                  {spec.low} ↔ {spec.high}
+                </span>
+              </div>
+              <div role="group" aria-label={spec.label} className="grid grid-cols-5 gap-2">
+                {[1, 2, 3, 4, 5].map((n) => {
+                  const active = scores[key] === n;
+                  return (
+                    <button
+                      key={n}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setScores((prev) => ({ ...prev, [key]: n }))}
+                      className={`min-h-[44px] rounded-lg border font-bold text-sm cursor-pointer transition ${
+                        active
+                          ? 'border-cyan-400 bg-cyan-500/25 text-cyan-100'
+                          : 'border-slate-700 bg-slate-900 text-slate-400 hover:text-slate-100'
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div role="group" aria-label={s.label[lang]} className="grid grid-cols-5 gap-2">
-              {[1, 2, 3, 4, 5].map((n) => {
-                const active = scores[s.key] === n;
-                return (
-                  <button
-                    key={n}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => setScores((prev) => ({ ...prev, [s.key]: n }))}
-                    className={`min-h-[44px] rounded-lg border font-bold text-sm cursor-pointer transition ${
-                      active
-                        ? 'border-cyan-400 bg-cyan-500/25 text-cyan-100'
-                        : 'border-slate-700 bg-slate-900 text-slate-400 hover:text-slate-100'
-                    }`}
-                  >
-                    {n}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Tamizaje PHQ-2 */}
       <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-4 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs font-bold uppercase text-cyan-300">
-            {lang === 'es' ? 'Tamizaje breve PHQ-2 (últimas 2 semanas)' : 'Brief PHQ-2 Screen (past 2 weeks)'}
+            {t.behavioral.phqTitle}
           </p>
           <span
             className={`text-xs font-bold px-2.5 py-0.5 rounded ${
               phq2Total >= 3 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-slate-800 text-slate-300'
             }`}
           >
-            PHQ-2: {phq2Total}/6 {phq2Total >= 3 ? (lang === 'es' ? '· Sugiere apoyo médico' : '· Suggests surgeon check') : ''}
+            PHQ-2: {phq2Total}/6 {phq2Total >= 3 ? `· ${t.behavioral.phqSuggests}` : ''}
           </span>
         </div>
 
         <div className="space-y-2">
-          <p className="text-xs text-slate-200">
-            1. {lang === 'es' ? 'Poco interés o placer en hacer las cosas:' : 'Little interest or pleasure in doing things:'}
-          </p>
+          <p className="text-xs text-slate-200">{t.behavioral.phqQ1}</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {phqOptions.map((opt) => (
               <button
@@ -170,16 +166,14 @@ export function BehavioralCheckIn() {
                     : 'border-slate-700 bg-slate-900 text-slate-400 hover:text-slate-100'
                 }`}
               >
-                {opt.label[lang]}
+                {opt.label}
               </button>
             ))}
           </div>
         </div>
 
         <div className="space-y-2">
-          <p className="text-xs text-slate-200">
-            2. {lang === 'es' ? 'Sentirse desanimado, deprimido o sin esperanza:' : 'Feeling down, depressed, or hopeless:'}
-          </p>
+          <p className="text-xs text-slate-200">{t.behavioral.phqQ2}</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {phqOptions.map((opt) => (
               <button
@@ -193,7 +187,7 @@ export function BehavioralCheckIn() {
                     : 'border-slate-700 bg-slate-900 text-slate-400 hover:text-slate-100'
                 }`}
               >
-                {opt.label[lang]}
+                {opt.label}
               </button>
             ))}
           </div>
@@ -212,13 +206,9 @@ export function BehavioralCheckIn() {
                 : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500'
             }`}
           >
-            <span>
-              {lang === 'es'
-                ? 'Marcar si presentas pensamientos de hacerte daño o angustia aguda hoy'
-                : 'Flag if experiencing thoughts of self-harm or acute psychological crisis today'}
-            </span>
+            <span>{t.behavioral.selfHarmToggle}</span>
             <span className="uppercase font-bold shrink-0">
-              {selfHarmFlag ? (lang === 'es' ? 'Activado' : 'Flagged') : lang === 'es' ? 'No' : 'No'}
+              {selfHarmFlag ? t.behavioral.flaggedYes : t.behavioral.flaggedNo}
             </span>
           </button>
 
@@ -229,28 +219,12 @@ export function BehavioralCheckIn() {
             >
               <p className="font-bold flex items-center gap-2 text-sm text-rose-200">
                 <ShieldAlert className="h-5 w-5 shrink-0" aria-hidden />
-                <span>
-                  {lang === 'es'
-                    ? 'Protocolo inmediato de apoyo y cuidado prioritario'
-                    : 'Immediate Supportive Care & Priority Protocol'}
-                </span>
+                <span>{t.behavioral.protocolTitle}</span>
               </p>
               <ol className="list-decimal list-inside space-y-1">
-                <li>
-                  {lang === 'es'
-                    ? 'No permanezcas solo: avisa al comandante o compañero asignado para acompañamiento cercano.'
-                    : 'Do not isolate yourself: notify your crewmate buddy or commander for immediate support.'}
-                </li>
-                <li>
-                  {lang === 'es'
-                    ? 'Solicita comunicación prioritaria confidencial con el Cirujano de Vuelo / equipo de salud conductual.'
-                    : 'Initiate priority confidential contact with the Flight Surgeon / behavioral health team.'}
-                </li>
-                <li>
-                  {lang === 'es'
-                    ? 'Pausa tareas operativas críticas o EVA y realiza respiración lenta (4 s inhalar · 6 s exhalar).'
-                    : 'Stand down from critical tasks / EVA and use paced breathing (4s inhale · 6s exhale).'}
-                </li>
+                <li>{t.behavioral.protocolSteps.s1}</li>
+                <li>{t.behavioral.protocolSteps.s2}</li>
+                <li>{t.behavioral.protocolSteps.s3}</li>
               </ol>
             </div>
           )}
@@ -276,13 +250,7 @@ export function BehavioralCheckIn() {
             <Lock className="h-4 w-4 text-emerald-400 shrink-0" aria-hidden />
           )}
           <span>
-            {shareWithAi
-              ? lang === 'es'
-                ? 'Compartir este check-in conductual con el asistente de IA (Activado)'
-                : 'Share behavioral check-in summary with AI Assistant (Enabled)'
-              : lang === 'es'
-                ? 'Privacidad activa: check-in conductual NO enviado al asistente de IA (Solo local)'
-                : 'Privacy active: behavioral check-in kept OFF AI prompts (Local only)'}
+            {shareWithAi ? t.behavioral.privacyShared : t.behavioral.privacyLocalOnly}
           </span>
         </button>
 
@@ -291,14 +259,14 @@ export function BehavioralCheckIn() {
           onClick={handleSubmit}
           className="min-h-[48px] px-6 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-sm uppercase tracking-wider cursor-pointer transition"
         >
-          {lang === 'es' ? 'Guardar check-in diario' : 'Save daily check-in'}
+          {t.behavioral.saveBtn}
         </button>
       </div>
 
       {savedAt && (
         <p role="status" className="inline-flex items-center gap-2 text-xs text-emerald-300 font-semibold">
           <CheckCircle2 className="h-4 w-4" aria-hidden />
-          {lang === 'es' ? 'Check-in conductual guardado localmente.' : 'Behavioral check-in saved locally.'}
+          {t.behavioral.savedNotice}
         </p>
       )}
     </section>

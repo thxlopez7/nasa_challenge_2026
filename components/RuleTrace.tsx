@@ -13,23 +13,29 @@ import {
   X,
 } from 'lucide-react';
 import type { CriterionTrace, RuleEvaluationTrace } from '../config/rules';
+import type { SupportedLang } from '../config/missionComms';
 import { useT } from '../i18n/I18nContext';
+import { formatDecimal } from '../utils/formatters';
 
-function formatCriterionValue(c: CriterionTrace, missingLabel: string): string {
+function formatCriterionValue(
+  c: CriterionTrace,
+  missingLabel: string,
+  lang: SupportedLang
+): string {
   if (c.missing || c.actualValue === null) return missingLabel;
   if (!Number.isFinite(c.actualValue)) return '∞';
-  return `${c.actualValue.toFixed(c.decimals)} ${c.unit}`.trim();
+  return `${formatDecimal(c.actualValue, c.decimals, lang)} ${c.unit}`.trim();
 }
 
-function formatThreshold(c: CriterionTrace): string {
+function formatThreshold(c: CriterionTrace, lang: SupportedLang): string {
   const num = Number.isInteger(c.threshold)
     ? String(c.threshold)
-    : c.threshold.toFixed(Math.min(c.decimals, 2));
+    : formatDecimal(c.threshold, Math.min(c.decimals, 2), lang);
   return `${c.operator} ${num} ${c.unit}`.trim();
 }
 
 export function RuleTrace({ traces }: { traces: RuleEvaluationTrace[] }) {
-  const { lang } = useT();
+  const { t, lang } = useT();
   const [expandedRuleId, setExpandedRuleId] = useState<string | null>(null);
   const [activeTabByRule, setActiveTabByRule] = useState<
     Record<string, 'criteria' | 'evidence'>
@@ -43,46 +49,7 @@ export function RuleTrace({ traces }: { traces: RuleEvaluationTrace[] }) {
     setActiveTabByRule((prev) => ({ ...prev, [ruleId]: tab }));
   };
 
-  const labels =
-    lang === 'es'
-      ? {
-          why: '¿Por qué?',
-          hide: 'Ocultar',
-          criteriaTab: 'Criterios actuales',
-          evidenceTab: 'Evidencia y limitaciones',
-          active: 'ACTIVA',
-          critical: 'CRÍTICA',
-          nominal: 'NOMINAL',
-          partial: 'FALTAN DATOS',
-          missingVal: 'Sin lectura',
-          andTag: 'Obligatorio',
-          orTag: 'Opcional (OR)',
-          rationaleTitle: 'Fundamento fisiológico',
-          limitationsTitle: 'Limitaciones y diagnóstico diferencial',
-          actionTitle: 'Qué hacer / Escalamiento',
-          sourceTitle: 'Fuente y estado de verificación',
-          verified: 'Criterio estándar verificado',
-          unverified: 'Umbral compuesto de prototipo',
-        }
-      : {
-          why: 'Why?',
-          hide: 'Hide',
-          criteriaTab: 'Live Criteria',
-          evidenceTab: 'Evidence & Limitations',
-          active: 'ACTIVE',
-          critical: 'CRITICAL',
-          nominal: 'NOMINAL',
-          partial: 'MISSING DATA',
-          missingVal: 'Not captured',
-          andTag: 'Required (AND)',
-          orTag: 'Alternative (OR)',
-          rationaleTitle: 'Physiological Rationale',
-          limitationsTitle: 'Limitations & Differential Diagnosis',
-          actionTitle: 'Recommended Action & Escalation',
-          sourceTitle: 'Source & Verification Status',
-          verified: 'Standard clinical reference',
-          unverified: 'Prototype composite threshold',
-        };
+  const labels = t.rulesUi;
 
   return (
     <div className="space-y-3">
@@ -205,12 +172,12 @@ export function RuleTrace({ traces }: { traces: RuleEvaluationTrace[] }) {
                       ) : c.passed ? (
                         <Check
                           className="w-4 h-4 text-emerald-400 shrink-0"
-                          aria-label="PASS"
+                          aria-label={labels.active}
                         />
                       ) : (
                         <X
                           className="w-4 h-4 text-slate-400 shrink-0"
-                          aria-label="FAIL"
+                          aria-label={labels.nominal}
                         />
                       );
 
@@ -252,11 +219,11 @@ export function RuleTrace({ traces }: { traces: RuleEvaluationTrace[] }) {
                                   : 'text-slate-200'
                               }
                             >
-                              {formatCriterionValue(c, labels.missingVal)}
+                              {formatCriterionValue(c, labels.missingVal, lang)}
                             </span>
                             <span className="text-slate-500">|</span>
                             <span className="text-slate-400">
-                              {formatThreshold(c)}
+                              {formatThreshold(c, lang)}
                             </span>
                           </div>
                         </li>

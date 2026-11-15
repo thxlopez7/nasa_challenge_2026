@@ -25,7 +25,7 @@ export function SbarReportModal({
   onClose: () => void;
   mision?: MissionSlug;
 }) {
-  const { lang } = useT();
+  const { t, lang } = useT();
   const snapshot = useClinicalSnapshot(mision);
   const enqueuePacket = useOutboxStore((s) => s.enqueuePacket);
   const [includePsychInExport, setIncludePsychInExport] = useState(false);
@@ -59,6 +59,7 @@ export function SbarReportModal({
 
   const sbarPayload = {
     schema: 'exovitals.sbar.v1',
+    locale: lang,
     missionProfileId: snapshot.missionProfileId,
     oneWayLatencySec: snapshot.comms.oneWayLatencyNominalSec,
     escalationLevel: triage.escalationLevel,
@@ -107,10 +108,7 @@ export function SbarReportModal({
 
     enqueuePacket({
       kind: 'SBAR_REPORT',
-      title:
-        lang === 'es'
-          ? `SBAR Clínico · ${triage.escalationLevel.toUpperCase()}`
-          : `Clinical SBAR · ${triage.escalationLevel.toUpperCase()}`,
+      title: `SBAR · ${triage.escalationLevel.toUpperCase()}`,
       missionProfileId: snapshot.missionProfileId,
       priority,
       payload: sbarPayload,
@@ -126,7 +124,7 @@ export function SbarReportModal({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `exovitals-sbar-${snapshot.missionProfileId.toLowerCase()}.json`;
+    link.download = `exovitals-sbar-${snapshot.missionProfileId.toLowerCase()}-${lang}.json`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -136,37 +134,6 @@ export function SbarReportModal({
   const handlePrint = () => {
     window.print();
   };
-
-  const copy =
-    lang === 'es'
-      ? {
-          title: 'Reporte Médico SBAR (1 Página · Tierra–Nave)',
-          subtitle: 'Formato estandarizado para Cirujano de Vuelo en enlaces interplanetarios con retardo.',
-          s: 'S · Situación',
-          b: 'B · Antecedentes y Telemetría',
-          a: 'A · Evaluación Determinista a Bordo',
-          r: 'R · Recomendación y Acciones',
-          psychToggle: 'Incluir puntaje conductual privado en este SBAR',
-          queueBtn: 'Encolar en Outbox a Tierra',
-          queuedOk: 'Encolado en Outbox IndexedDB',
-          jsonBtn: 'Descargar JSON',
-          printBtn: 'Imprimir / PDF (1 pág.)',
-          close: 'Cerrar',
-        }
-      : {
-          title: '1-Page Medical SBAR Handover (Space–Ground)',
-          subtitle: 'Standardized handover packet for Ground Flight Surgeon across high-latency links.',
-          s: 'S · Situation',
-          b: 'B · Background & Telemetry',
-          a: 'A · Onboard Deterministic Assessment',
-          r: 'R · Recommendation & Actions',
-          psychToggle: 'Include private behavioral score in this SBAR export',
-          queueBtn: 'Queue to Earth Outbox',
-          queuedOk: 'Queued in IndexedDB Outbox',
-          jsonBtn: 'Download JSON',
-          printBtn: 'Print / PDF (1 Page)',
-          close: 'Close',
-        };
 
   return (
     <div
@@ -183,16 +150,19 @@ export function SbarReportModal({
               className="text-lg font-bold text-cyan-300 flex items-center gap-2 print:text-black"
             >
               <FileText className="w-5 h-5" aria-hidden="true" />
-              <span>{copy.title}</span>
+              <span>{t.sbar.title}</span>
             </h2>
             <p className="text-xs text-slate-400 mt-1 print:text-slate-700">
-              {copy.subtitle}
+              {t.sbar.subtitle}
             </p>
+            <span className="inline-block mt-2 px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-mono text-cyan-200">
+              {t.sbar.localeBadge}
+            </span>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label={copy.close}
+            aria-label={t.sbar.close}
             className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 cursor-pointer print:hidden"
           >
             <X className="w-5 h-5" aria-hidden="true" />
@@ -202,7 +172,7 @@ export function SbarReportModal({
         <div className="space-y-3 text-xs">
           <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-3.5 print:border-slate-300 print:bg-slate-50">
             <p className="font-bold text-cyan-300 uppercase tracking-wider text-[11px] print:text-black">
-              {copy.s}
+              {t.sbar.s}
             </p>
             <p className="mt-1 text-slate-100 leading-relaxed print:text-black">
               {triage.sbarSummary.situation}
@@ -211,7 +181,7 @@ export function SbarReportModal({
 
           <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-3.5 print:border-slate-300 print:bg-slate-50">
             <p className="font-bold text-cyan-300 uppercase tracking-wider text-[11px] print:text-black">
-              {copy.b}
+              {t.sbar.b}
             </p>
             <p className="mt-1 text-slate-200 font-mono leading-relaxed print:text-black">
               {triage.sbarSummary.background}
@@ -220,7 +190,7 @@ export function SbarReportModal({
 
           <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-3.5 print:border-slate-300 print:bg-slate-50">
             <p className="font-bold text-cyan-300 uppercase tracking-wider text-[11px] print:text-black">
-              {copy.a}
+              {t.sbar.a}
             </p>
             <p className="mt-1 text-slate-100 leading-relaxed print:text-black">
               {triage.sbarSummary.assessment}
@@ -229,7 +199,7 @@ export function SbarReportModal({
 
           <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-3.5 print:border-slate-300 print:bg-slate-50">
             <p className="font-bold text-cyan-300 uppercase tracking-wider text-[11px] print:text-black">
-              {copy.r}
+              {t.sbar.r}
             </p>
             <p className="mt-1 text-slate-100 leading-relaxed print:text-black">
               {triage.sbarSummary.recommendation}
@@ -246,7 +216,7 @@ export function SbarReportModal({
             className="w-4 h-4 rounded accent-cyan-500"
           />
           <Shield className="w-4 h-4 text-slate-400 shrink-0" aria-hidden="true" />
-          <span>{copy.psychToggle}</span>
+          <span>{t.sbar.psychToggle}</span>
         </label>
 
         <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-800 print:hidden">
@@ -260,7 +230,7 @@ export function SbarReportModal({
             ) : (
               <Send className="w-4 h-4" aria-hidden="true" />
             )}
-            <span>{queuedNotice ? copy.queuedOk : copy.queueBtn}</span>
+            <span>{queuedNotice ? t.sbar.queuedOk : t.sbar.queueBtn}</span>
           </button>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -270,7 +240,7 @@ export function SbarReportModal({
               className="inline-flex items-center gap-1.5 min-h-[44px] px-3.5 py-2 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs font-semibold cursor-pointer"
             >
               <Download className="w-4 h-4 text-cyan-400" aria-hidden="true" />
-              <span>{copy.jsonBtn}</span>
+              <span>{t.sbar.jsonBtn}</span>
             </button>
             <button
               type="button"
@@ -278,7 +248,7 @@ export function SbarReportModal({
               className="inline-flex items-center gap-1.5 min-h-[44px] px-3.5 py-2 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs font-semibold cursor-pointer"
             >
               <Printer className="w-4 h-4 text-emerald-400" aria-hidden="true" />
-              <span>{copy.printBtn}</span>
+              <span>{t.sbar.printBtn}</span>
             </button>
           </div>
         </div>

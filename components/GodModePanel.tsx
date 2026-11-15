@@ -56,7 +56,7 @@ const SCENARIO_ORDER: SimulationScenario[] = [
 ];
 
 export function GodModePanel() {
-  const { t, lang } = useT();
+  const { t } = useT();
   const simulateScenario = useTelemetryStore((s) => s.simulateScenario);
   const triggerCodeRed = useTelemetryStore((s) => s.triggerCodeRed);
   const simulateOffline = useTelemetryStore((s) => Boolean(s.simulateOffline));
@@ -114,13 +114,9 @@ export function GodModePanel() {
             ) : (
               <Wifi className="h-4 w-4 text-emerald-400" aria-hidden />
             )}
-            {lang === 'es'
-              ? simulateOffline
-                ? 'Enlace caído (Simulado)'
-                : 'Simular pérdida de enlace'
-              : simulateOffline
-                ? 'Link Loss Active'
-                : 'Simulate Link Loss'}
+            {simulateOffline
+              ? t.godModeExtra.linkLossActive
+              : t.godModeExtra.linkLossIdle}
           </button>
 
           <button
