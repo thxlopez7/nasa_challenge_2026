@@ -121,6 +121,7 @@ export function NextActionBanner({
       <button
         type="button"
         onClick={handleAction}
+        data-ev-press
         className={`min-h-[44px] shrink-0 inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold cursor-pointer transition shadow-[0_0_0_1px_rgba(255,255,255,0.08)] ${style.cta}`}
       >
         <span>{recommendation.ctaLabel}</span>

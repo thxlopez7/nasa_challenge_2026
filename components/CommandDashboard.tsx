@@ -70,7 +70,7 @@ function TrackingSection({
   return (
     <details
       open={defaultOpen}
-      className="group rounded-xl border border-[var(--cc-line)] bg-[var(--cc-panel)]/60 [&_summary::-webkit-details-marker]:hidden"
+      className="ev-glass ev-corners group rounded-xl [&_summary::-webkit-details-marker]:hidden"
     >
       <summary className="flex min-h-[52px] cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-base font-semibold text-slate-100 hover:bg-white/[0.03] rounded-xl">
         <span>{title}</span>

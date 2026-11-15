@@ -183,6 +183,7 @@ export function OutboxPanel({ mision }: { mision?: MissionSlug }) {
           <button
             type="button"
             onClick={() => setSbarOpen(true)}
+            data-ev-press
             className="inline-flex items-center gap-2 min-h-[44px] px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition-colors cursor-pointer"
           >
             <FileText className="w-4 h-4" aria-hidden="true" />
@@ -192,6 +193,7 @@ export function OutboxPanel({ mision }: { mision?: MissionSlug }) {
           <button
             type="button"
             onClick={handleQueueTelemetry}
+            data-ev-press
             className="inline-flex items-center gap-1.5 min-h-[44px] px-3.5 py-2 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs font-semibold cursor-pointer"
           >
             <Send className="w-4 h-4 text-cyan-400" aria-hidden="true" />

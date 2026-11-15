@@ -20,11 +20,11 @@ const LEVEL_STYLE: Record<
   { ring: string; glow: string; icon: LucideIcon; iconCls: string; title: string }
 > = {
   nominal: {
-    ring: 'border-emerald-400/30',
-    glow: 'from-emerald-500/15',
+    ring: 'border-ev-cyan/30',
+    glow: 'from-ev-cyan/15',
     icon: CheckCircle2,
-    iconCls: 'text-emerald-300 bg-emerald-500/10 ring-emerald-400/40',
-    title: 'text-emerald-100',
+    iconCls: 'text-ev-cyan bg-ev-cyan/10 ring-ev-cyan/40',
+    title: 'text-white',
   },
   watch: {
     ring: 'border-amber-400/30',
@@ -50,7 +50,7 @@ const LEVEL_STYLE: Record<
 };
 
 const DOT: Record<TileStatus, string> = {
-  green: 'bg-emerald-400',
+  green: 'bg-ev-cyan',
   amber: 'bg-amber-400',
   red: 'bg-red-500',
   missing: 'bg-slate-500',
@@ -110,7 +110,7 @@ export function StatusHero({
   return (
     <section
       aria-labelledby="status-hero-title"
-      className={`relative overflow-hidden rounded-2xl border ${style.ring} bg-[var(--cc-panel)]`}
+      className={`ev-corners relative overflow-hidden rounded-2xl border ${style.ring} bg-[var(--cc-panel)]`}
     >
       <div
         aria-hidden

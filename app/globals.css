@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* EXOVITALS: la app es siempre oscura (ev-base). */
+  --background: #0B132B;
+  --foreground: #ffffff;
 }
 
 @theme inline {
@@ -79,12 +80,6 @@
   --animate-ev-press: ev-press 0.5s ease-out;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
 
 @keyframes toast-in {
   from {
@@ -371,26 +366,14 @@ em, i, .italic {
     radial-gradient(900px 400px at 100% 0%, rgba(59, 130, 246, 0.06), transparent 60%),
     var(--cc-bg);
   color: var(--cc-text);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
-  font-weight: 400;
-  letter-spacing: 0;
 }
 
-/* Legibilidad: dentro del panel, nada por debajo de 12 px ni en peso fino. */
-.cc .text-xs, .cc .text-sm, .cc .text-\[9px\], .cc .text-\[10px\],
-.cc .text-\[11px\], .cc .text-\[12px\] {
-  font-weight: 400;
-}
+/* Legibilidad: dentro del panel, nada por debajo de 12 px. La tipografía
+   (Roboto Condensed y sus pesos) es la del sistema EXOVITALS. */
 .cc .text-\[9px\], .cc .text-\[10px\], .cc .text-\[11px\] {
   font-size: 12px;
   line-height: 1.35;
 }
-.cc h1, .cc h2, .cc h3, .cc h4, .cc strong, .cc b,
-.cc .font-bold, .cc .font-black, .cc .font-semibold {
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
-  font-weight: 650;
-}
-.cc .font-black { font-weight: 750; }
 .cc .tracking-wider { letter-spacing: 0.06em; }
 .cc .text-slate-400 { color: var(--cc-muted); }
 .cc .text-slate-500 { color: #7d8ca1; }
@@ -420,10 +403,6 @@ em, i, .italic {
   font-family: var(--font-geist-mono), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
-}
-/* Mono solo para cifras: el texto corrido heredado en mono pasa a sans. */
-.cc .font-mono:not(.tabular-nums):not(.cc-num) {
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
 /* ---------------- Sistema de diseño EXOVITALS: efectos ---------------- */

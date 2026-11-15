@@ -22,6 +22,13 @@ import {
   useCommandUiStore,
 } from '../../store/useCommandUiStore';
 import type { SystemTileData, TileStatus } from '../../utils/nextAction';
+import { StatusBadge, type EvStatus } from '../ui/StatusBadge';
+
+const EV_STATUS: Partial<Record<TileStatus, EvStatus>> = {
+  green: 'nominal',
+  amber: 'caution',
+  red: 'critical',
+};
 
 const SYSTEM_ICON: Record<CommandSystemId, LucideIcon> = {
   cardio: Activity,
@@ -39,22 +46,22 @@ const TILE_STYLE: Record<
   { border: string; badge: string; StatusIcon: LucideIcon; labelClass: string; bar: string }
 > = {
   green: {
-    bar: 'bg-emerald-400/70',
-    border: 'border-[var(--cc-line)] hover:border-emerald-400/50 bg-[var(--cc-panel)]',
+    bar: 'bg-ev-cyan/70',
+    border: 'ev-glass hover:border-ev-cyan/50',
     badge: 'bg-emerald-500/15 text-emerald-200 border border-emerald-500/40',
     StatusIcon: CheckCircle2,
-    labelClass: 'text-emerald-300',
+    labelClass: 'text-ev-cyan',
   },
   amber: {
-    bar: 'bg-amber-400',
-    border: 'border-amber-400/35 hover:border-amber-300/70 bg-[var(--cc-panel)]',
+    bar: 'bg-ev-amber',
+    border: 'border-ev-amber/40 hover:border-ev-amber/80 bg-[var(--cc-panel)]',
     badge: 'bg-amber-500/20 text-amber-200 border border-amber-500/50',
     StatusIcon: AlertTriangle,
     labelClass: 'text-amber-300',
   },
   red: {
-    bar: 'bg-red-500',
-    border: 'border-red-500/70 hover:border-red-400 bg-red-950/30',
+    bar: 'bg-ev-red',
+    border: 'border-ev-red/70 hover:border-ev-red bg-ev-red/10',
     badge: 'bg-red-500/25 text-red-100 border border-red-400/60',
     StatusIcon: AlertOctagon,
     labelClass: 'text-red-300',
@@ -90,7 +97,7 @@ export function SystemMosaic({ tiles }: { tiles: SystemTileData[] }) {
           return (
             <div
               key={tile.id}
-              className={`group relative overflow-hidden rounded-xl border p-3 sm:p-4 pt-3.5 sm:pt-[18px] transition flex flex-col justify-between gap-2.5 sm:gap-3 ${style.border}`}
+              className={`ev-corners group relative overflow-hidden rounded-xl border p-3 sm:p-4 pt-3.5 sm:pt-[18px] transition flex flex-col justify-between gap-2.5 sm:gap-3 ${style.border}`}
             >
               <span aria-hidden className={`absolute inset-x-0 top-0 h-[3px] ${style.bar}`} />
               <div className="flex items-start justify-between gap-1">
@@ -127,12 +134,16 @@ export function SystemMosaic({ tiles }: { tiles: SystemTileData[] }) {
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-1.5 text-xs border-t border-[var(--cc-line)] pt-2">
-                <span
-                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold ${style.badge}`}
-                >
-                  <StatusIcon className="h-3 w-3 shrink-0" aria-hidden />
-                  <span>{statusWord}</span>
-                </span>
+                {EV_STATUS[tile.status] ? (
+                  <StatusBadge status={EV_STATUS[tile.status]!} label={statusWord} size="sm" />
+                ) : (
+                  <span
+                    className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-mono uppercase tracking-[0.14em] ${style.badge}`}
+                  >
+                    <StatusIcon className="h-3 w-3 shrink-0" aria-hidden />
+                    <span>{statusWord}</span>
+                  </span>
+                )}
 
                 <span className="text-slate-400 truncate tabular-nums max-w-full">
                   {tile.isStale && tile.status !== 'missing'

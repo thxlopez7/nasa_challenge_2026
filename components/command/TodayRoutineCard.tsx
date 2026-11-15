@@ -124,7 +124,7 @@ export function TodayRoutineCard({ mision }: { mision?: MissionSlug }) {
   return (
     <section
       aria-labelledby="today-routine-title"
-      className="rounded-xl border border-slate-800 bg-slate-900/90 px-3.5 py-2.5 space-y-2"
+      className="ev-glass ev-corners rounded-xl px-3.5 py-2.5 space-y-2"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2 min-w-0">

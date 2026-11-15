@@ -485,6 +485,7 @@ export function QuickMeasurementPanel({
             <button
               type="button"
               onClick={handleSave}
+              data-ev-press
               className="min-h-[48px] px-6 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-sm uppercase tracking-wider cursor-pointer transition"
             >
               {t.quickMeasure.saveSpotBtn}
@@ -615,6 +616,7 @@ export function QuickMeasurementPanel({
             <button
               type="button"
               onClick={handleSaveCartridge}
+              data-ev-press
               className="min-h-[48px] px-6 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm uppercase tracking-wider cursor-pointer transition"
             >
               {t.quickMeasure.logPocBtn}

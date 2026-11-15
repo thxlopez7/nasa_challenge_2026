@@ -290,6 +290,7 @@ export function BehavioralCheckIn() {
         <button
           type="button"
           onClick={handleSubmit}
+          data-ev-press
           className="min-h-[48px] px-6 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-sm uppercase tracking-wider cursor-pointer transition"
         >
           {t.behavioral.saveBtn}

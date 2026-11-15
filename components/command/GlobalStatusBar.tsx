@@ -20,7 +20,7 @@ import { missionDayOf, toDayKey } from '../../utils/missionPlan';
 import { deriveOverallLevel, type SystemTileData } from '../../utils/nextAction';
 
 const STATUS_STYLE: Record<AlertSeverity, string> = {
-  OPTIMAL: 'border-emerald-500/50 bg-emerald-500/10 text-emerald-200',
+  OPTIMAL: 'border-ev-cyan/50 bg-ev-cyan/10 text-ev-cyan',
   WARNING: 'border-amber-500/70 bg-amber-500/15 text-amber-200',
   CRITICAL: 'border-red-500 bg-red-500/20 text-red-100',
 };
@@ -80,7 +80,7 @@ export function GlobalStatusBar({
   return (
     <header
       aria-label={t.nav.sectionCommand}
-      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-slate-900 px-3 py-2"
+      className="ev-glass flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-slate-900 px-3 py-2"
     >
       <div className="flex flex-wrap items-center gap-2 min-w-0">
         {/* Global Status Pill: Icon + Word + Color */}
