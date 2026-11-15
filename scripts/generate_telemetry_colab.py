@@ -1,18 +1,17 @@
 """
-ExoVitals — Generador Científico de Telemetría Clínica (1 Hz · 120 segundos)
-=============================================================================
+ExoVitals — Generador Híbrido de Telemetría Clínica (1 Hz + Cartuchos POC / Spot)
+=================================================================================
 Script diseñado para Google Colab (y ejecutable localmente en Python 3) que
-simula la evolución fisiológica y ambiental de un astronauta a 1 Hz (120 ticks)
-para alimentar `public/data/scenario_ridge_critical.json`.
+genera `public/data/scenario_ridge_critical.json` (120 frames):
 
-Fases clínicas simuladas (alineadas con `types/telemetry.ts` y `utils/clinicalEngine.ts`):
-  1. Ticks  0–29 : Baseline nominal en microgravedad (0 alertas).
-  2. Ticks 30–59 : Deriva renal oculta en 0G (`cistatinaC > 1.15`, `calcioIonico > 1.25`,
-                   mientras `creatinina <= 1.1` permanece enmascarada por sarcopenia).
-  3. Ticks 60–89 : Tormenta de partículas solares / SPE (`radiationRate > 50 µSv/h`,
-                   `linfocitos < 1000 cél/µL`, `NLR > 3.0`, estrés con `cortisol > 18 ng/mL`).
-  4. Ticks 90–119: Saturación del depurador ECLSS / Bolsillo de CO2 (`co2Level > 3500 ppm`
-                   con `spO2 >= 96%` conservada, taquicardia compensatoria).
+- Sensores continuos a 1 Hz (`heartRate`, `spO2`, `hrvRmssdMs`, `co2Level`,
+  `radiationRate`, `radiationAccumulated`): fluctúan segundo a segundo.
+- Determinaciones por Cartucho Point-of-Care (POC) y Medición Rápida Spot
+  (`cistatinaC`, `creatinina`, `calcioIonico`, `linfocitos`, `neutrofilos`,
+  `cortisol`, `ctxNtxIndex`, `p1npIndex`, `aredLoadPct`, `systolicMmHg`,
+  `diastolicMmHg`, `glucoseMgDl`, `glucoseContext`, `bodyTempC`,
+  `orthostaticDeltaHr`, `orthostaticDeltaSys`): operan en 4 escalones discretos
+  (Sample & Hold cada 30 ticks) sin oscilación irreal segundo a segundo.
 """
 
 from __future__ import annotations
@@ -21,6 +20,7 @@ import json
 import math
 import random
 from pathlib import Path
+from typing import Any
 
 try:
     import numpy as np  # type: ignore[import-not-found]
@@ -34,6 +34,85 @@ SEED = 2026
 TOTAL_TICKS = 120
 OUTPUT_FILENAME = "scenario_ridge_critical.json"
 
+POC_BATCHES: list[dict[str, float | int | str]] = [
+    # Lote 1 (Ticks 0–29 · Control Basal Nominal)
+    {
+        "cistatinaC": 0.82,
+        "creatinina": 1.06,
+        "calcioIonico": 1.12,
+        "linfocitos": 1480,
+        "neutrofilos": 3020,
+        "cortisol": 10.4,
+        "systolicMmHg": 118,
+        "diastolicMmHg": 76,
+        "glucoseMgDl": 91,
+        "glucoseContext": "fasting",
+        "bodyTempC": 36.6,
+        "ctxNtxIndex": 1.04,
+        "p1npIndex": 0.98,
+        "aredLoadPct": 95,
+        "orthostaticDeltaHr": 9,
+        "orthostaticDeltaSys": -3,
+    },
+    # Lote 2 (Ticks 30–59 · Cartucho POC detecta Riesgo Renal Oculto R1 + Resorción Ósea)
+    {
+        "cistatinaC": 1.34,
+        "creatinina": 0.92,
+        "calcioIonico": 1.36,
+        "linfocitos": 1310,
+        "neutrofilos": 3280,
+        "cortisol": 14.2,
+        "systolicMmHg": 124,
+        "diastolicMmHg": 80,
+        "glucoseMgDl": 98,
+        "glucoseContext": "fasting",
+        "bodyTempC": 36.8,
+        "ctxNtxIndex": 1.52,
+        "p1npIndex": 0.86,
+        "aredLoadPct": 74,
+        "orthostaticDeltaHr": 15,
+        "orthostaticDeltaSys": -7,
+    },
+    # Lote 3 (Ticks 60–89 · Cartucho POC tras Tormenta Solar SPE detecta Inmunosupresión R2)
+    {
+        "cistatinaC": 1.44,
+        "creatinina": 0.88,
+        "calcioIonico": 1.42,
+        "linfocitos": 780,
+        "neutrofilos": 3940,
+        "cortisol": 20.5,
+        "systolicMmHg": 131,
+        "diastolicMmHg": 85,
+        "glucoseMgDl": 109,
+        "glucoseContext": "fasting",
+        "bodyTempC": 37.2,
+        "ctxNtxIndex": 1.68,
+        "p1npIndex": 0.82,
+        "aredLoadPct": 68,
+        "orthostaticDeltaHr": 21,
+        "orthostaticDeltaSys": -12,
+    },
+    # Lote 4 (Ticks 90–119 · Control durante saturación de CO2 y desacondicionamiento)
+    {
+        "cistatinaC": 1.51,
+        "creatinina": 0.85,
+        "calcioIonico": 1.47,
+        "linfocitos": 640,
+        "neutrofilos": 4380,
+        "cortisol": 26.2,
+        "systolicMmHg": 136,
+        "diastolicMmHg": 88,
+        "glucoseMgDl": 115,
+        "glucoseContext": "fasting",
+        "bodyTempC": 37.4,
+        "ctxNtxIndex": 1.78,
+        "p1npIndex": 0.78,
+        "aredLoadPct": 62,
+        "orthostaticDeltaHr": 25,
+        "orthostaticDeltaSys": -15,
+    },
+]
+
 
 def _clamp(value: float, low: float, high: float) -> float:
     return max(low, min(high, value))
@@ -44,232 +123,132 @@ def _lerp(start: float, end: float, progress: float) -> float:
     return start + (end - start) * t
 
 
-def _generate_rows_with_pandas() -> tuple[list[dict[str, float | int]], str]:
-    rng = np.random.default_rng(SEED)
-    ticks = np.arange(TOTAL_TICKS, dtype=float)
+def _generate_rows(use_pandas: bool) -> tuple[list[dict[str, Any]], str]:
+    rng_np = np.random.default_rng(SEED) if use_pandas else None
+    rng_std = random.Random(SEED) if not use_pandas else None
 
-    heart_rate = np.empty(TOTAL_TICKS, dtype=int)
-    spo2 = np.empty(TOTAL_TICKS, dtype=int)
-    cistatina_c = np.empty(TOTAL_TICKS, dtype=float)
-    creatinina = np.empty(TOTAL_TICKS, dtype=float)
-    calcio_ionico = np.empty(TOTAL_TICKS, dtype=float)
-    linfocitos = np.empty(TOTAL_TICKS, dtype=int)
-    neutrofilos = np.empty(TOTAL_TICKS, dtype=int)
-    cortisol = np.empty(TOTAL_TICKS, dtype=float)
-    co2_level = np.empty(TOTAL_TICKS, dtype=int)
-    radiation_rate = np.empty(TOTAL_TICKS, dtype=float)
-    radiation_accumulated = np.empty(TOTAL_TICKS, dtype=float)
+    def gauss(std: float) -> float:
+        if rng_np is not None:
+            return float(rng_np.normal(0.0, std))
+        assert rng_std is not None
+        return rng_std.gauss(0.0, std)
 
-    acc_rad = 45.0
+    def rand01() -> float:
+        if rng_np is not None:
+            return float(rng_np.random())
+        assert rng_std is not None
+        return rng_std.random()
 
-    for i, t in enumerate(ticks):
-        if t < 30:
-            # Fase 1: Baseline nominal
-            p = t / 29.0
-            hr = 71 + 2.0 * math.sin(t * 0.35) + rng.normal(0, 1.4)
-            o2 = 99 - (1 if rng.random() < 0.2 else 0)
-            cis = _lerp(0.79, 0.90, p) + rng.normal(0, 0.015)
-            cr = _lerp(1.09, 1.05, p) + rng.normal(0, 0.015)
-            ca = _lerp(1.10, 1.17, p) + rng.normal(0, 0.012)
-            linf = _lerp(1510, 1420, p) + rng.normal(0, 22)
-            neut = _lerp(2980, 3140, p) + rng.normal(0, 45)
-            cort = _lerp(9.8, 11.4, p) + rng.normal(0, 0.35)
-            co2 = _lerp(610, 720, p) + rng.normal(0, 18)
-            rad_rate = _lerp(15.5, 20.5, p) + rng.normal(0, 1.1)
-            acc_rad += 0.10
-        elif t < 60:
-            # Fase 2: Nefropatía oculta y desmineralización ósea (isRenalWarning)
-            p = (t - 30) / 29.0
-            hr = _lerp(72, 78, p) + rng.normal(0, 1.6)
-            o2 = 98 + (1 if rng.random() < 0.35 else 0)
-            cis = _lerp(0.93, 1.40, p) + rng.normal(0, 0.018)
-            cr = _lerp(1.04, 0.89, p) + rng.normal(0, 0.014)
-            ca = _lerp(1.18, 1.40, p) + rng.normal(0, 0.012)
-            linf = _lerp(1400, 1210, p) + rng.normal(0, 22)
-            neut = _lerp(3160, 3440, p) + rng.normal(0, 45)
-            cort = _lerp(11.6, 15.6, p) + rng.normal(0, 0.4)
-            co2 = _lerp(730, 1140, p) + rng.normal(0, 22)
-            rad_rate = _lerp(21.0, 31.0, p) + rng.normal(0, 1.5)
-            acc_rad += 0.12
-        elif t < 90:
-            # Fase 3: Tormenta solar SPE e inmunosupresión (isRadiationWarning)
-            p = (t - 60) / 29.0
-            hr = _lerp(79, 89, p) + rng.normal(0, 1.8)
-            o2 = 97 + (1 if rng.random() < 0.45 else 0)
-            cis = _lerp(1.40, 1.46, p) + rng.normal(0, 0.015)
-            cr = _lerp(0.89, 0.87, p) + rng.normal(0, 0.012)
-            ca = _lerp(1.40, 1.44, p) + rng.normal(0, 0.012)
-            linf = _lerp(1170, 700, p) + rng.normal(0, 24)
-            neut = _lerp(3480, 4180, p) + rng.normal(0, 50)
-            cort = _lerp(16.0, 21.8, p) + rng.normal(0, 0.45)
-            co2 = _lerp(1180, 2150, p) + rng.normal(0, 30)
-            rad_rate = _lerp(46.0, 134.0, p) + rng.normal(0, 3.2)
-            acc_rad += 0.88
-        else:
-            # Fase 4: Saturación scrubber ECLSS / Bolsillo CO2 (isCo2Warning)
-            p = (t - 90) / 29.0
-            hr = _lerp(90, 108, p) + rng.normal(0, 2.0)
-            o2 = int(round(_clamp(_lerp(97.8, 96.4, p) + rng.normal(0, 0.35), 96, 99)))
-            cis = _lerp(1.46, 1.53, p) + rng.normal(0, 0.015)
-            cr = _lerp(0.87, 0.85, p) + rng.normal(0, 0.012)
-            ca = _lerp(1.44, 1.49, p) + rng.normal(0, 0.012)
-            linf = _lerp(695, 620, p) + rng.normal(0, 20)
-            neut = _lerp(4190, 4460, p) + rng.normal(0, 50)
-            cort = _lerp(22.0, 27.5, p) + rng.normal(0, 0.45)
-            co2 = _lerp(2250, 4320, p) + rng.normal(0, 40)
-            rad_rate = _lerp(130.0, 118.0, p) + rng.normal(0, 3.0)
-            acc_rad += 0.60
-
-        heart_rate[i] = int(round(_clamp(hr, 55, 135)))
-        spo2[i] = int(_clamp(o2, 95, 100))
-        cistatina_c[i] = round(float(_clamp(cis, 0.65, 2.2)), 2)
-        creatinina[i] = round(float(_clamp(cr, 0.60, 1.4)), 2)
-        calcio_ionico[i] = round(float(_clamp(ca, 1.00, 1.7)), 2)
-        linfocitos[i] = int(round(_clamp(linf, 400, 2200)))
-        neutrofilos[i] = int(round(_clamp(neut, 2000, 6000)))
-        cortisol[i] = round(float(_clamp(cort, 6.0, 35.0)), 1)
-        co2_level[i] = int(round(_clamp(co2, 400, 5000)))
-        radiation_rate[i] = round(float(_clamp(rad_rate, 10.0, 200.0)), 1)
-        radiation_accumulated[i] = round(float(acc_rad), 1)
-
-    df = pd.DataFrame(
-        {
-            "heartRate": heart_rate,
-            "spO2": spo2,
-            "cistatinaC": cistatina_c,
-            "creatinina": creatinina,
-            "calcioIonico": calcio_ionico,
-            "linfocitos": linfocitos,
-            "neutrofilos": neutrofilos,
-            "cortisol": cortisol,
-            "co2Level": co2_level,
-            "radiationRate": radiation_rate,
-            "radiationAccumulated": radiation_accumulated,
-        }
-    )
-
-    nlr = df["neutrofilos"] / df["linfocitos"]
-    renal_hits = int(
-        ((df["creatinina"] <= 1.1) & (df["cistatinaC"] > 1.15) & (df["calcioIonico"] > 1.25)).sum()
-    )
-    rad_hits = int(
-        (
-            ((df["radiationRate"] > 50.0) | (df["radiationAccumulated"] > 50.0))
-            & (df["linfocitos"] < 1000)
-            & (nlr > 3.0)
-        ).sum()
-    )
-    co2_hits = int(((df["co2Level"] > 3500) & (df["spO2"] >= 96)).sum())
-
-    summary = (
-        f"[Pandas] Frames={len(df)} | R1_Renal={renal_hits} | "
-        f"R2_Radiacion={rad_hits} | R3_CO2={co2_hits}"
-    )
-    records = df.to_dict(orient="records")
-    return records, summary
-
-
-def _generate_rows_stdlib() -> tuple[list[dict[str, float | int]], str]:
-    rng = random.Random(SEED)
-    rows: list[dict[str, float | int]] = []
+    rows: list[dict[str, Any]] = []
     acc_rad = 45.0
 
     for t in range(TOTAL_TICKS):
+        poc = POC_BATCHES[min(t // 30, 3)]
+
         if t < 30:
             p = t / 29.0
-            hr = 71 + 2.0 * math.sin(t * 0.35) + rng.gauss(0, 1.4)
-            o2 = 99 - (1 if rng.random() < 0.2 else 0)
-            cis = _lerp(0.79, 0.90, p) + rng.gauss(0, 0.015)
-            cr = _lerp(1.09, 1.05, p) + rng.gauss(0, 0.015)
-            ca = _lerp(1.10, 1.17, p) + rng.gauss(0, 0.012)
-            linf = _lerp(1510, 1420, p) + rng.gauss(0, 22)
-            neut = _lerp(2980, 3140, p) + rng.gauss(0, 45)
-            cort = _lerp(9.8, 11.4, p) + rng.gauss(0, 0.35)
-            co2 = _lerp(610, 720, p) + rng.gauss(0, 18)
-            rad_rate = _lerp(15.5, 20.5, p) + rng.gauss(0, 1.1)
+            hr = 71 + 2.0 * math.sin(t * 0.35) + gauss(1.2)
+            o2 = 99 - (1 if rand01() < 0.18 else 0)
+            hrv = _lerp(52.0, 48.0, p) + gauss(1.1)
+            co2 = _lerp(610, 720, p) + gauss(15)
+            rad_rate = _lerp(15.5, 20.5, p) + gauss(1.0)
             acc_rad += 0.10
         elif t < 60:
             p = (t - 30) / 29.0
-            hr = _lerp(72, 78, p) + rng.gauss(0, 1.6)
-            o2 = 98 + (1 if rng.random() < 0.35 else 0)
-            cis = _lerp(0.93, 1.40, p) + rng.gauss(0, 0.018)
-            cr = _lerp(1.04, 0.89, p) + rng.gauss(0, 0.014)
-            ca = _lerp(1.18, 1.40, p) + rng.gauss(0, 0.012)
-            linf = _lerp(1400, 1210, p) + rng.gauss(0, 22)
-            neut = _lerp(3160, 3440, p) + rng.gauss(0, 45)
-            cort = _lerp(11.6, 15.6, p) + rng.gauss(0, 0.4)
-            co2 = _lerp(730, 1140, p) + rng.gauss(0, 22)
-            rad_rate = _lerp(21.0, 31.0, p) + rng.gauss(0, 1.5)
+            hr = _lerp(73, 79, p) + gauss(1.4)
+            o2 = 98 + (1 if rand01() < 0.35 else 0)
+            hrv = _lerp(46.0, 39.0, p) + gauss(1.2)
+            co2 = _lerp(740, 1140, p) + gauss(20)
+            rad_rate = _lerp(21.0, 32.0, p) + gauss(1.4)
             acc_rad += 0.12
         elif t < 90:
             p = (t - 60) / 29.0
-            hr = _lerp(79, 89, p) + rng.gauss(0, 1.8)
-            o2 = 97 + (1 if rng.random() < 0.45 else 0)
-            cis = _lerp(1.40, 1.46, p) + rng.gauss(0, 0.015)
-            cr = _lerp(0.89, 0.87, p) + rng.gauss(0, 0.012)
-            ca = _lerp(1.40, 1.44, p) + rng.gauss(0, 0.012)
-            linf = _lerp(1170, 700, p) + rng.gauss(0, 24)
-            neut = _lerp(3480, 4180, p) + rng.gauss(0, 50)
-            cort = _lerp(16.0, 21.8, p) + rng.gauss(0, 0.45)
-            co2 = _lerp(1180, 2150, p) + rng.gauss(0, 30)
-            rad_rate = _lerp(46.0, 134.0, p) + rng.gauss(0, 3.2)
+            hr = _lerp(80, 90, p) + gauss(1.6)
+            o2 = 97 + (1 if rand01() < 0.45 else 0)
+            hrv = _lerp(37.0, 29.0, p) + gauss(1.2)
+            co2 = _lerp(1180, 2150, p) + gauss(28)
+            rad_rate = _lerp(54.0, 134.0, p) + gauss(3.0)
             acc_rad += 0.88
         else:
             p = (t - 90) / 29.0
-            hr = _lerp(90, 108, p) + rng.gauss(0, 2.0)
-            o2 = int(round(_clamp(_lerp(97.8, 96.4, p) + rng.gauss(0, 0.35), 96, 99)))
-            cis = _lerp(1.46, 1.53, p) + rng.gauss(0, 0.015)
-            cr = _lerp(0.87, 0.85, p) + rng.gauss(0, 0.012)
-            ca = _lerp(1.44, 1.49, p) + rng.gauss(0, 0.012)
-            linf = _lerp(695, 620, p) + rng.gauss(0, 20)
-            neut = _lerp(4190, 4460, p) + rng.gauss(0, 50)
-            cort = _lerp(22.0, 27.5, p) + rng.gauss(0, 0.45)
-            co2 = _lerp(2250, 4320, p) + rng.gauss(0, 40)
-            rad_rate = _lerp(130.0, 118.0, p) + rng.gauss(0, 3.0)
+            hr = _lerp(91, 108, p) + gauss(1.8)
+            o2 = int(round(_clamp(_lerp(97.8, 96.4, p) + gauss(0.3), 96, 99)))
+            hrv = _lerp(28.0, 21.0, p) + gauss(1.0)
+            co2 = _lerp(2300, 4320, p) + gauss(35)
+            rad_rate = _lerp(130.0, 118.0, p) + gauss(2.8)
             acc_rad += 0.60
 
         rows.append(
             {
                 "heartRate": int(round(_clamp(hr, 55, 135))),
-                "spO2": int(_clamp(o2, 95, 100)),
-                "cistatinaC": round(_clamp(cis, 0.65, 2.2), 2),
-                "creatinina": round(_clamp(cr, 0.60, 1.4), 2),
-                "calcioIonico": round(_clamp(ca, 1.00, 1.7), 2),
-                "linfocitos": int(round(_clamp(linf, 400, 2200))),
-                "neutrofilos": int(round(_clamp(neut, 2000, 6000))),
-                "cortisol": round(_clamp(cort, 6.0, 35.0), 1),
+                "spO2": int(_clamp(o2, 96, 100)),
+                "hrvRmssdMs": round(float(_clamp(hrv, 12.0, 90.0)), 1),
                 "co2Level": int(round(_clamp(co2, 400, 5000))),
-                "radiationRate": round(_clamp(rad_rate, 10.0, 200.0), 1),
-                "radiationAccumulated": round(acc_rad, 1),
+                "radiationRate": round(float(_clamp(rad_rate, 10.0, 200.0)), 1),
+                "radiationAccumulated": round(float(acc_rad), 1),
+                "cistatinaC": poc["cistatinaC"],
+                "creatinina": poc["creatinina"],
+                "calcioIonico": poc["calcioIonico"],
+                "linfocitos": poc["linfocitos"],
+                "neutrofilos": poc["neutrofilos"],
+                "cortisol": poc["cortisol"],
+                "ctxNtxIndex": poc["ctxNtxIndex"],
+                "p1npIndex": poc["p1npIndex"],
+                "aredLoadPct": poc["aredLoadPct"],
+                "systolicMmHg": poc["systolicMmHg"],
+                "diastolicMmHg": poc["diastolicMmHg"],
+                "glucoseMgDl": poc["glucoseMgDl"],
+                "glucoseContext": poc["glucoseContext"],
+                "bodyTempC": poc["bodyTempC"],
+                "orthostaticDeltaHr": poc["orthostaticDeltaHr"],
+                "orthostaticDeltaSys": poc["orthostaticDeltaSys"],
             }
         )
 
-    renal_hits = sum(
-        1
-        for r in rows
-        if r["creatinina"] <= 1.1 and r["cistatinaC"] > 1.15 and r["calcioIonico"] > 1.25
-    )
-    rad_hits = sum(
-        1
-        for r in rows
-        if (r["radiationRate"] > 50.0 or r["radiationAccumulated"] > 50.0)
-        and r["linfocitos"] < 1000
-        and (r["neutrofilos"] / r["linfocitos"]) > 3.0
-    )
-    co2_hits = sum(1 for r in rows if r["co2Level"] > 3500 and r["spO2"] >= 96)
+    if use_pandas:
+        df = pd.DataFrame(rows)
+        nlr = df["neutrofilos"] / df["linfocitos"]
+        r1_hits = int(
+            ((df["creatinina"] <= 1.1) & (df["cistatinaC"] > 1.15) & (df["calcioIonico"] > 1.25)).sum()
+        )
+        r2_hits = int(
+            (
+                ((df["radiationRate"] > 50.0) | (df["radiationAccumulated"] > 50.0))
+                & (df["linfocitos"] < 1000)
+                & (nlr > 3.0)
+            ).sum()
+        )
+        r3_hits = int(((df["co2Level"] > 3500) & (df["spO2"] >= 96)).sum())
+        records = df.to_dict(orient="records")
+        mode = "Pandas"
+    else:
+        r1_hits = sum(
+            1
+            for r in rows
+            if float(r["creatinina"]) <= 1.1
+            and float(r["cistatinaC"]) > 1.15
+            and float(r["calcioIonico"]) > 1.25
+        )
+        r2_hits = sum(
+            1
+            for r in rows
+            if (float(r["radiationRate"]) > 50.0 or float(r["radiationAccumulated"]) > 50.0)
+            and float(r["linfocitos"]) < 1000
+            and (float(r["neutrofilos"]) / float(r["linfocitos"])) > 3.0
+        )
+        r3_hits = sum(1 for r in rows if float(r["co2Level"]) > 3500 and float(r["spO2"]) >= 96)
+        records = rows
+        mode = "Stdlib fallback"
 
     summary = (
-        f"[Stdlib fallback] Frames={len(rows)} | R1_Renal={renal_hits} | "
-        f"R2_Radiacion={rad_hits} | R3_CO2={co2_hits}"
+        f"[{mode} Híbrido] Frames={len(records)} | R1_Renal={r1_hits} | "
+        f"R2_Radiacion={r2_hits} | R3_CO2={r3_hits}"
     )
-    return rows, summary
+    return records, summary
 
 
 def main() -> None:
-    if HAS_PANDAS:
-        records, summary = _generate_rows_with_pandas()
-    else:
-        records, summary = _generate_rows_stdlib()
+    records, summary = _generate_rows(HAS_PANDAS)
 
     if "__file__" in globals():
         repo_target = Path(__file__).resolve().parent.parent / "public" / "data" / OUTPUT_FILENAME
@@ -281,7 +260,6 @@ def main() -> None:
     print(summary)
     print(f"Archivo generado en: {output_path}")
 
-    # En Google Colab, dispara automáticamente la descarga al navegador
     try:
         from google.colab import files  # type: ignore[import-not-found]
 

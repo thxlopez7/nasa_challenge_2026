@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { BookOpen, CheckCircle2, Clock, Plus, Minus, AlertTriangle, Thermometer, Droplets, HeartPulse } from 'lucide-react';
+import { BookOpen, CheckCircle2, Clock, FlaskConical, Plus, Minus, AlertTriangle, Thermometer, Droplets, HeartPulse } from 'lucide-react';
 import { INDICATORS_EN } from '../../content/indicators.en';
 import { INDICATORS_ES, type EducationalIndicatorId } from '../../content/indicators.es';
 import { useT } from '../../i18n/I18nContext';
@@ -42,6 +42,13 @@ export function QuickMeasurementPanel() {
   const [bodyTemp, setBodyTemp] = useState<number>(snapshot.biomarkers.bodyTempC ?? 36.7);
   const [measuredInput, setMeasuredInput] = useState<string>('');
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const [cistatinaC, setCistatinaC] = useState<number>(snapshot.biomarkers.cistatinaC);
+  const [creatinina, setCreatinina] = useState<number>(snapshot.biomarkers.creatinina);
+  const [calcioIonico, setCalcioIonico] = useState<number>(snapshot.biomarkers.calcioIonico);
+  const [linfocitos, setLinfocitos] = useState<number>(snapshot.biomarkers.linfocitos);
+  const [neutrofilos, setNeutrofilos] = useState<number>(snapshot.biomarkers.neutrofilos);
+  const [cortisol, setCortisol] = useState<number>(snapshot.biomarkers.cortisol);
+  const [cartridgeFeedback, setCartridgeFeedback] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [selectedGuide, setSelectedGuide] = useState<EducationalIndicatorId>('bp');
   const [nowMs, setNowMs] = useState<number | null>(null);
 
@@ -113,8 +120,82 @@ export function QuickMeasurementPanel() {
       kind: 'ok',
       text:
         lang === 'es'
-          ? 'Signos vitales registrados manualmente y evaluados.'
-          : 'Manual vitals saved with timestamp and evaluated.',
+          ? 'Signos vitales rápidos (Spot) registrados y evaluados.'
+          : 'Spot vitals saved with timestamp and evaluated.',
+    });
+  };
+
+  const handleSyncCartridgeFromSnapshot = () => {
+    setCistatinaC(Number(snapshot.biomarkers.cistatinaC.toFixed(2)));
+    setCreatinina(Number(snapshot.biomarkers.creatinina.toFixed(2)));
+    setCalcioIonico(Number(snapshot.biomarkers.calcioIonico.toFixed(2)));
+    setLinfocitos(Math.round(snapshot.biomarkers.linfocitos));
+    setNeutrofilos(Math.round(snapshot.biomarkers.neutrofilos));
+    setCortisol(Number(snapshot.biomarkers.cortisol.toFixed(1)));
+    setCartridgeFeedback(null);
+  };
+
+  const handleSaveCartridge = () => {
+    if (!Number.isFinite(cistatinaC) || cistatinaC < 0.3 || cistatinaC > 10) {
+      setCartridgeFeedback({
+        kind: 'err',
+        text: lang === 'es' ? 'Cistatina C fuera de rango (0,3–10,0 mg/L).' : 'Cystatin C out of range (0.3–10.0 mg/L).',
+      });
+      return;
+    }
+    if (!Number.isFinite(creatinina) || creatinina < 0.2 || creatinina > 15) {
+      setCartridgeFeedback({
+        kind: 'err',
+        text: lang === 'es' ? 'Creatinina fuera de rango (0,2–15,0 mg/dL).' : 'Creatinine out of range (0.2–15.0 mg/dL).',
+      });
+      return;
+    }
+    if (!Number.isFinite(calcioIonico) || calcioIonico < 0.5 || calcioIonico > 3) {
+      setCartridgeFeedback({
+        kind: 'err',
+        text: lang === 'es' ? 'Calcio iónico fuera de rango (0,5–3,0 mmol/L).' : 'Ionized calcium out of range (0.5–3.0 mmol/L).',
+      });
+      return;
+    }
+    if (!Number.isFinite(linfocitos) || linfocitos < 100 || linfocitos > 15000) {
+      setCartridgeFeedback({
+        kind: 'err',
+        text: lang === 'es' ? 'Linfocitos fuera de rango (100–15 000 /µL).' : 'Lymphocytes out of range (100–15,000 /µL).',
+      });
+      return;
+    }
+    if (!Number.isFinite(neutrofilos) || neutrofilos < 200 || neutrofilos > 25000) {
+      setCartridgeFeedback({
+        kind: 'err',
+        text: lang === 'es' ? 'Neutrófilos fuera de rango (200–25 000 /µL).' : 'Neutrophils out of range (200–25,000 /µL).',
+      });
+      return;
+    }
+    if (!Number.isFinite(cortisol) || cortisol < 1 || cortisol > 120) {
+      setCartridgeFeedback({
+        kind: 'err',
+        text: lang === 'es' ? 'Cortisol fuera de rango (1–120 ng/mL).' : 'Cortisol out of range (1–120 ng/mL).',
+      });
+      return;
+    }
+
+    const iso = measuredInput ? new Date(measuredInput).toISOString() : new Date().toISOString();
+    logManualVitals({
+      cistatinaC: Number(cistatinaC.toFixed(2)),
+      creatinina: Number(creatinina.toFixed(2)),
+      calcioIonico: Number(calcioIonico.toFixed(2)),
+      linfocitos: Math.round(linfocitos),
+      neutrofilos: Math.round(neutrofilos),
+      cortisol: Number(cortisol.toFixed(1)),
+      measuredAt: iso,
+    });
+    setNowMs(Date.now());
+    setCartridgeFeedback({
+      kind: 'ok',
+      text:
+        lang === 'es'
+          ? 'Cartucho POC registrado. Panel renal/inmune fijado hasta próxima muestra.'
+          : 'POC cartridge logged. Renal/immune panel held until next pull.',
     });
   };
 
@@ -172,7 +253,14 @@ export function QuickMeasurementPanel() {
         </div>
       )}
 
-      {/* Entradas rápidas con botones grandes (>=44px) */}
+      {/* Entradas rápidas Spot (Manguito / Glucómetro / Termómetro IR) */}
+      <div className="space-y-2">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-300">
+          {lang === 'es'
+            ? '1. Medición rápida al instante (Spot · Manguito / Glucómetro / Termómetro IR)'
+            : '1. Fast Spot Readings (Instant · Cuff / Glucometer / IR Thermometer)'}
+        </h3>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Presión arterial */}
         <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-4 space-y-3">
@@ -375,6 +463,140 @@ export function QuickMeasurementPanel() {
             {feedback.text}
           </p>
         )}
+      </div>
+
+      {/* Cartucho Point-of-Care (POC) Renal / Hematológico */}
+      <div className="border-t border-slate-800 pt-5 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-300">
+              <FlaskConical className="h-4 w-4" aria-hidden />
+              <span>
+                {lang === 'es'
+                  ? '2. Procesar Cartucho Point-of-Care (POC · Sangre capilar / saliva)'
+                  : '2. Log Point-of-Care Cartridge (POC · Capillary Blood / Saliva)'}
+              </span>
+            </h3>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              {lang === 'es'
+                ? 'Determinaciones de laboratorio portátil (i-STAT / rHEALTH) que no se miden continuamente a 1 Hz; actualizan R1 y R2 al instante del registro.'
+                : 'Point-of-care cartridge analytes not measurable at 1 Hz; locks values and refreshes R1/R2 upon cartridge completion.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleSyncCartridgeFromSnapshot}
+            className="min-h-[44px] px-3 rounded-lg border border-slate-700 bg-slate-950 hover:bg-slate-800 text-xs font-semibold text-slate-200 cursor-pointer transition"
+          >
+            {lang === 'es' ? 'Cargar valores actuales' : 'Load current values'}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <label className="bg-slate-950/60 border border-slate-800 rounded-lg p-3 space-y-1 text-xs">
+            <span className="text-[11px] text-slate-400 uppercase block">
+              {lang === 'es' ? 'Cistatina C (mg/L)' : 'Cystatin C (mg/L)'}
+            </span>
+            <input
+              type="number"
+              step="0.02"
+              value={cistatinaC}
+              onChange={(e) => setCistatinaC(Number(e.target.value))}
+              className="w-full min-h-[44px] bg-slate-900 border border-slate-700 rounded px-2.5 text-base font-bold tabular-nums text-slate-100"
+            />
+          </label>
+
+          <label className="bg-slate-950/60 border border-slate-800 rounded-lg p-3 space-y-1 text-xs">
+            <span className="text-[11px] text-slate-400 uppercase block">
+              {lang === 'es' ? 'Creatinina (mg/dL)' : 'Creatinine (mg/dL)'}
+            </span>
+            <input
+              type="number"
+              step="0.02"
+              value={creatinina}
+              onChange={(e) => setCreatinina(Number(e.target.value))}
+              className="w-full min-h-[44px] bg-slate-900 border border-slate-700 rounded px-2.5 text-base font-bold tabular-nums text-slate-100"
+            />
+          </label>
+
+          <label className="bg-slate-950/60 border border-slate-800 rounded-lg p-3 space-y-1 text-xs">
+            <span className="text-[11px] text-slate-400 uppercase block">
+              {lang === 'es' ? 'Calcio iónico Ca²⁺ (mmol/L)' : 'Ionized Ca²⁺ (mmol/L)'}
+            </span>
+            <input
+              type="number"
+              step="0.02"
+              value={calcioIonico}
+              onChange={(e) => setCalcioIonico(Number(e.target.value))}
+              className="w-full min-h-[44px] bg-slate-900 border border-slate-700 rounded px-2.5 text-base font-bold tabular-nums text-slate-100"
+            />
+          </label>
+
+          <label className="bg-slate-950/60 border border-slate-800 rounded-lg p-3 space-y-1 text-xs">
+            <span className="text-[11px] text-slate-400 uppercase block">
+              {lang === 'es' ? 'Linfocitos (/µL)' : 'Lymphocytes (/µL)'}
+            </span>
+            <input
+              type="number"
+              step="50"
+              value={linfocitos}
+              onChange={(e) => setLinfocitos(Number(e.target.value))}
+              className="w-full min-h-[44px] bg-slate-900 border border-slate-700 rounded px-2.5 text-base font-bold tabular-nums text-slate-100"
+            />
+          </label>
+
+          <label className="bg-slate-950/60 border border-slate-800 rounded-lg p-3 space-y-1 text-xs">
+            <span className="text-[11px] text-slate-400 uppercase block">
+              {lang === 'es' ? 'Neutrófilos (/µL)' : 'Neutrophils (/µL)'}
+            </span>
+            <input
+              type="number"
+              step="100"
+              value={neutrofilos}
+              onChange={(e) => setNeutrofilos(Number(e.target.value))}
+              className="w-full min-h-[44px] bg-slate-900 border border-slate-700 rounded px-2.5 text-base font-bold tabular-nums text-slate-100"
+            />
+          </label>
+
+          <label className="bg-slate-950/60 border border-slate-800 rounded-lg p-3 space-y-1 text-xs">
+            <span className="text-[11px] text-slate-400 uppercase block">
+              {lang === 'es' ? 'Cortisol (ng/mL)' : 'Cortisol (ng/mL)'}
+            </span>
+            <input
+              type="number"
+              step="0.5"
+              value={cortisol}
+              onChange={(e) => setCortisol(Number(e.target.value))}
+              className="w-full min-h-[44px] bg-slate-900 border border-slate-700 rounded px-2.5 text-base font-bold tabular-nums text-slate-100"
+            />
+          </label>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={handleSaveCartridge}
+            className="min-h-[48px] px-6 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm uppercase tracking-wider cursor-pointer transition"
+          >
+            {lang === 'es' ? 'Registrar Cartucho POC' : 'Log POC Cartridge'}
+          </button>
+
+          {cartridgeFeedback && (
+            <p
+              role="status"
+              className={`inline-flex items-center gap-2 text-xs font-semibold ${
+                cartridgeFeedback.kind === 'err' ? 'text-rose-300' : 'text-emerald-300'
+              }`}
+            >
+              {cartridgeFeedback.kind === 'err' ? (
+                <AlertTriangle className="h-4 w-4" aria-hidden />
+              ) : (
+                <CheckCircle2 className="h-4 w-4" aria-hidden />
+              )}
+              {cartridgeFeedback.text}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Guía educativa accionable por indicador */}

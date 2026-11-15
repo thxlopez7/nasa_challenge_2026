@@ -142,6 +142,12 @@ export interface ManualVitalsPatch {
   bodyTempC?: number;
   heartRate?: number;
   spO2?: number;
+  cistatinaC?: number;
+  creatinina?: number;
+  calcioIonico?: number;
+  linfocitos?: number;
+  neutrofilos?: number;
+  cortisol?: number;
   ctxNtxIndex?: number;
   p1npIndex?: number;
   aredLoadPct?: number;

@@ -193,18 +193,45 @@ export const useTelemetryStore = create<TelemetryState>()(
           ...autoAlerts,
         };
 
+        const bloodChanged =
+          nextBio.cistatinaC !== currentState.cistatinaC ||
+          nextBio.creatinina !== currentState.creatinina ||
+          nextBio.calcioIonico !== currentState.calcioIonico ||
+          nextBio.linfocitos !== currentState.linfocitos ||
+          nextBio.neutrofilos !== currentState.neutrofilos ||
+          nextBio.cortisol !== currentState.cortisol;
+
+        const bpChanged =
+          nextBio.systolicMmHg !== currentState.systolicMmHg ||
+          nextBio.diastolicMmHg !== currentState.diastolicMmHg;
+
+        const glucoseChanged =
+          nextBio.glucoseMgDl !== currentState.glucoseMgDl ||
+          nextBio.glucoseContext !== currentState.glucoseContext;
+
+        const tempChanged = nextBio.bodyTempC !== currentState.bodyTempC;
+
         const nextMeta: Partial<Record<TrackedIndicatorKey, IndicatorMeta>> = {
           ...currentState.indicatorMeta,
           vitals: { measuredAt: nowIso, source: 'sensor' },
           radiation: { measuredAt: nowIso, source: 'sensor' },
           bloodPanel:
-            data.cistatinaC !== undefined || data.linfocitos !== undefined
+            bloodChanged || !currentState.indicatorMeta?.bloodPanel
               ? { measuredAt: nowIso, source: 'sensor' }
-              : currentState.indicatorMeta?.bloodPanel ?? {
-                  measuredAt: nowIso,
-                  source: 'sensor',
-                },
+              : currentState.indicatorMeta.bloodPanel,
         };
+        if (bpChanged || (nextBio.systolicMmHg !== undefined && !currentState.indicatorMeta?.bp)) {
+          nextMeta.bp = { measuredAt: nowIso, source: 'sensor' };
+        }
+        if (
+          glucoseChanged ||
+          (nextBio.glucoseMgDl !== undefined && !currentState.indicatorMeta?.glucose)
+        ) {
+          nextMeta.glucose = { measuredAt: nowIso, source: 'sensor' };
+        }
+        if (tempChanged || (nextBio.bodyTempC !== undefined && !currentState.indicatorMeta?.temp)) {
+          nextMeta.temp = { measuredAt: nowIso, source: 'sensor' };
+        }
 
         const escalationLevel = deriveEscalationLevel({
           alerts: fullAlerts,
@@ -230,12 +257,24 @@ export const useTelemetryStore = create<TelemetryState>()(
         const nextBio: Biomarkers = {
           heartRate: pickBoundedNumber(patch.heartRate, currentState.heartRate, 25, 240) ?? currentState.heartRate,
           spO2: pickBoundedNumber(patch.spO2, currentState.spO2, 50, 100) ?? currentState.spO2,
-          cistatinaC: currentState.cistatinaC,
-          creatinina: currentState.creatinina,
-          calcioIonico: currentState.calcioIonico,
-          linfocitos: currentState.linfocitos,
-          neutrofilos: currentState.neutrofilos,
-          cortisol: currentState.cortisol,
+          cistatinaC:
+            pickBoundedNumber(patch.cistatinaC, currentState.cistatinaC, 0.3, 10) ??
+            currentState.cistatinaC,
+          creatinina:
+            pickBoundedNumber(patch.creatinina, currentState.creatinina, 0.2, 15) ??
+            currentState.creatinina,
+          calcioIonico:
+            pickBoundedNumber(patch.calcioIonico, currentState.calcioIonico, 0.5, 3) ??
+            currentState.calcioIonico,
+          linfocitos:
+            pickBoundedNumber(patch.linfocitos, currentState.linfocitos, 100, 15000) ??
+            currentState.linfocitos,
+          neutrofilos:
+            pickBoundedNumber(patch.neutrofilos, currentState.neutrofilos, 200, 25000) ??
+            currentState.neutrofilos,
+          cortisol:
+            pickBoundedNumber(patch.cortisol, currentState.cortisol, 1, 120) ??
+            currentState.cortisol,
           systolicMmHg: pickBoundedNumber(patch.systolicMmHg, currentState.systolicMmHg, 50, 260),
           diastolicMmHg: pickBoundedNumber(patch.diastolicMmHg, currentState.diastolicMmHg, 30, 160),
           glucoseMgDl: pickBoundedNumber(patch.glucoseMgDl, currentState.glucoseMgDl, 20, 600),
@@ -285,6 +324,16 @@ export const useTelemetryStore = create<TelemetryState>()(
         }
         if (patch.heartRate !== undefined || patch.spO2 !== undefined) {
           nextMeta.vitals = { measuredAt: ts, source: 'manual' };
+        }
+        if (
+          patch.cistatinaC !== undefined ||
+          patch.creatinina !== undefined ||
+          patch.calcioIonico !== undefined ||
+          patch.linfocitos !== undefined ||
+          patch.neutrofilos !== undefined ||
+          patch.cortisol !== undefined
+        ) {
+          nextMeta.bloodPanel = { measuredAt: ts, source: 'manual' };
         }
 
         const escalationLevel = deriveEscalationLevel({
