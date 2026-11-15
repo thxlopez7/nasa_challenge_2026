@@ -8,9 +8,13 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-roboto-condensed), var(--font-geist-sans), system-ui, sans-serif;
+  --font-lead: var(--font-roboto-semi), var(--font-roboto-condensed), sans-serif;
+  --font-note: var(--font-roboto-italic), var(--font-roboto-condensed), sans-serif;
+  --font-heading: var(--font-roboto-bold), var(--font-roboto-condensed), sans-serif;
   --font-mono: var(--font-geist-mono);
   --font-display: var(--font-montserrat);
+  --font-brand: var(--font-space);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -43,7 +47,33 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Texto corrido: Roboto Condensed ExtraLight. Los pesos 600+ (semibold,
+     bold, black y los títulos) caen en Roboto Condensed Black. */
+  font-family: var(--font-sans);
+  font-weight: 200;
+  letter-spacing: 0.01em;
+}
+
+
+/* Jerarquía tipográfica. En @layer base para que las utilidades de
+   Tailwind (font-bold, font-thin…) sigan mandando cuando se usan. */
+@layer base {
+  h1, h2, h3, h4, strong, b {
+    font-weight: 900;
+  }
+
+  /* Texto pequeño (≤ 14 px): Roboto Condensed Light, más legible que el
+     ExtraLight a ese tamaño. */
+  .text-xs, .text-sm, .text-\[9px\], .text-\[10px\], .text-\[11px\], .text-\[12px\] {
+    font-weight: 300;
+  }
+}
+
+/* Notas y aclaraciones: Roboto ExtraLight Italic. */
+em, i, .italic {
+  font-family: var(--font-note);
+  font-weight: 200;
+  font-style: italic;
 }
 
 /* ---------------- Portada (app/page.tsx · CoverPage) ---------------- */
@@ -191,4 +221,56 @@ body {
 @keyframes cover-rise {
   from { opacity: 0; transform: translateY(28px); filter: blur(8px); }
   to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+/* ---------------- Selector de perfiles (ProfilePicker) ---------------- */
+
+.profile-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(3, 2, 11, 0.55), rgba(3, 2, 11, 0.92) 70%),
+    url('/images/galactic-center.webp') center / cover no-repeat;
+  filter: saturate(0.9);
+}
+
+.profile-rise {
+  animation: cover-rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Alerta crítica: el recuadro late para llamar la atención. */
+.earth-pulse {
+  animation: earth-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes earth-pulse {
+  0%, 100% { box-shadow: 0 0 40px rgba(239, 68, 68, 0.35); }
+  50% { box-shadow: 0 0 90px rgba(239, 68, 68, 0.7); }
+}
+
+/* ---------------- Evolución en vivo (LiveEvolution) ---------------- */
+
+/* Último punto de una gráfica en vivo: halo que se expande. */
+.vital-live::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 9999px;
+  border: 2px solid var(--live);
+  animation: vital-live 1.6s ease-out infinite;
+}
+
+@keyframes vital-live {
+  from { transform: scale(1); opacity: 0.9; }
+  to { transform: scale(3); opacity: 0; }
+}
+
+/* Crisis vital: la tarjeta late en rojo. */
+.vital-crisis {
+  animation: vital-crisis 1.4s ease-in-out infinite;
+}
+
+@keyframes vital-crisis {
+  0%, 100% { box-shadow: 0 0 0 rgba(239, 68, 68, 0); }
+  50% { box-shadow: 0 0 22px rgba(239, 68, 68, 0.45); }
 }

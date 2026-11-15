@@ -1,17 +1,33 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useScenarioStore } from '../store/useScenarioStore';
 import { initialState, useTelemetryStore } from '../store/useTelemetryStore';
 import type { Biomarkers, Environment } from '../types/telemetry';
 
 type ScenarioFrame = Partial<Biomarkers & Environment>;
 
-export function SensorSimulator(): null {
+/**
+ * Inyecta lecturas a 1 Hz en el store de telemetría.
+ *
+ * Sin `frames`, reproduce el dataset `/data/scenario_ridge_critical.json`
+ * en bucle. Con `frames`, reproduce ese guion (el del escenario del
+ * tripulante); si `loop` es falso, se queda en la última lectura.
+ */
+export function SensorSimulator({
+  frames,
+  loop = true,
+}: {
+  frames?: ScenarioFrame[];
+  loop?: boolean;
+} = {}): null {
   const updateSensors = useTelemetryStore((state) => state.updateSensors);
-  const [scenarioData, setScenarioData] = useState<ScenarioFrame[]>([]);
+  const [fetched, setFetched] = useState<ScenarioFrame[]>([]);
   const tickIndex = useRef<number>(0);
+  const data = frames ?? fetched;
 
   useEffect(() => {
+    if (frames) return;
     const abortController = new AbortController();
 
     fetch('/data/scenario_ridge_critical.json', {
@@ -25,10 +41,10 @@ export function SensorSimulator(): null {
         }
         return res.json();
       })
-      .then((data: unknown) => {
-        if (Array.isArray(data)) {
+      .then((json: unknown) => {
+        if (Array.isArray(json)) {
           tickIndex.current = 0;
-          setScenarioData(data as ScenarioFrame[]);
+          setFetched(json as ScenarioFrame[]);
         }
       })
       .catch((error: unknown) => {
@@ -44,8 +60,9 @@ export function SensorSimulator(): null {
     return () => {
       abortController.abort();
     };
-  }, []);
+  }, [frames]);
 
+  // Al restaurar la línea base (God Mode → RESET) el guion vuelve a empezar.
   useEffect(() => {
     const unsubscribe = useTelemetryStore.subscribe((state, prevState) => {
       const overrideCleared =
@@ -63,6 +80,7 @@ export function SensorSimulator(): null {
 
       if (overrideCleared || restoredToInitial) {
         tickIndex.current = 0;
+        useScenarioStore.getState().reset();
       }
     });
 
@@ -70,27 +88,32 @@ export function SensorSimulator(): null {
   }, []);
 
   useEffect(() => {
-    if (scenarioData.length === 0) {
+    if (data.length === 0) {
       return;
     }
+    tickIndex.current = 0;
+    useScenarioStore.getState().reset();
 
     const intervalId = setInterval(() => {
       const { isManualOverride } = useTelemetryStore.getState();
       if (isManualOverride) return; // Pausa la inyección de datos si estamos en un escenario manual
 
-      const currentData = scenarioData[tickIndex.current];
+      const currentData = data[tickIndex.current];
 
       if (currentData && typeof currentData === 'object') {
         updateSensors(currentData);
+        useScenarioStore.getState().tick();
       }
 
-      tickIndex.current = (tickIndex.current + 1) % scenarioData.length;
+      tickIndex.current = loop
+        ? (tickIndex.current + 1) % data.length
+        : Math.min(tickIndex.current + 1, data.length - 1);
     }, 1000);
 
     return () => {
       clearInterval(intervalId);
     };
-  }, [scenarioData, updateSensors]);
+  }, [data, loop, updateSensors]);
 
   return null;
 }

@@ -22,7 +22,7 @@ import {
   stepIndexOf,
   totalDays,
 } from '../utils/missionPlan';
-import { generateDemoHistory } from '../utils/demoHistory';
+import { generateDemoHistory, type DemoTrajectory } from '../utils/demoHistory';
 
 interface MissionData {
   mission: Mission | null;
@@ -33,7 +33,14 @@ interface MissionData {
 /** Misiones guardadas por destino, para cambiar de Luna a Marte sin perder nada. */
 type Shelf = Partial<Record<MissionProfileId, MissionData>>;
 
+/** Todo lo de un tripulante: su misión actual y las de otros destinos. */
+interface CrewData extends MissionData {
+  shelf: Shelf;
+}
+
 interface MissionActions {
+  /** Cambia de tripulante: guarda lo suyo y carga lo del perfil elegido. */
+  switchCrew: (crewId: string) => void;
   /**
    * Cambia de destino: guarda la misión actual en su estante y recupera la
    * del destino elegido (o deja la preparación vacía si aún no existe).
@@ -42,7 +49,7 @@ interface MissionActions {
   startMission: (profileId: MissionProfileId, today: DayKey) => void;
   abortMission: (today: DayKey) => void;
   resetAll: () => void;
-  loadDemoHistory: (today: DayKey, profileId?: MissionProfileId) => void;
+  loadDemoHistory: (today: DayKey, profileId?: MissionProfileId, trajectory?: DemoTrajectory) => void;
   /** Cierra sesiones de días anteriores y detecta el fin de la misión */
   syncDay: (today: DayKey) => void;
 
@@ -59,7 +66,13 @@ interface MissionActions {
   closeAsExcused: () => void;
 }
 
-export type MissionState = MissionData & { shelf: Shelf } & MissionActions;
+export type MissionState = MissionData & {
+  shelf: Shelf;
+  /** Tripulante dueño de los datos cargados */
+  crewId: string | null;
+  /** Datos de los demás tripulantes */
+  crews: Record<string, CrewData>;
+} & MissionActions;
 
 const emptyData: MissionData = { mission: null, records: {}, session: null };
 
@@ -109,6 +122,20 @@ export const useMissionStore = create<MissionState>()(
     (set, get) => ({
       ...emptyData,
       shelf: {},
+      crewId: null,
+      crews: {},
+
+      switchCrew: (crewId) => {
+        const { crewId: current, mission, records, session, shelf, crews } = get();
+        if (current === crewId) return;
+        const next = { ...crews };
+        // Los datos sin dueño (de antes de existir perfiles) se quedan con el primero.
+        if (current) next[current] = { mission, records, session, shelf };
+        const restored: CrewData =
+          next[crewId] ?? (current ? { ...emptyData, shelf: {} } : { mission, records, session, shelf });
+        delete next[crewId];
+        set({ ...restored, crewId, crews: next });
+      },
 
       selectProfile: (profileId) => {
         const { mission, records, session, shelf } = get();
@@ -131,8 +158,8 @@ export const useMissionStore = create<MissionState>()(
 
       resetAll: () => set({ ...emptyData }),
 
-      loadDemoHistory: (today, profileId) => {
-        const { mission, records } = generateDemoHistory(today, profileId);
+      loadDemoHistory: (today, profileId, trajectory) => {
+        const { mission, records } = generateDemoHistory(today, profileId, trajectory);
         set({ mission, records, session: null });
       },
 
@@ -319,7 +346,14 @@ export const useMissionStore = create<MissionState>()(
       // `window` sólo existe en el navegador (ver useTelemetryStore).
       storage: createJSONStorage(() => window.localStorage),
       skipHydration: true,
-      partialize: ({ mission, records, session, shelf }) => ({ mission, records, session, shelf }),
+      partialize: ({ mission, records, session, shelf, crewId, crews }) => ({
+        mission,
+        records,
+        session,
+        shelf,
+        crewId,
+        crews,
+      }),
     }
   )
 );

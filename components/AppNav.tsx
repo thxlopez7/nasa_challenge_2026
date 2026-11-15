@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Activity, Compass, Languages, Moon, Orbit, ScanLine, Sparkles } from 'lucide-react';
+import { Activity, Compass, House, Languages, Moon, Orbit, ScanLine } from 'lucide-react';
 import { useIntroStore } from '../store/useIntroStore';
+import { useActiveProfile } from '../store/useProfileStore';
+import CrewAvatar from './profile/CrewAvatar';
 import { MISSION_CHOICES, saveChoice, type MissionSlug } from '../utils/missionChoice';
 import { useT } from '../i18n/I18nContext';
 
@@ -21,6 +23,7 @@ export function AppNav({ mision }: { mision?: MissionSlug }) {
   const isPanel = pathname === '/panel';
   const isDemo = pathname === '/demo';
   const showIntro = useIntroStore((s) => s.show);
+  const profile = useActiveProfile();
   const { t, lang, setLang } = useT();
   const [active, setActive] = useState<SectionId>('cuerpo');
 
@@ -189,14 +192,25 @@ export function AppNav({ mision }: { mision?: MissionSlug }) {
           </button>
         </div>
 
+        {profile && (
+          <button
+            type="button"
+            onClick={() => showIntro('profiles')}
+            title={t.nav.switchCrew}
+            className="min-h-[44px] inline-flex items-center gap-2 rounded-full border border-slate-700 py-0.5 pl-0.5 pr-3 text-slate-300 hover:border-slate-400 hover:text-white transition cursor-pointer"
+          >
+            <CrewAvatar profile={profile} className="h-7 w-7 rounded-full" />
+            <span className="hidden sm:inline">{profile.name}</span>
+          </button>
+        )}
         <button
           type="button"
-          onClick={showIntro}
+          onClick={() => showIntro('title')}
           title={t.nav.replayIntroTitle}
-          aria-label={t.nav.replayIntroTitle}
-          className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-full p-2 text-slate-400 hover:text-cyan-300 hover:bg-slate-800 transition cursor-pointer"
+          className="min-h-[44px] inline-flex items-center gap-1.5 rounded-full border border-cyan-500/40 px-3 text-cyan-200 hover:bg-cyan-500/15 transition cursor-pointer"
         >
-          <Sparkles className="h-4 w-4" aria-hidden />
+          <House className="h-3.5 w-3.5" aria-hidden />
+          {t.nav.home}
         </button>
       </div>
     </nav>

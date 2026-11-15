@@ -47,6 +47,10 @@ import { TodayRoutineCard } from './command/TodayRoutineCard';
 import OutboxPanel from './OutboxPanel';
 import SbarReportModal from './SbarReportModal';
 import SensorSimulator from './SensorSimulator';
+import CrewPanel from './scenario/CrewPanel';
+import LiveEvolution from './vitals/LiveEvolution';
+import type { CrewProfile } from '../types/profile';
+import { scenarioScript } from '../utils/scenarios';
 import BehavioralCheckIn from './mission/BehavioralCheckIn';
 import MissionCenter from './mission/MissionCenter';
 import QuickMeasurementPanel from './mission/QuickMeasurementPanel';
@@ -55,11 +59,22 @@ import TodayCountermeasures from './mission/TodayCountermeasures';
 const TAB_ORDER: CommandTabId[] = ['hoy', 'registrar', 'mision', 'tierra'];
 const LOG_SECTIONS: LogSectionId[] = ['vitals', 'poc', 'behavioral'];
 
-export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
+export function CommandDashboard({ mision, profile }: { mision?: MissionSlug; profile?: CrewProfile }) {
   const { t, lang } = useT();
   const snapshot = useClinicalSnapshot(mision);
 
   const records = useMissionStore((s) => s.records);
+
+  // Cada tripulante reproduce el guion de su escenario (o el dataset en vivo);
+  // hoy arranca desde las lecturas de su último día registrado.
+  const scenario = profile?.scenario;
+  const script = useMemo(() => {
+    if (!scenario || scenario === 'live') return undefined;
+    const last = Object.values(records)
+      .filter((r) => r.vitals)
+      .sort((a, b) => b.missionDay - a.missionDay)[0];
+    return scenarioScript(scenario, last?.vitals);
+  }, [scenario, records]);
   const session = useMissionStore((s) => s.session);
 
   const activeTab = useCommandUiStore((s) => s.activeTab);
@@ -289,7 +304,7 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
       ref={commandRootRef}
       className="min-h-[calc(100vh-4rem)] bg-slate-950 text-slate-100 font-mono px-3 py-2.5 sm:px-5 sm:py-3"
     >
-      <SensorSimulator />
+      <SensorSimulator key={profile?.id ?? 'live'} frames={script?.frames} loop={script?.loop ?? true} />
 
       <div className="max-w-[1440px] mx-auto space-y-2.5">
         {/* Global compact telemetry + comms + Demo drawer gear bar */}
@@ -349,8 +364,10 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
                   <EmergencyCard snapshot={snapshot} mision={mision} />
                 ) : (
                   <>
+                    {profile && <CrewPanel profile={profile} />}
                     <NextActionBanner recommendation={nextAction} />
                     <SystemMosaic tiles={tiles} />
+                    <LiveEvolution key={profile?.id ?? 'live'} />
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 items-stretch">
                       <ActiveAlertsStrip
                         traces={snapshot.ruleTraces}

@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Moon, Orbit } from 'lucide-react';
-import { MISSION_CHOICES, saveChoice, type MissionSlug } from '../../utils/missionChoice';
+import { saveChoice, type MissionSlug } from '../../utils/missionChoice';
+import { useT } from '../../i18n/I18nContext';
 import Starfield from './Starfield';
 
 const TITLE = 'EXOVITALS';
@@ -22,6 +23,8 @@ const depthOf = (i: number, n: number) => Math.sin((i / (n - 1)) * Math.PI) * 0.
  * la galaxia y se avisa con `onChoose`.
  */
 export function CoverPage({ onChoose }: { onChoose: (slug: MissionSlug) => void }) {
+  const { t } = useT();
+  const ci = t.coverIntro;
   const root = useRef<HTMLDivElement>(null);
   const [arriving, setArriving] = useState(true);
   const [leaving, setLeaving] = useState<MissionSlug | null>(null);
@@ -106,12 +109,12 @@ export function CoverPage({ onChoose }: { onChoose: (slug: MissionSlug) => void 
       {/* Pantalla de título */}
       <div className="cover-layer cover-depth-3 flex flex-col items-center justify-center px-5 text-center">
           <p className="cover-rise font-mono text-[10px] sm:text-xs uppercase tracking-[0.45em] text-cyan-200/80" style={{ animationDelay: '0.5s' }}>
-            NASA Space Apps Challenge 2026
+            {ci.kicker}
           </p>
 
-          <h1 className="cover-type mt-5 font-display font-bold" aria-label={`${TITLE} — ${SUBTITLE}`}>
+          <h1 className="cover-type mt-5 font-brand font-normal" aria-label={`${TITLE} — ${SUBTITLE}`}>
             <span className="cover-type-inner" aria-hidden>
-              <span className="cover-word block text-[12vw] sm:text-8xl lg:text-[9rem] leading-[0.95] tracking-normal">
+              <span className="cover-word block whitespace-nowrap text-[min(10vw,9rem)] leading-[0.95] tracking-normal">
                 {TITLE.split('').map((ch, i) => (
                   <span
                     key={i}
@@ -128,23 +131,24 @@ export function CoverPage({ onChoose }: { onChoose: (slug: MissionSlug) => void 
                 ))}
               </span>
               <span
-                className="cover-subtitle cover-rise mt-3 flex items-center justify-center gap-3 sm:gap-5 text-sm sm:text-2xl lg:text-3xl tracking-[0.3em] sm:tracking-[0.4em] text-cyan-100"
+                className="cover-subtitle cover-rise mt-3 flex items-center justify-center gap-3 sm:gap-5 whitespace-nowrap text-[min(4vw,1.875rem)] tracking-[0.25em] sm:tracking-[0.35em] text-cyan-100"
                 style={{ animationDelay: '1.4s' }}
               >
-                <span className="h-px w-8 sm:w-16 bg-gradient-to-r from-transparent to-cyan-300" />
+                <span className="hidden sm:block h-px w-16 bg-gradient-to-r from-transparent to-cyan-300" />
                 {SUBTITLE}
-                <span className="h-px w-8 sm:w-16 bg-gradient-to-l from-transparent to-cyan-300" />
+                <span className="hidden sm:block h-px w-16 bg-gradient-to-l from-transparent to-cyan-300" />
               </span>
             </span>
           </h1>
 
           <div className="cover-rise mt-12 flex flex-col items-center gap-3" style={{ animationDelay: '1.8s' }}>
             <p className="cover-blink font-mono text-[10px] sm:text-xs uppercase tracking-[0.4em] text-slate-200">
-              Elige tu misión
+              {ci.chooseMission}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3">
               {(['luna', 'marte'] as const).map((slug) => {
-                const choice = MISSION_CHOICES[slug];
+                const missionName = slug === 'luna' ? t.common.moon : t.common.mars;
+                const tagline = slug === 'luna' ? ci.moonTagline : ci.marsTagline;
                 const Icon = slug === 'luna' ? Moon : Orbit;
                 return (
                   <button
@@ -152,7 +156,7 @@ export function CoverPage({ onChoose }: { onChoose: (slug: MissionSlug) => void 
                     type="button"
                     onClick={() => go(slug)}
                     disabled={!!leaving}
-                    aria-label={`Entrar a la misión ${choice.label}: ${choice.tagline}`}
+                    aria-label={ci.enterMissionAria(missionName, tagline)}
                     className={`cover-mission group inline-flex items-center gap-2.5 rounded-full border px-4 py-2 text-sm font-display font-bold tracking-wider backdrop-blur-md transition cursor-pointer disabled:cursor-default ${
                       slug === 'marte'
                         ? 'border-orange-300/50 bg-orange-500/10 text-orange-100 hover:bg-orange-500/25 hover:border-orange-200'
@@ -160,9 +164,9 @@ export function CoverPage({ onChoose }: { onChoose: (slug: MissionSlug) => void 
                     } ${leaving === slug ? 'scale-110' : ''}`}
                   >
                     <Icon className="h-4 w-4 transition-transform group-hover:rotate-12" aria-hidden />
-                    MISIÓN {choice.label.toUpperCase()}
+                    {ci.missionPrefix} {missionName.toUpperCase()}
                     <span className="hidden sm:inline font-mono font-normal text-[10px] tracking-normal opacity-70">
-                      {choice.tagline}
+                      {tagline}
                     </span>
                   </button>
                 );
@@ -172,7 +176,7 @@ export function CoverPage({ onChoose }: { onChoose: (slug: MissionSlug) => void 
         </div>
 
       <p className="absolute bottom-3 inset-x-0 text-center font-mono text-[10px] text-slate-400/70 px-4">
-        Centro galáctico · NASA/JPL-Caltech/ESA/CXC/STScI (Hubble, Spitzer y Chandra)
+        {ci.credit}
       </p>
     </main>
   );
