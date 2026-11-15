@@ -100,7 +100,7 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
   const badge = SEVERITY_BADGE[severity];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-mono p-4 sm:p-6 lg:p-10">
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans p-4 sm:p-6 lg:p-10">
       <SensorSimulator />
 
       <div className="max-w-7xl mx-auto space-y-8">
@@ -137,7 +137,7 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-4">
                   <p className="text-xs text-slate-400 uppercase">Heart Rate</p>
-                  <p className="text-2xl font-bold mt-1 tabular-nums">
+                  <p className="text-4xl font-thin mt-1 tabular-nums">
                     {heartRate} <span className="text-sm text-slate-400">bpm</span>
                   </p>
                   <p className="text-xs text-slate-500 mt-1">SpO2: {spO2}%</p>
@@ -145,7 +145,7 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
 
                 <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-4">
                   <p className="text-xs text-slate-400 uppercase">Nivel CO2</p>
-                  <p className="text-2xl font-bold mt-1 tabular-nums">
+                  <p className="text-4xl font-thin mt-1 tabular-nums">
                     {co2Level} <span className="text-sm text-slate-400">ppm</span>
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
@@ -155,7 +155,7 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
 
                 <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-4">
                   <p className="text-xs text-slate-400 uppercase">Cistatina C</p>
-                  <p className="text-2xl font-bold mt-1 tabular-nums">
+                  <p className="text-4xl font-thin mt-1 tabular-nums">
                     {cistatinaC.toFixed(2)}{' '}
                     <span className="text-sm text-slate-400">mg/L</span>
                   </p>
@@ -166,7 +166,7 @@ export function CommandDashboard({ mision }: { mision?: MissionSlug }) {
 
                 <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-4">
                   <p className="text-xs text-slate-400 uppercase">Radiación</p>
-                  <p className="text-2xl font-bold mt-1 tabular-nums">
+                  <p className="text-4xl font-thin mt-1 tabular-nums">
                     {radiationRate}{' '}
                     <span className="text-sm text-slate-400">µSv/h</span>
                   </p>

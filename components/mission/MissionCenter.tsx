@@ -363,7 +363,7 @@ export function MissionCenter({ preferredProfile }: { preferredProfile?: Mission
           <h2 id="mission-center-title" className="text-lg font-bold text-cyan-400 uppercase tracking-wider">
             Centro de misión
           </h2>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="font-lead text-base text-slate-300 mt-1">
             Evaluación diaria, contramedidas y seguimiento del cuerpo a lo largo de la misión.
           </p>
         </div>

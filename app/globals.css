@@ -8,7 +8,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-roboto-condensed), var(--font-geist-sans), system-ui, sans-serif;
+  --font-lead: var(--font-roboto-semi), var(--font-roboto-condensed), sans-serif;
+  --font-note: var(--font-roboto-italic), var(--font-roboto-condensed), sans-serif;
   --font-mono: var(--font-geist-mono);
   --font-display: var(--font-montserrat);
   --font-brand: var(--font-space);
@@ -44,7 +46,23 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Texto corrido: Roboto Condensed ExtraLight. Los pesos 600+ (semibold,
+     bold, black y los títulos) caen en Roboto Condensed Black. */
+  font-family: var(--font-sans);
+  font-weight: 200;
+  letter-spacing: 0.01em;
+}
+
+/* Jerarquía tipográfica del texto corrido. */
+h1, h2, h3, h4, strong, b {
+  font-weight: 900;
+}
+
+/* Notas y aclaraciones: Roboto ExtraLight Italic. */
+em, i, .italic {
+  font-family: var(--font-note);
+  font-weight: 200;
+  font-style: italic;
 }
 
 /* ---------------- Portada (app/page.tsx · CoverPage) ---------------- */

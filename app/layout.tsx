@@ -22,6 +22,39 @@ const space = localFont({
   display: "swap",
 });
 
+/**
+ * Familia de texto corrido (Roboto, SIL OFL 1.1). Jerarquía por peso:
+ *   900 Black   → títulos y énfasis (font-semibold/bold/black, h1–h3)
+ *   200 ExtraLight → texto corrido (peso por defecto del body)
+ *   100 Thin    → cifras grandes (font-thin)
+ */
+const robotoCondensed = localFont({
+  src: [
+    { path: "./fonts/roboto/Roboto_Condensed-Thin.ttf", weight: "100", style: "normal" },
+    { path: "./fonts/roboto/Roboto_Condensed-ExtraLight.ttf", weight: "200", style: "normal" },
+    { path: "./fonts/roboto/Roboto_Condensed-Black.ttf", weight: "900", style: "normal" },
+  ],
+  variable: "--font-roboto-condensed",
+  display: "swap",
+});
+
+/** Entradillas y textos de introducción grandes. */
+const robotoSemiThin = localFont({
+  src: "./fonts/roboto/Roboto_SemiCondensed-Thin.ttf",
+  weight: "100",
+  variable: "--font-roboto-semi",
+  display: "swap",
+});
+
+/** Notas, aclaraciones y citas en cursiva. */
+const robotoItalic = localFont({
+  src: "./fonts/roboto/Roboto-ExtraLightItalic.ttf",
+  weight: "200",
+  style: "italic",
+  variable: "--font-roboto-italic",
+  display: "swap",
+});
+
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
@@ -37,7 +70,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} ${montserrat.variable} ${space.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${montserrat.variable} ${space.variable} ${robotoCondensed.variable} ${robotoSemiThin.variable} ${robotoItalic.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         {children}
