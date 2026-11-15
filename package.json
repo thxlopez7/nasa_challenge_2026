@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "check:contracts": "node scripts/check-contracts.mjs",
+    "i18n:check": "node scripts/check-i18n.mjs",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"
   },

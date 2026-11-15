@@ -31,8 +31,50 @@ function getServerSnapshot(): SupportedLang {
   return 'es';
 }
 
+export const DICTS: Record<SupportedLang, TranslationDict> = { es, en };
+
+export function parseLanguageParam(raw: string | null | undefined): SupportedLang | null {
+  if (!raw) return null;
+  const normalized = raw.trim().toLowerCase();
+  return normalized === 'es' || normalized === 'en' ? normalized : null;
+}
+
+export function getDict(lang: SupportedLang): TranslationDict {
+  return DICTS[lang] ?? es;
+}
+
+/** Lookup seguro para claves dinámicas con advertencia en desarrollo y fallback limpio. */
+export function resolveTranslationKey(
+  lang: SupportedLang,
+  path: string,
+  fallback?: string
+): string {
+  const readPath = (root: unknown): string | undefined => {
+    let cur: unknown = root;
+    for (const part of path.split('.')) {
+      if (!cur || typeof cur !== 'object' || !(part in cur)) return undefined;
+      cur = (cur as Record<string, unknown>)[part];
+    }
+    return typeof cur === 'string' ? cur : undefined;
+  };
+
+  const localized = readPath(DICTS[lang]);
+  if (localized !== undefined) return localized;
+
+  const esFallback = readPath(es);
+  if (process.env.NODE_ENV !== 'production') {
+    console.warn(`[i18n] Missing translation key "${path}" for locale "${lang}"`);
+  }
+  return esFallback ?? fallback ?? path;
+}
+
 export function setAppLanguage(lang: SupportedLang): void {
-  if (currentLang === lang) return;
+  if (currentLang === lang) {
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = lang;
+    }
+    return;
+  }
   currentLang = lang;
   if (typeof window !== 'undefined') {
     try {
@@ -45,16 +87,16 @@ export function setAppLanguage(lang: SupportedLang): void {
   listeners.forEach((l) => l());
 }
 
-const DICTS: Record<SupportedLang, TranslationDict> = { es, en };
-
 interface I18nContextValue {
   lang: SupportedLang;
+  locale: SupportedLang;
   setLang: (lang: SupportedLang) => void;
   t: TranslationDict;
 }
 
 const I18nContext = createContext<I18nContextValue>({
   lang: 'es',
+  locale: 'es',
   setLang: setAppLanguage,
   t: es,
 });
@@ -64,13 +106,16 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     try {
-      const saved = window.localStorage.getItem(LANG_STORAGE_KEY);
-      if (saved === 'en' || saved === 'es') {
-        if (saved !== currentLang) {
-          setAppLanguage(saved);
-        } else {
-          document.documentElement.lang = saved;
-        }
+      const urlParam = parseLanguageParam(
+        new URLSearchParams(window.location.search).get('lang')
+      );
+      if (urlParam) {
+        setAppLanguage(urlParam);
+        return;
+      }
+      const saved = parseLanguageParam(window.localStorage.getItem(LANG_STORAGE_KEY));
+      if (saved) {
+        setAppLanguage(saved);
       } else {
         document.documentElement.lang = currentLang;
       }
@@ -79,8 +124,15 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = lang;
+    }
+  }, [lang]);
+
   const value: I18nContextValue = {
     lang,
+    locale: lang,
     setLang: setAppLanguage,
     t: DICTS[lang],
   };
