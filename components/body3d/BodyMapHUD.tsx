@@ -165,6 +165,8 @@ const GLOBAL_CSS = `
 .xp-stage::before{top:8px;left:8px;border-right:0;border-bottom:0}
 .xp-stage::after{bottom:8px;right:8px;border-left:0;border-top:0}
 .xp-canvas{position:absolute;inset:0}
+.xp-hint{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:4;margin:0;max-width:calc(100% - 32px);padding:6px 14px;background:rgba(5,7,10,.72);border:1px solid rgba(0,168,232,.35);color:var(--dim);font:300 13px var(--font-roboto-condensed),sans-serif;letter-spacing:.02em;text-align:center;pointer-events:none}
+.xp-hint b{color:var(--c);font-weight:900}
 .xp-canvas canvas{touch-action:pan-y!important}
 .xp-placeholder{display:flex;align-items:center;justify-content:center;color:var(--dim);font:500 15px 'IBM Plex Mono',monospace}
 .xp-grid{position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(rgba(0,168,232,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(0,168,232,.07) 1px,transparent 1px);background-size:44px 44px;-webkit-mask-image:radial-gradient(ellipse at center,#000 25%,transparent 72%);mask-image:radial-gradient(ellipse at center,#000 25%,transparent 72%)}
@@ -213,6 +215,7 @@ const GLOBAL_CSS = `
 .xp-detail{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:24px}
 .xp-card{padding:16px;border:1px solid #1c2733;background:rgba(255,255,255,.015)}
 @media(max-width:900px){
+  .xp-hint{bottom:auto;top:calc(72vh - 46px);font-size:12px}
   .hud{padding:20px 16px 32px}.stripe{margin:-20px -16px 20px}
   .xp-stage{height:auto;overflow:visible;border:0;background:none}
   .xp-stage::before,.xp-stage::after{display:none}
@@ -345,7 +348,7 @@ const SEVERITY: Record<StatusColor, 0 | 1 | 2> = { green: 0, amber: 1, red: 2 };
  * Escáner corporal 3D y explorador de anatomía (equipo UX/UI). Ocupa la
  * primera pantalla de la página única de ExoVitals.
  */
-export function BodyMapHUD() {
+export function BodyMapHUD({ scanRun = 0 }: { scanRun?: number } = {}) {
   const [selectedSystem, setSelectedSystem] = useState<SystemId>("inmune");
   const [isSurgeonMode, setIsSurgeonMode] = useState<boolean>(false);
   const [emergencyActive, setEmergencyActive] = useState<boolean>(false);
@@ -358,6 +361,18 @@ export function BodyMapHUD() {
   const [scanDone, setScanDone] = useState(false);
   const [introKey, setIntroKey] = useState(0);
   const [homeKey, setHomeKey] = useState(0);
+
+  // Cada vez que se cierra la intro, el escaneo vuelve a empezar (sin
+  // desmontar la escena 3D). Patrón de React para ajustar estado a una prop.
+  const [seenRun, setSeenRun] = useState(scanRun);
+  if (seenRun !== scanRun) {
+    setSeenRun(scanRun);
+    setDetected([]);
+    setScanDone(false);
+    setProgress(0);
+    setIntroKey((k) => k + 1);
+    setStage("intro");
+  }
 
   const ids = Object.keys(SYSTEMS_DATA) as SystemId[];
   const current = SYSTEMS_DATA[selectedSystem];
@@ -461,8 +476,18 @@ export function BodyMapHUD() {
           onDetect={(id) => onDetect(id as SystemId)}
           onProgress={setProgress}
           onIntroDone={onIntroDone}
+          onBodyClick={() => explore(anomalies.find((a) => a.severity === 2)?.id ?? anomalies[0]?.id)}
         />
         <div className="xp-grid" aria-hidden />
+        <p className="xp-hint" aria-hidden>
+          {stage === "intro" ? (
+            <>
+              <b>Clic en el cuerpo</b> para explorar la anatomía · Arrastra para girar · Rueda o pellizco: zoom · Clic derecho o dos dedos: mover
+            </>
+          ) : (
+            <>Arrastra para girar · Rueda o pellizco: zoom · Clic derecho o dos dedos: mover</>
+          )}
+        </p>
 
         <div className="xp-phase">
           <span className="xp-phase-n">{stage === "intro" ? "01" : "02"}</span>

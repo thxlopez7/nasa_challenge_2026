@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, type ThreeEvent } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { Group, Matrix4, Mesh, Plane, ShaderMaterial, Vector3 } from 'three';
@@ -47,6 +47,9 @@ const FLY_MS = 1100;
 const HOME_CAMERA = new Vector3(0, 0.1, 4.1);
 const HOME_TARGET = new Vector3(0, 0, 0);
 const INTRO_RADIUS = 3.7;
+const INTRO_TARGET = new Vector3(0, 0.05, 0);
+/** Más de estos píxeles entre pulsar y soltar = arrastre, no clic. */
+const CLICK_TOLERANCE_PX = 6;
 
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
@@ -61,10 +64,33 @@ interface FrameState {
   reveal: number[];
 }
 
-function HologramBody({ frame, anomalies }: {
+function HologramBody({ frame, anomalies, onActivate }: {
   frame: React.RefObject<FrameState>;
   anomalies: Anomaly[];
+  /** Clic (no arrastre) sobre el holograma; sólo durante el escaneo. */
+  onActivate?: () => void;
 }) {
+  // El cursor se cambia en el propio canvas del evento.
+  const setCursor = (e: ThreeEvent<PointerEvent | MouseEvent>, c: string) => {
+    const el = e.nativeEvent.target;
+    if (el instanceof HTMLElement) el.style.cursor = c;
+  };
+  const handlers = onActivate
+    ? {
+        onClick: (e: ThreeEvent<MouseEvent>) => {
+          e.stopPropagation();
+          if (e.delta <= CLICK_TOLERANCE_PX) {
+            setCursor(e, '');
+            onActivate();
+          }
+        },
+        onPointerOver: (e: ThreeEvent<PointerEvent>) => {
+          e.stopPropagation();
+          setCursor(e, 'pointer');
+        },
+        onPointerOut: (e: ThreeEvent<PointerEvent>) => setCursor(e, ''),
+      }
+    : {};
   const { object, scale, offset } = useNormalizedScene(WIREFRAME_MODEL.url, { size: 2 });
   const fillRef = useRef<ShaderMaterial>(null);
   const wireRef = useRef<ShaderMaterial>(null);
@@ -104,7 +130,7 @@ function HologramBody({ frame, anomalies }: {
   });
 
   return (
-    <group scale={scale}>
+    <group scale={scale} {...handlers}>
       <group position={offset}>
         {parts.map((p, i) => (
           <group key={i} matrix={p.matrix} matrixAutoUpdate={false}>
@@ -253,6 +279,7 @@ function Director({
   onDetect,
   onProgress,
   onIntroDone,
+  onBodyClick,
 }: {
   stage: Stage;
   layer: Layer;
@@ -266,6 +293,7 @@ function Director({
   onDetect: (id: BodySystemId) => void;
   onProgress: (pct: number) => void;
   onIntroDone: () => void;
+  onBodyClick?: () => void;
 }) {
   // Estado de animación compartido: sólo el director lo escribe; los cuerpos lo leen.
   const frame = useRef<FrameState>({ scanY: 10, cutY: -10, time: 0, reveal: new Array(MAX_ZONES).fill(0) });
@@ -278,6 +306,8 @@ function Director({
   const prevSelected = useRef<BodySystemId | null>(null);
   const prevHome = useRef(homeKey);
   const prevStage = useRef<Stage>(stage);
+  /** Durante el escaneo: el usuario ya tomó el control de la cámara. */
+  const manual = useRef(false);
 
   // Reinicia el escaneo cuando cambia introKey.
   useEffect(() => {
@@ -286,7 +316,19 @@ function Director({
     done.current = false;
     lastPct.current = -1;
     frame.current.reveal = new Array(MAX_ZONES).fill(0);
+    manual.current = false;
   }, [introKey]);
+
+  // Al tocar la escena durante el escaneo, la cámara pasa a ser del usuario.
+  useEffect(() => {
+    const c = controls.current;
+    if (!c) return;
+    const take = () => {
+      manual.current = true;
+    };
+    c.addEventListener('start', take);
+    return () => c.removeEventListener('start', take);
+  }, []);
 
   useFrame((state, delta) => {
     const f = frame.current;
@@ -296,9 +338,18 @@ function Director({
 
     if (stage === 'intro') {
       const t = reduced ? 1 : Math.min(1, (now - introStart.current) / INTRO_MS);
-      const angle = ease(t) * Math.PI * 2;
-      cam.position.set(Math.sin(angle) * INTRO_RADIUS, 0.25 + Math.sin(t * Math.PI) * 0.35, Math.cos(angle) * INTRO_RADIUS);
-      cam.lookAt(0, 0.05, 0);
+      const c = controls.current;
+      if (!manual.current) {
+        // Vuelta automática de 360° hasta que el usuario toma el control.
+        const angle = ease(t) * Math.PI * 2;
+        cam.position.set(Math.sin(angle) * INTRO_RADIUS, 0.25 + Math.sin(t * Math.PI) * 0.35, Math.cos(angle) * INTRO_RADIUS);
+        cam.lookAt(INTRO_TARGET);
+        if (c) c.target.copy(INTRO_TARGET);
+        // Al terminar la vuelta, la cámara queda libre (girar, panear, zoom).
+        if (t >= 1) manual.current = true;
+      } else if (c) {
+        c.update();
+      }
 
       // El escáner baja de la cabeza a los pies durante el 85 % de la vuelta.
       const scanT = Math.min(1, t / 0.85);
@@ -371,7 +422,11 @@ function Director({
   return (
     <>
       <Suspense fallback={null}>
-        <HologramBody frame={frame} anomalies={anomalies} />
+        <HologramBody
+          frame={frame}
+          anomalies={anomalies}
+          onActivate={stage === 'intro' ? onBodyClick : undefined}
+        />
         <AnatomyBody frame={frame} />
         {stage === 'explore' &&
           anomalies.map((a) => <AnomalyBeacon key={a.id} anomaly={a} frame={frame} />)}
@@ -383,10 +438,11 @@ function Director({
       </Suspense>
       <OrbitControls
       ref={controls}
-      enabled={stage === 'explore'}
-      enablePan={false}
-      minDistance={1.3}
-      maxDistance={5.5}
+      makeDefault
+      enablePan
+      screenSpacePanning
+      minDistance={1}
+      maxDistance={6.5}
       minPolarAngle={Math.PI * 0.25}
       maxPolarAngle={Math.PI * 0.75}
       enableDamping={!reduced}
@@ -423,6 +479,7 @@ export function BodyExperience({
   onDetect,
   onProgress,
   onIntroDone,
+  onBodyClick,
 }: {
   stage: Stage;
   layer: Layer;
@@ -435,6 +492,8 @@ export function BodyExperience({
   onDetect: (id: BodySystemId) => void;
   onProgress: (pct: number) => void;
   onIntroDone: () => void;
+  /** Clic sobre el holograma durante el escaneo (pasa a la anatomía). */
+  onBodyClick?: () => void;
 }) {
   const reduced = usePrefersReducedMotion();
 
@@ -464,6 +523,7 @@ export function BodyExperience({
           onDetect={onDetect}
           onProgress={onProgress}
           onIntroDone={onIntroDone}
+          onBodyClick={onBodyClick}
         />
       </Canvas>
       <LoadingOverlay label="Cargando cuerpo 3D…" />
