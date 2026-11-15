@@ -26,6 +26,9 @@ jobs:
       - name: Canonical contract guard
         run: npm run check:contracts
 
+      - name: Generate Next.js route types
+        run: npx next typegen
+
       - name: TypeScript typecheck
         run: npx tsc --noEmit
 

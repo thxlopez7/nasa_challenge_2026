@@ -1,11 +1,13 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import {
   Activity,
   Award,
   Bone,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Droplets,
   Flame,
   HeartPulse,
@@ -20,6 +22,7 @@ import {
   deriveDailyCountermeasures,
   type CountermeasureItem,
 } from '../../utils/countermeasures';
+import { formatDecimal } from '../../utils/formatters';
 import type { MissionSlug } from '../../utils/missionChoice';
 import {
   HYDRATION_TARGET,
@@ -33,12 +36,14 @@ export function TodayCountermeasures({
   mision,
   todayOverride,
   runWithToast,
+  compactMode = false,
 }: {
   mision?: MissionSlug;
   todayOverride?: DayKey | null;
   runWithToast?: (action: () => void) => void;
+  compactMode?: boolean;
 }) {
-  const { lang } = useT();
+  const { t, lang } = useT();
   const snapshot = useClinicalSnapshot(mision);
 
   const mission = useMissionStore((s) => s.mission);
@@ -49,6 +54,8 @@ export function TodayCountermeasures({
   const startEvaluation = useMissionStore((s) => s.startEvaluation);
   const completeStep = useMissionStore((s) => s.completeStep);
   const logHydration = useMissionStore((s) => s.logHydration);
+
+  const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
 
   const today = todayOverride ?? toDayKey(new Date());
   const streak = mission
@@ -110,46 +117,22 @@ export function TodayCountermeasures({
   );
 
   const b = snapshot.biomarkers;
+  const copy = t.countermeasuresUi;
+  const orthoLabel =
+    plan.orthostaticStatus === 'positive-intolerance'
+      ? copy.orthoLabels.positiveIntolerance
+      : plan.orthostaticStatus === 'borderline'
+        ? copy.orthoLabels.borderline
+        : plan.orthostaticStatus === 'normal'
+          ? copy.orthoLabels.normal
+          : copy.orthoLabels.unmeasured;
 
-  const copy =
-    lang === 'es'
-      ? {
-          eyebrow: 'P6 · SALUD ÓSEA, CARDIOVASCULAR Y ADHERENCIA',
-          title: 'Contramedidas de hoy',
-          streak: 'Racha',
-          days: 'sem.',
-          boneCard: 'Perfil Óseo / Muscular (sin DXA a bordo)',
-          cardioCard: 'Desacondicionamiento y Tolerancia Ortostática',
-          doneBtn: 'Completado',
-          doBtn: 'Completar paso',
-          holdBtn: 'En pausa por seguridad',
-          orthoLabels: {
-            normal: 'Tolerancia ortostática normal',
-            borderline: 'Ortostática limítrofe',
-            'positive-intolerance': 'Intolerancia ortostática positiva',
-            unmeasured: 'Sin prueba ortostática reciente',
-          },
-        }
-      : {
-          eyebrow: 'P6 · BONE, CARDIOVASCULAR & ADHERENCE',
-          title: "Today's Countermeasures",
-          streak: 'Streak',
-          days: 'wk',
-          boneCard: 'Bone & Muscle Panel (No Onboard DXA)',
-          cardioCard: 'Cardio Deconditioning & Orthostatic Screen',
-          doneBtn: 'Completed',
-          doBtn: 'Log completion',
-          holdBtn: 'Held for safety',
-          orthoLabels: {
-            normal: 'Normal orthostatic tolerance',
-            borderline: 'Borderline orthostatic response',
-            'positive-intolerance': 'Positive orthostatic intolerance',
-            unmeasured: 'No recent orthostatic check',
-          },
-        };
+  const toggleExpand = (id: string) => {
+    setExpandedIds((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   return (
-    <section className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-5">
+    <section className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <p className="text-[11px] font-bold tracking-widest uppercase text-cyan-400">
@@ -173,8 +156,8 @@ export function TodayCountermeasures({
         </div>
       </div>
 
-      {/* Dos tarjetas de síntesis P6: Óseo/Muscular y Cardio ampliado */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Dos tarjetas de síntesis Óseo/Muscular y Cardio ampliado */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
         <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-2.5">
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-orange-300">
             <Bone className="w-4 h-4" aria-hidden="true" />
@@ -184,13 +167,13 @@ export function TodayCountermeasures({
             <div className="rounded bg-slate-900/80 border border-slate-800 p-2">
               <p className="text-[10px] text-slate-400">CTX/NTX</p>
               <p className="text-sm font-bold text-slate-100 mt-0.5 tabular-nums">
-                {b.ctxNtxIndex !== undefined ? b.ctxNtxIndex.toFixed(2) : '—'}
+                {b.ctxNtxIndex !== undefined ? formatDecimal(b.ctxNtxIndex, 2, lang) : '—'}
               </p>
             </div>
             <div className="rounded bg-slate-900/80 border border-slate-800 p-2">
               <p className="text-[10px] text-slate-400">P1NP</p>
               <p className="text-sm font-bold text-slate-100 mt-0.5 tabular-nums">
-                {b.p1npIndex !== undefined ? b.p1npIndex.toFixed(2) : '—'}
+                {b.p1npIndex !== undefined ? formatDecimal(b.p1npIndex, 2, lang) : '—'}
               </p>
             </div>
             <div className="rounded bg-slate-900/80 border border-slate-800 p-2">
@@ -219,13 +202,13 @@ export function TodayCountermeasures({
               </p>
             </div>
             <div className="rounded bg-slate-900/80 border border-slate-800 p-2">
-              <p className="text-[10px] text-slate-400">Ortost. ΔFC</p>
+              <p className="text-[10px] text-slate-400">{copy.orthoHr}</p>
               <p className="text-sm font-bold text-slate-100 mt-0.5 tabular-nums">
                 {b.orthostaticDeltaHr !== undefined ? `+${Math.round(b.orthostaticDeltaHr)}` : '—'}
               </p>
             </div>
             <div className="rounded bg-slate-900/80 border border-slate-800 p-2">
-              <p className="text-[10px] text-slate-400">Ortost. ΔPAS</p>
+              <p className="text-[10px] text-slate-400">{copy.orthoSys}</p>
               <p className="text-sm font-bold text-slate-100 mt-0.5 tabular-nums">
                 {b.orthostaticDeltaSys !== undefined ? `${Math.round(b.orthostaticDeltaSys)}` : '—'}
               </p>
@@ -241,16 +224,17 @@ export function TodayCountermeasures({
                   : 'border-emerald-500/50 bg-emerald-500/10 text-emerald-200'
             }`}
           >
-            {copy.orthoLabels[plan.orthostaticStatus]}
+            {orthoLabel}
           </span>
         </div>
       </div>
 
-      {/* Lista de contramedidas accionables vinculadas a XP */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {/* Lista de contramedidas (filas compactas expandibles en compactMode o tarjetas estándar) */}
+      <div className={compactMode ? 'space-y-2' : 'grid grid-cols-1 md:grid-cols-2 gap-3'}>
         {plan.items.map((item) => {
           const isDone = completedSet.has(item.stepId);
           const isHold = item.priority === 'hold';
+          const isExpanded = !compactMode || Boolean(expandedIds[item.id]);
           const Icon =
             item.category === 'bone'
               ? Bone
@@ -263,7 +247,7 @@ export function TodayCountermeasures({
           return (
             <div
               key={item.id}
-              className={`rounded-xl border p-4 flex flex-col justify-between gap-3 transition-colors ${
+              className={`rounded-xl border p-3.5 flex flex-col justify-between gap-2.5 transition-colors ${
                 isDone
                   ? 'border-emerald-500/60 bg-emerald-950/20'
                   : isHold
@@ -274,51 +258,91 @@ export function TodayCountermeasures({
               }`}
             >
               <div className="space-y-1.5">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
                     <Icon className="w-4 h-4 text-cyan-400 shrink-0" aria-hidden="true" />
-                    <h3 className="text-sm font-semibold text-slate-100">
+                    <h3 className="text-sm font-semibold text-slate-100 truncate">
                       {item.title}
                     </h3>
                   </div>
-                  <span className="text-[11px] font-mono text-amber-300 shrink-0">
-                    +{item.xpReward} XP
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[11px] font-mono text-amber-300">
+                      +{item.xpReward} XP
+                    </span>
+                    {compactMode && (
+                      <button
+                        type="button"
+                        onClick={() => toggleExpand(item.id)}
+                        aria-expanded={isExpanded}
+                        className="inline-flex items-center gap-1 min-h-[44px] px-2.5 py-1 rounded border border-slate-700 bg-slate-900 hover:bg-slate-800 text-[11px] text-slate-300 cursor-pointer"
+                      >
+                        <span>{isExpanded ? copy.hideDetails : copy.showDetails}</span>
+                        {isExpanded ? (
+                          <ChevronUp className="w-3.5 h-3.5" aria-hidden="true" />
+                        ) : (
+                          <ChevronDown className="w-3.5 h-3.5" aria-hidden="true" />
+                        )}
+                      </button>
+                    )}
+                    {compactMode && (
+                      <button
+                        type="button"
+                        disabled={isDone || isHold}
+                        onClick={() => handleCompleteCountermeasure(item)}
+                        className={`min-h-[44px] inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
+                          isDone
+                            ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-500/50 cursor-default'
+                            : isHold
+                              ? 'bg-red-950/60 text-red-200 border border-red-500/50 cursor-not-allowed'
+                              : 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 cursor-pointer'
+                        }`}
+                      >
+                        {isDone ? copy.doneBtn : isHold ? copy.holdBtn : copy.doBtn}
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <p className="text-xs text-slate-200 leading-relaxed">
-                  {item.prescription}
-                </p>
-                <p className="text-[11px] text-slate-400 leading-relaxed">
-                  {item.why}
-                </p>
+
+                {isExpanded && (
+                  <>
+                    <p className="text-xs text-slate-200 leading-relaxed">
+                      {item.prescription}
+                    </p>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      {item.why}
+                    </p>
+                  </>
+                )}
               </div>
 
-              <button
-                type="button"
-                disabled={isDone || isHold}
-                onClick={() => handleCompleteCountermeasure(item)}
-                className={`w-full min-h-[44px] inline-flex items-center justify-center gap-2 rounded-lg text-xs font-bold transition-colors ${
-                  isDone
-                    ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-500/50 cursor-default'
-                    : isHold
-                      ? 'bg-red-950/60 text-red-200 border border-red-500/50 cursor-not-allowed'
-                      : 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 cursor-pointer'
-                }`}
-              >
-                {isDone ? (
-                  <>
-                    <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
-                    <span>{copy.doneBtn}</span>
-                  </>
-                ) : isHold ? (
-                  <>
-                    <PauseCircle className="w-4 h-4" aria-hidden="true" />
-                    <span>{copy.holdBtn}</span>
-                  </>
-                ) : (
-                  <span>{copy.doBtn}</span>
-                )}
-              </button>
+              {!compactMode && (
+                <button
+                  type="button"
+                  disabled={isDone || isHold}
+                  onClick={() => handleCompleteCountermeasure(item)}
+                  className={`w-full min-h-[44px] inline-flex items-center justify-center gap-2 rounded-lg text-xs font-bold transition-colors ${
+                    isDone
+                      ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-500/50 cursor-default'
+                      : isHold
+                        ? 'bg-red-950/60 text-red-200 border border-red-500/50 cursor-not-allowed'
+                        : 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 cursor-pointer'
+                  }`}
+                >
+                  {isDone ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
+                      <span>{copy.doneBtn}</span>
+                    </>
+                  ) : isHold ? (
+                    <>
+                      <PauseCircle className="w-4 h-4" aria-hidden="true" />
+                      <span>{copy.holdBtn}</span>
+                    </>
+                  ) : (
+                    <span>{copy.doBtn}</span>
+                  )}
+                </button>
+              )}
             </div>
           );
         })}
