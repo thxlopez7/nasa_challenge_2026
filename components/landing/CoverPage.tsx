@@ -109,9 +109,9 @@ export function CoverPage({ onChoose }: { onChoose: (slug: MissionSlug) => void 
             NASA Space Apps Challenge 2026
           </p>
 
-          <h1 className="cover-type mt-5 font-display font-bold" aria-label={`${TITLE} — ${SUBTITLE}`}>
+          <h1 className="cover-type mt-5 font-brand font-normal" aria-label={`${TITLE} — ${SUBTITLE}`}>
             <span className="cover-type-inner" aria-hidden>
-              <span className="cover-word block text-[12vw] sm:text-8xl lg:text-[9rem] leading-[0.95] tracking-normal">
+              <span className="cover-word block whitespace-nowrap text-[min(10vw,9rem)] leading-[0.95] tracking-normal">
                 {TITLE.split('').map((ch, i) => (
                   <span
                     key={i}
@@ -128,12 +128,12 @@ export function CoverPage({ onChoose }: { onChoose: (slug: MissionSlug) => void 
                 ))}
               </span>
               <span
-                className="cover-subtitle cover-rise mt-3 flex items-center justify-center gap-3 sm:gap-5 text-sm sm:text-2xl lg:text-3xl tracking-[0.3em] sm:tracking-[0.4em] text-cyan-100"
+                className="cover-subtitle cover-rise mt-3 flex items-center justify-center gap-3 sm:gap-5 whitespace-nowrap text-[min(4vw,1.875rem)] tracking-[0.25em] sm:tracking-[0.35em] text-cyan-100"
                 style={{ animationDelay: '1.4s' }}
               >
-                <span className="h-px w-8 sm:w-16 bg-gradient-to-r from-transparent to-cyan-300" />
+                <span className="hidden sm:block h-px w-16 bg-gradient-to-r from-transparent to-cyan-300" />
                 {SUBTITLE}
-                <span className="h-px w-8 sm:w-16 bg-gradient-to-l from-transparent to-cyan-300" />
+                <span className="hidden sm:block h-px w-16 bg-gradient-to-l from-transparent to-cyan-300" />
               </span>
             </span>
           </h1>

@@ -59,7 +59,7 @@ export function AppNav({ mision }: { mision?: MissionSlug }) {
       <button
         type="button"
         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        className="inline-flex items-center gap-2 font-display font-bold uppercase tracking-[0.2em] text-slate-200 hover:text-cyan-300 transition cursor-pointer"
+        className="inline-flex items-center gap-2 font-brand uppercase tracking-[0.2em] text-slate-200 hover:text-cyan-300 transition cursor-pointer"
       >
         <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_10px_#22d3ee]" />
         ExoVitals
