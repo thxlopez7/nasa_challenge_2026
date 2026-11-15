@@ -105,32 +105,15 @@ body {
   filter: drop-shadow(0 0 30px rgba(34, 211, 238, 0.45));
 }
 
-/* Escena de fondo: aparece con el salto warp. */
+/* Escena de fondo. */
 .cover-scene {
   position: absolute;
   inset: 0;
-  opacity: 0;
-  transition: opacity 1.4s ease;
-}
-.cover-scene.is-visible {
-  opacity: 1;
-}
-
-/* Rótulos de la cinemática: entran, se sostienen y se van. */
-.cover-card {
-  animation: cover-card 2.6s ease-in-out both;
 }
 
 /* «Elige tu misión» parpadea como un «press start». */
 .cover-blink {
   animation: cover-blink 1.6s ease-in-out infinite;
-}
-
-@keyframes cover-card {
-  0% { opacity: 0; letter-spacing: -0.02em; filter: blur(8px); transform: scale(0.96); }
-  25% { opacity: 1; filter: blur(0); transform: scale(1); }
-  78% { opacity: 1; filter: blur(0); }
-  100% { opacity: 0; filter: blur(6px); transform: scale(1.04); }
 }
 
 @keyframes cover-blink {
@@ -146,7 +129,7 @@ body {
 .cover-type-inner {
   display: block;
   transform-style: preserve-3d;
-  transform: rotateY(calc(var(--px) * 9deg)) rotateX(calc(var(--py) * -6deg));
+  transform: rotateY(calc(var(--px) * 6deg)) rotateX(calc(var(--py) * -5deg));
 }
 .cover-word {
   transform-style: preserve-3d;
@@ -155,9 +138,9 @@ body {
   display: inline-block;
   transform-style: preserve-3d;
   transform: translate3d(
-    calc(var(--px) * var(--d) * 12px),
-    calc(var(--py) * var(--d) * 8px),
-    calc(var(--d) * 45px)
+    calc(var(--px) * var(--d) * 5px),
+    calc(var(--py) * var(--d) * 4px),
+    calc(var(--d) * 18px)
   );
 }
 .cover-letter-face {

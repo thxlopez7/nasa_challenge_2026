@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronsRight, Moon, Orbit } from 'lucide-react';
+import { Moon, Orbit } from 'lucide-react';
 import { MISSION_CHOICES, saveChoice, type MissionSlug } from '../../utils/missionChoice';
 import Starfield from './Starfield';
 
@@ -10,33 +10,22 @@ const TITLE = 'EXOVITALS';
 const SUBTITLE = 'MEDICAL COMMAND';
 const EXIT_MS = 1100;
 
-/**
- * Guion de la intro, como la de un videojuego. Arranca sola al abrir la app:
- *   1. Rótulo «NASA Space Apps Challenge 2026 presenta» sobre negro.
- *   2. Rótulo con la premisa.
- *   3. Salto warp: las estrellas se estiran y aparece la galaxia.
- *   4. Pantalla de título: EXOVITALS se arma letra a letra y se elige misión.
- */
-type Phase = 'card1' | 'card2' | 'warp' | 'title';
-const TIMELINE: [Phase, number][] = [
-  ['card2', 2600],
-  ['warp', 5200],
-  ['title', 6800],
-];
+/** Duración del salto warp de llegada, antes de que las estrellas se calmen. */
+const ARRIVAL_MS = 1400;
 
 /** Profundidad de cada letra (−1 = al fondo, 1 = delante): una ola suave. */
 const depthOf = (i: number, n: number) => Math.sin((i / (n - 1)) * Math.PI) * 0.9 - 0.2;
 
 /**
- * Intro de ExoVitals. Se puede saltar con un clic o cualquier tecla. Al
- * elegir Luna o Marte, la cámara entra en la galaxia y la intro se reemplaza
- * en el historial por el panel de esa misión.
+ * Intro de ExoVitals: la pantalla de título aparece sola al abrir la app.
+ * Se llega en warp, la galaxia se enfoca, EXOVITALS se arma letra a letra con
+ * profundidad y se elige misión. Al elegir Luna o Marte, la cámara entra en
+ * la galaxia y la intro se reemplaza en el historial por el panel.
  */
 export function CoverPage() {
   const router = useRouter();
   const root = useRef<HTMLDivElement>(null);
-  const timers = useRef<number[]>([]);
-  const [phase, setPhase] = useState<Phase>('card1');
+  const [arriving, setArriving] = useState(true);
   const [leaving, setLeaving] = useState<MissionSlug | null>(null);
 
   // Precarga el panel para que el salto no espere a la red.
@@ -45,25 +34,11 @@ export function CoverPage() {
     router.prefetch('/panel?mision=marte');
   }, [router]);
 
-  // La secuencia arranca sola.
+  // Llegada automática en warp; después las estrellas se calman.
   useEffect(() => {
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const steps: [Phase, number][] = reduced ? [['title', 0]] : TIMELINE;
-    timers.current = steps.map(([p, at]) => window.setTimeout(() => setPhase(p), at));
-    return () => timers.current.forEach((id) => window.clearTimeout(id));
+    const id = window.setTimeout(() => setArriving(false), ARRIVAL_MS);
+    return () => window.clearTimeout(id);
   }, []);
-
-  const skip = useCallback(() => {
-    timers.current.forEach((id) => window.clearTimeout(id));
-    setPhase('title');
-  }, []);
-
-  // Clic o cualquier tecla durante la cinemática → pantalla de título.
-  useEffect(() => {
-    if (phase === 'title') return;
-    window.addEventListener('keydown', skip);
-    return () => window.removeEventListener('keydown', skip);
-  }, [phase, skip]);
 
   // Parallax: variables CSS suavizadas, sin renders de React.
   useEffect(() => {
@@ -113,21 +88,17 @@ export function CoverPage() {
     window.setTimeout(() => router.replace(`/panel?mision=${slug}`), reduced ? 0 : EXIT_MS);
   };
 
-  const cinematic = phase !== 'title';
-  const sceneVisible = phase === 'warp' || phase === 'title';
-
   return (
     <main
       ref={root}
-      onClick={cinematic ? skip : undefined}
-      className={`cover relative h-[100svh] w-full overflow-hidden bg-black text-white cover-phase-${phase} ${
+      className={`cover relative h-[100svh] w-full overflow-hidden bg-black text-white ${
         leaving ? 'cover-leaving' : ''
-      } ${cinematic ? 'cursor-pointer' : ''}`}
+      }`}
     >
-      {/* Escena: galaxia, estrellas y nebulosa (aparecen con el salto warp) */}
-      <div className={`cover-scene ${sceneVisible ? 'is-visible' : ''}`} aria-hidden>
+      {/* Escena: galaxia y nebulosa */}
+      <div className="cover-scene" aria-hidden>
         <div className="cover-layer cover-depth-0">
-          {sceneVisible && <div className="cover-galaxy" />}
+          <div className="cover-galaxy" />
         </div>
         <div className="cover-layer cover-depth-2">
           <div className="cover-glow cover-glow-a" />
@@ -136,40 +107,20 @@ export function CoverPage() {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_30%,rgba(3,2,11,0.75)_100%)]" />
       </div>
 
-      {/* Estrellas: presentes desde el principio, warp al saltar y al salir */}
+      {/* Estrellas: warp al llegar y al salir */}
       <div className="cover-layer cover-depth-1" aria-hidden>
-        <Starfield warp={phase === 'warp' || !!leaving} transparent />
+        <Starfield warp={arriving || !!leaving} transparent />
       </div>
 
-      {/* Rótulos de la cinemática */}
-      {phase === 'card1' && (
-        <div key="card1" className="cover-card absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
-          <p className="font-display font-bold text-lg sm:text-2xl tracking-[0.35em] text-slate-100">
-            NASA SPACE APPS CHALLENGE 2026
-          </p>
-          <p className="font-mono text-xs sm:text-sm tracking-[0.5em] text-slate-400">PRESENTA</p>
-        </div>
-      )}
-      {phase === 'card2' && (
-        <div key="card2" className="cover-card absolute inset-0 flex items-center justify-center px-6 text-center">
-          <p className="max-w-2xl font-display font-bold text-xl sm:text-3xl leading-snug tracking-wide text-slate-100">
-            A millones de kilómetros de la Tierra,
-            <br />
-            <span className="text-cyan-300">el médico viaja contigo.</span>
-          </p>
-        </div>
-      )}
-
       {/* Pantalla de título */}
-      {phase === 'title' && (
-        <div className="cover-layer cover-depth-3 flex flex-col items-center justify-center px-5 text-center">
-          <p className="cover-rise font-mono text-[10px] sm:text-xs uppercase tracking-[0.45em] text-cyan-200/80" style={{ animationDelay: '0.1s' }}>
+      <div className="cover-layer cover-depth-3 flex flex-col items-center justify-center px-5 text-center">
+          <p className="cover-rise font-mono text-[10px] sm:text-xs uppercase tracking-[0.45em] text-cyan-200/80" style={{ animationDelay: '0.5s' }}>
             NASA Space Apps Challenge 2026
           </p>
 
           <h1 className="cover-type mt-5 font-display font-bold" aria-label={`${TITLE} — ${SUBTITLE}`}>
             <span className="cover-type-inner" aria-hidden>
-              <span className="cover-word block text-[13vw] sm:text-8xl lg:text-[9rem] leading-[0.95] tracking-tight">
+              <span className="cover-word block text-[12vw] sm:text-8xl lg:text-[9rem] leading-[0.95] tracking-normal">
                 {TITLE.split('').map((ch, i) => (
                   <span
                     key={i}
@@ -178,7 +129,7 @@ export function CoverPage() {
                   >
                     <span
                       className="cover-letter-face cover-title"
-                      style={{ animationDelay: `${0.15 + i * 0.07}s, ${i * 0.35}s` }}
+                      style={{ animationDelay: `${0.6 + i * 0.07}s, ${i * 0.35}s` }}
                     >
                       {ch}
                     </span>
@@ -187,7 +138,7 @@ export function CoverPage() {
               </span>
               <span
                 className="cover-subtitle cover-rise mt-3 flex items-center justify-center gap-3 sm:gap-5 text-sm sm:text-2xl lg:text-3xl tracking-[0.3em] sm:tracking-[0.4em] text-cyan-100"
-                style={{ animationDelay: '0.9s' }}
+                style={{ animationDelay: '1.4s' }}
               >
                 <span className="h-px w-8 sm:w-16 bg-gradient-to-r from-transparent to-cyan-300" />
                 {SUBTITLE}
@@ -196,7 +147,7 @@ export function CoverPage() {
             </span>
           </h1>
 
-          <div className="cover-rise mt-12 flex flex-col items-center gap-3" style={{ animationDelay: '1.3s' }}>
+          <div className="cover-rise mt-12 flex flex-col items-center gap-3" style={{ animationDelay: '1.8s' }}>
             <p className="cover-blink font-mono text-[10px] sm:text-xs uppercase tracking-[0.4em] text-slate-200">
               Elige tu misión
             </p>
@@ -228,24 +179,10 @@ export function CoverPage() {
             </div>
           </div>
         </div>
-      )}
 
-      {cinematic ? (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            skip();
-          }}
-          className="absolute bottom-5 right-5 inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.25em] text-slate-400 hover:text-white transition cursor-pointer"
-        >
-          Saltar intro <ChevronsRight className="h-4 w-4" aria-hidden />
-        </button>
-      ) : (
-        <p className="absolute bottom-3 inset-x-0 text-center font-mono text-[10px] text-slate-400/70 px-4">
-          Centro galáctico · NASA/JPL-Caltech/ESA/CXC/STScI (Hubble, Spitzer y Chandra)
-        </p>
-      )}
+      <p className="absolute bottom-3 inset-x-0 text-center font-mono text-[10px] text-slate-400/70 px-4">
+        Centro galáctico · NASA/JPL-Caltech/ESA/CXC/STScI (Hubble, Spitzer y Chandra)
+      </p>
     </main>
   );
 }
