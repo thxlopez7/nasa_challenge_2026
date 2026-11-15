@@ -14,6 +14,7 @@ import type {
   SelfReport,
 } from '../types/mission';
 import { RIDGE_THRESHOLDS as T, computeNlr } from './clinicalEngine';
+import { SLEEP_THRESHOLDS } from './sleepSensing';
 
 /* ------------------------------------------------------------------ */
 /* Perfiles de misión                                                  */
@@ -33,6 +34,31 @@ export const MISSION_PROFILES: Record<MissionProfileId, MissionProfile> = {
         name: 'Órbita baja',
         days: 180,
         description: 'Microgravedad continua con soporte desde la Tierra.',
+      },
+    ],
+  },
+  LUNAR_ARTEMIS: {
+    id: 'LUNAR_ARTEMIS',
+    name: 'Luna · campamento base Artemis',
+    summary: 'Tránsito corto, estancia en el polo sur lunar y regreso: ~6 semanas.',
+    phases: [
+      {
+        id: 'TRANSIT_OUT',
+        name: 'Tránsito a la Luna',
+        days: 5,
+        description: 'Microgravedad y paso por los cinturones de radiación de Van Allen.',
+      },
+      {
+        id: 'SURFACE',
+        name: 'Superficie lunar (polo sur)',
+        days: 30,
+        description: 'Gravedad de 0,16 g, polvo lunar abrasivo y ~1,3 s de retraso en las comunicaciones.',
+      },
+      {
+        id: 'TRANSIT_BACK',
+        name: 'Regreso a la Tierra',
+        days: 5,
+        description: 'Reentrada y readaptación a 1 g tras la estancia lunar.',
       },
     ],
   },
@@ -166,7 +192,7 @@ export const EVALUATION_STEPS: readonly StepDefinition[] = [
     id: 'CHECK_IN',
     title: 'Check-in del tripulante',
     short: 'Check-in',
-    description: 'Cómo dormiste y cómo te sientes hoy. Tarda 20 segundos.',
+    description: 'El sensor ultrasónico ya analizó tu noche: sincroniza su informe y cuenta cómo te sientes. Tarda 20 segundos.',
     xp: 10,
     skippable: false,
   },
@@ -311,6 +337,7 @@ export function computeAchievements(
   const maxDay = list.reduce((m, r) => Math.max(m, r.missionDay), 0);
   const hasPhase = (id: string) => list.some((r) => r.phaseId === id);
   const isMars = profile.id === 'MARS_CONJUNCTION';
+  const isMoon = profile.id === 'LUNAR_ARTEMIS';
 
   let firstWeek = false;
   for (let w = 1; w <= missionWeekOf(Math.max(1, maxDay)); w++) {
@@ -358,6 +385,23 @@ export function computeAchievements(
       unlocked: maxDay >= Math.ceil(total / 2),
     },
   ];
+
+  if (isMoon) {
+    items.push(
+      {
+        id: 'PHASE_SURFACE',
+        title: 'Huella lunar',
+        description: 'Registra tu primer día en la superficie de la Luna.',
+        unlocked: hasPhase('SURFACE'),
+      },
+      {
+        id: 'PHASE_RETURN',
+        title: 'Rumbo a casa',
+        description: 'Registra tu primer día del regreso a la Tierra.',
+        unlocked: hasPhase('TRANSIT_BACK'),
+      }
+    );
+  }
 
   if (isMars) {
     items.push(
@@ -449,10 +493,42 @@ export function buildDiagnosis(
         id: 'SLEEP',
         severity: 'WARNING',
         title: 'Sueño corto',
-        detail: `${selfReport.sleepHours} h de sueño registradas.`,
+        detail: `${selfReport.sleepHours} h de sueño ${selfReport.sleep ? 'medidas por el sensor' : 'registradas'}.`,
         action:
           'Tenlo en cuenta al dosificar el esfuerzo de hoy. Si se repite varios días, coméntalo con el cirujano de vuelo.',
       });
+    }
+    const night = selfReport.sleep;
+    if (night) {
+      if (night.breathingPauses >= SLEEP_THRESHOLDS.maxBreathingPauses) {
+        findings.push({
+          id: 'SLEEP_BREATHING',
+          severity: 'WARNING',
+          title: 'Pausas respiratorias durante el sueño',
+          detail: `${night.breathingPauses} pausas por hora detectadas por el sensor ultrasónico.`,
+          action:
+            'Revisa la ventilación del módulo de descanso (el CO2 se acumula junto a la cabeza en 0 g) y coméntalo con el cirujano de vuelo si se repite.',
+        });
+      }
+      const { min, max } = SLEEP_THRESHOLDS.roomTemp;
+      if (night.roomTempC < min || night.roomTempC > max) {
+        findings.push({
+          id: 'SLEEP_TEMP',
+          severity: 'WARNING',
+          title: 'Temperatura del módulo de descanso fuera de rango',
+          detail: `${night.roomTempC} °C de media durante la noche (cómodo: ${min}–${max} °C).`,
+          action: 'Ajusta el termostato o el flujo de aire del módulo antes de la próxima noche.',
+        });
+      }
+      if (night.efficiency < SLEEP_THRESHOLDS.minEfficiency && selfReport.sleepHours >= SLEEP_THRESHOLDS.minHours) {
+        findings.push({
+          id: 'SLEEP_EFFICIENCY',
+          severity: 'WARNING',
+          title: 'Sueño fragmentado',
+          detail: `Eficiencia ${night.efficiency}% con ${night.awakenings} despertares.`,
+          action: 'Reduce luz y ruido en el módulo y evita pantallas la hora previa a dormir.',
+        });
+      }
     }
     if (selfReport.fatigue >= 4) {
       findings.push({

@@ -10,6 +10,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-montserrat);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -43,4 +44,151 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ---------------- Portada (app/page.tsx · CoverPage) ---------------- */
+
+.cover {
+  --px: 0;
+  --py: 0;
+}
+
+.cover-layer {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+
+.cover-leaving .cover-layer {
+  transition: transform 1.1s cubic-bezier(0.7, 0, 0.84, 0), opacity 1.1s ease;
+}
+
+/* Cuanto más cerca, más se desplaza con el puntero. */
+.cover-depth-0 { transform: translate3d(calc(var(--px) * -14px), calc(var(--py) * -10px), 0) scale(1.08); }
+.cover-depth-1 { transform: translate3d(calc(var(--px) * -28px), calc(var(--py) * -20px), 0); }
+.cover-depth-2 { transform: translate3d(calc(var(--px) * -55px), calc(var(--py) * -38px), 0); }
+.cover-depth-3 { transform: translate3d(calc(var(--px) * 18px), calc(var(--py) * 12px), 0); }
+
+.cover-galaxy {
+  position: absolute;
+  inset: -4%;
+  background: url('/images/galactic-center.webp') center / cover no-repeat;
+  /* Llegada: la galaxia se acerca y se enfoca; luego respira despacio. */
+  animation:
+    cover-arrive 1.8s cubic-bezier(0.16, 1, 0.3, 1) both,
+    cover-breathe 40s ease-in-out 1.8s infinite alternate;
+  filter: saturate(1.1) brightness(0.85);
+}
+
+.cover-glow {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(60px);
+  mix-blend-mode: screen;
+  animation: cover-pulse 9s ease-in-out infinite alternate;
+}
+.cover-glow-a {
+  left: 2%; top: 32%; width: 32vmax; height: 32vmax;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.35), transparent 65%);
+}
+.cover-glow-b {
+  right: 18%; top: 42%; width: 26vmax; height: 26vmax;
+  background: radial-gradient(circle, rgba(244, 114, 182, 0.28), transparent 65%);
+  animation-delay: -4s;
+}
+
+.cover-title {
+  background: linear-gradient(180deg, #ffffff 30%, #a5f3fc 75%, #22d3ee);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 30px rgba(34, 211, 238, 0.45));
+}
+
+/* Escena de fondo. */
+.cover-scene {
+  position: absolute;
+  inset: 0;
+}
+
+/* «Elige tu misión» parpadea como un «press start». */
+.cover-blink {
+  animation: cover-blink 1.6s ease-in-out infinite;
+}
+
+@keyframes cover-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+/* Tipografía con profundidad: el título gira levemente en 3D con el
+   puntero y cada letra está a una distancia distinta de la cámara. */
+.cover-type {
+  perspective: 900px;
+}
+.cover-type-inner {
+  display: block;
+  transform-style: preserve-3d;
+  transform: rotateY(calc(var(--px) * 6deg)) rotateX(calc(var(--py) * -5deg));
+}
+.cover-word {
+  transform-style: preserve-3d;
+}
+.cover-letter {
+  display: inline-block;
+  transform-style: preserve-3d;
+  transform: translate3d(
+    calc(var(--px) * var(--d) * 5px),
+    calc(var(--py) * var(--d) * 4px),
+    calc(var(--d) * 18px)
+  );
+}
+.cover-letter-face {
+  display: inline-block;
+  animation:
+    cover-letter-in 1.1s cubic-bezier(0.16, 1, 0.3, 1) both,
+    cover-float 6s ease-in-out infinite alternate;
+}
+
+.cover-rise {
+  animation: cover-rise 1.1s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.cover-mission:hover {
+  box-shadow: 0 0 28px rgba(255, 255, 255, 0.18);
+}
+
+/* Salida: se entra en la galaxia a velocidad warp. */
+.cover-leaving .cover-depth-0 { transform: scale(1.9); opacity: 0.2; }
+.cover-leaving .cover-depth-2 { transform: scale(2.4); opacity: 0; }
+.cover-leaving .cover-depth-3 { transform: scale(0.85); opacity: 0; }
+
+@keyframes cover-arrive {
+  from { transform: scale(1.45); filter: saturate(1.4) brightness(1.4) blur(10px); }
+  to { transform: scale(1); }
+}
+
+@keyframes cover-letter-in {
+  from { opacity: 0; transform: translateZ(-420px) scale(1.3); filter: blur(14px) drop-shadow(0 0 30px rgba(34, 211, 238, 0.45)); }
+  to { opacity: 1; transform: none; filter: blur(0) drop-shadow(0 0 30px rgba(34, 211, 238, 0.45)); }
+}
+
+@keyframes cover-float {
+  from { translate: 0 -3px; }
+  to { translate: 0 4px; }
+}
+
+@keyframes cover-breathe {
+  from { transform: scale(1) rotate(0deg); }
+  to { transform: scale(1.08) rotate(0.6deg); }
+}
+
+@keyframes cover-pulse {
+  from { opacity: 0.6; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1.08); }
+}
+
+@keyframes cover-rise {
+  from { opacity: 0; transform: translateY(28px); filter: blur(8px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
 }

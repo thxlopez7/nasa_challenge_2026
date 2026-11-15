@@ -30,11 +30,19 @@ interface MissionData {
   session: EvaluationSession | null;
 }
 
+/** Misiones guardadas por destino, para cambiar de Luna a Marte sin perder nada. */
+type Shelf = Partial<Record<MissionProfileId, MissionData>>;
+
 interface MissionActions {
+  /**
+   * Cambia de destino: guarda la misión actual en su estante y recupera la
+   * del destino elegido (o deja la preparación vacía si aún no existe).
+   */
+  selectProfile: (profileId: MissionProfileId) => void;
   startMission: (profileId: MissionProfileId, today: DayKey) => void;
   abortMission: (today: DayKey) => void;
   resetAll: () => void;
-  loadDemoHistory: (today: DayKey) => void;
+  loadDemoHistory: (today: DayKey, profileId?: MissionProfileId) => void;
   /** Cierra sesiones de días anteriores y detecta el fin de la misión */
   syncDay: (today: DayKey) => void;
 
@@ -51,7 +59,7 @@ interface MissionActions {
   closeAsExcused: () => void;
 }
 
-export type MissionState = MissionData & MissionActions;
+export type MissionState = MissionData & { shelf: Shelf } & MissionActions;
 
 const emptyData: MissionData = { mission: null, records: {}, session: null };
 
@@ -100,6 +108,17 @@ export const useMissionStore = create<MissionState>()(
   persist(
     (set, get) => ({
       ...emptyData,
+      shelf: {},
+
+      selectProfile: (profileId) => {
+        const { mission, records, session, shelf } = get();
+        if (mission?.profileId === profileId) return;
+        const next: Shelf = { ...shelf };
+        if (mission) next[mission.profileId] = { mission, records, session };
+        const restored = next[profileId] ?? emptyData;
+        delete next[profileId];
+        set({ ...restored, shelf: next });
+      },
 
       startMission: (profileId, today) =>
         set({ mission: { profileId, startDate: today }, records: {}, session: null }),
@@ -112,8 +131,8 @@ export const useMissionStore = create<MissionState>()(
 
       resetAll: () => set({ ...emptyData }),
 
-      loadDemoHistory: (today) => {
-        const { mission, records } = generateDemoHistory(today);
+      loadDemoHistory: (today, profileId) => {
+        const { mission, records } = generateDemoHistory(today, profileId);
         set({ mission, records, session: null });
       },
 
@@ -300,7 +319,7 @@ export const useMissionStore = create<MissionState>()(
       // `window` sólo existe en el navegador (ver useTelemetryStore).
       storage: createJSONStorage(() => window.localStorage),
       skipHydration: true,
-      partialize: ({ mission, records, session }) => ({ mission, records, session }),
+      partialize: ({ mission, records, session, shelf }) => ({ mission, records, session, shelf }),
     }
   )
 );

@@ -19,10 +19,12 @@ export function MedicalCopilot() {
   ]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messagesRef = useRef<HTMLDivElement | null>(null);
 
+  // Desplaza solo la caja del chat (no la página entera) al último mensaje.
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const box = messagesRef.current;
+    if (box) box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
   }, [messages, isLoading]);
 
   const handleSend = async (e?: FormEvent<HTMLFormElement>) => {
@@ -112,7 +114,7 @@ export function MedicalCopilot() {
       </div>
 
       {/* Historial de Mensajes con Scroll */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+      <div ref={messagesRef} className="flex-1 overflow-y-auto p-6 space-y-4">
         {messages.map((msg, index) => {
           const isUser = msg.role === 'user';
 
@@ -146,7 +148,6 @@ export function MedicalCopilot() {
           </div>
         )}
 
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Formulario de Entrada */}

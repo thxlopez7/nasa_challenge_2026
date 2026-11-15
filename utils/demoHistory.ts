@@ -4,9 +4,11 @@ import type {
   DayRecord,
   EvaluationStepId,
   Mission,
+  MissionProfileId,
   SelfReport,
 } from '../types/mission';
 import { evaluateTelemetry } from './clinicalEngine';
+import { simulateSleepNight } from './sleepSensing';
 import {
   EVALUATION_STEPS,
   FULL_DAY_BONUS,
@@ -31,6 +33,29 @@ import {
 
 export const DEMO_DAYS = 150;
 
+/** Guion de eventos de la demo para cada perfil (días de misión). */
+interface DemoScript {
+  days: number;
+  storm: [number, number];
+  recoveryEnd: number;
+  co2: number;
+  lowMood: [number, number];
+  adaptation: number;
+}
+
+const MARS_SCRIPT: DemoScript = {
+  days: DEMO_DAYS, storm: [61, 65], recoveryEnd: 78, co2: 98, lowMood: [85, 110], adaptation: 14,
+};
+
+const DEMO_SCRIPTS: Record<MissionProfileId, DemoScript> = {
+  MARS_CONJUNCTION: MARS_SCRIPT,
+  ISS_6M: MARS_SCRIPT,
+  // Misión lunar de 40 días: la demo llega a mitad de la estancia en superficie.
+  LUNAR_ARTEMIS: { days: 30, storm: [12, 13], recoveryEnd: 18, co2: 21, lowMood: [17, 24], adaptation: 5 },
+};
+
+export const demoDaysFor = (profileId: MissionProfileId): number => DEMO_SCRIPTS[profileId].days;
+
 function mulberry32(seed: number) {
   let a = seed;
   return () => {
@@ -53,29 +78,37 @@ const xpOf = (steps: EvaluationStepId[]) =>
     0
   );
 
-export function generateDemoHistory(today: DayKey): {
+export function generateDemoHistory(
+  today: DayKey,
+  profileId: MissionProfileId = 'MARS_CONJUNCTION'
+): {
   mission: Mission;
   records: Record<DayKey, DayRecord>;
 } {
+  const script = DEMO_SCRIPTS[profileId];
   const rand = mulberry32(2026);
   const noise = (amp: number) => (rand() * 2 - 1) * amp;
 
   const mission: Mission = {
-    profileId: 'MARS_CONJUNCTION',
-    startDate: addDays(today, -(DEMO_DAYS - 1)),
+    profileId,
+    startDate: addDays(today, -(script.days - 1)),
     simulatedHistory: true,
   };
   const profile = getProfile(mission.profileId);
   const records: Record<DayKey, DayRecord> = {};
   let accumulated = 0;
 
-  // El día de hoy (DEMO_DAYS) queda libre para la evaluación en vivo.
-  for (let day = 1; day < DEMO_DAYS; day++) {
+  // El día de hoy (el último de la demo) queda libre para la evaluación en vivo.
+  for (let day = 1; day < script.days; day++) {
     const date = addDays(mission.startDate, day - 1);
-    const solarStorm = day >= 61 && day <= 65;
-    const recovery = day > 65 && day <= 78 ? (78 - day) / 13 : 0;
-    const co2Pocket = day === 98;
-    const lowMoodPhase = day >= 85 && day <= 110;
+    const [stormStart, stormEnd] = script.storm;
+    const solarStorm = day >= stormStart && day <= stormEnd;
+    const recovery =
+      day > stormEnd && day <= script.recoveryEnd
+        ? (script.recoveryEnd - day) / (script.recoveryEnd - stormEnd)
+        : 0;
+    const co2Pocket = day === script.co2;
+    const lowMoodPhase = day >= script.lowMood[0] && day <= script.lowMood[1];
 
     const radiationRate = solarStorm
       ? round(120 + noise(40), 1)
@@ -111,8 +144,11 @@ export function generateDemoHistory(today: DayKey): {
       ...evaluateTelemetry(bio, env),
     };
 
+    // El sueño ya no se teclea: sale del sensor ultrasónico del módulo.
+    const night = simulateSleepNight(date, vitals).summary;
     const selfReport: SelfReport = {
-      sleepHours: round(clamp(7 + noise(0.8) - (solarStorm ? 1.2 : 0), 4.5, 9), 1),
+      sleepHours: night.totalHours,
+      sleep: night,
       mood: Math.round(clamp(4 + noise(0.8) - (lowMoodPhase ? 1.6 : 0), 1, 5)),
       fatigue: Math.round(clamp(2.4 + noise(0.8) + (solarStorm ? 1.5 : 0), 1, 5)),
     };
@@ -121,7 +157,7 @@ export function generateDemoHistory(today: DayKey): {
     const scripted = solarStorm || co2Pocket;
     const isRestDay = day % 7 === 0 && !scripted;
     // Algún día perdido durante las dos semanas de adaptación inicial.
-    const missed = !isRestDay && !scripted && day <= 14 && rand() < 0.15;
+    const missed = !isRestDay && !scripted && day <= script.adaptation && rand() < 0.15;
     if (isRestDay || missed) continue;
 
     const { phase } = phaseOfDay(profile, day);
