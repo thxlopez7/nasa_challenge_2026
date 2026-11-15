@@ -44,3 +44,70 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ---------------- Portada (components/landing) ---------------- */
+
+.landing-enter {
+  animation: landing-fade-in 0.6s ease-out both;
+}
+
+.landing-leave {
+  animation: landing-warp-out 0.9s cubic-bezier(0.7, 0, 0.84, 0) forwards;
+  pointer-events: none;
+}
+
+.landing-rise {
+  animation: landing-rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.landing-ecg {
+  stroke-dasharray: 18 82;
+  animation: landing-ecg linear infinite;
+  filter: drop-shadow(0 0 4px #22d3ee);
+}
+
+/* Marte asomando por el horizonte, con la atmósfera iluminada en cian. */
+.landing-planet {
+  position: absolute;
+  left: 50%;
+  bottom: -118vmax;
+  width: 150vmax;
+  height: 150vmax;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 2%, rgba(251, 146, 60, 0.55), transparent 22%),
+    radial-gradient(circle at 30% 10%, rgba(154, 52, 18, 0.9), transparent 35%),
+    radial-gradient(circle at 70% 8%, rgba(124, 45, 18, 0.85), transparent 30%),
+    radial-gradient(circle at 50% 50%, #431407 0%, #1c0a03 60%, #020617 75%);
+  box-shadow:
+    0 0 60px 6px rgba(34, 211, 238, 0.35),
+    0 0 180px 40px rgba(8, 145, 178, 0.25),
+    inset 0 30px 80px rgba(253, 186, 116, 0.25);
+  animation: landing-planet-in 1.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes landing-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes landing-warp-out {
+  0% { opacity: 1; transform: scale(1); filter: blur(0); }
+  100% { opacity: 0; transform: scale(1.35); filter: blur(6px); }
+}
+
+@keyframes landing-rise {
+  from { opacity: 0; transform: translateY(24px); filter: blur(6px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+@keyframes landing-ecg {
+  from { stroke-dashoffset: 100; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes landing-planet-in {
+  from { transform: translate(-50%, 12vmax); opacity: 0; }
+  to { transform: translateX(-50%); opacity: 1; }
+}
