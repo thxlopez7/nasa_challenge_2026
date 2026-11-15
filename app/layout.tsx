@@ -48,6 +48,14 @@ const robotoSemiThin = localFont({
   display: "swap",
 });
 
+/** Títulos de pantalla (p. ej. «¿Quién está a bordo?»). */
+const robotoBold = localFont({
+  src: "./fonts/roboto/Roboto-Bold.ttf",
+  weight: "700",
+  variable: "--font-roboto-bold",
+  display: "swap",
+});
+
 /** Notas, aclaraciones y citas en cursiva. */
 const robotoItalic = localFont({
   src: "./fonts/roboto/Roboto-ExtraLightItalic.ttf",
@@ -72,7 +80,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} ${montserrat.variable} ${space.variable} ${robotoCondensed.variable} ${robotoSemiThin.variable} ${robotoItalic.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${montserrat.variable} ${space.variable} ${robotoCondensed.variable} ${robotoSemiThin.variable} ${robotoItalic.variable} ${robotoBold.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         {children}

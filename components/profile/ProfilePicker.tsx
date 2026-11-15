@@ -141,7 +141,7 @@ function CreateProfile({ onDone, onCancel }: { onDone: (p: CrewProfile) => void;
   return (
     <form onSubmit={submit} className="w-full max-w-2xl space-y-6 text-left" noValidate>
       <div>
-        <h2 className="font-brand text-3xl sm:text-4xl text-white">Nuevo tripulante</h2>
+        <h2 className="font-heading font-bold text-3xl sm:text-4xl tracking-tight text-white">Nuevo tripulante</h2>
         <p className="font-lead text-base text-slate-300 mt-1">
           Estos datos acompañan a cualquier alerta médica que se envíe a Tierra. Se guardan en este dispositivo.
         </p>
@@ -292,7 +292,7 @@ export function ProfilePicker({ onPick, onBack }: { onPick: (p: CrewProfile) => 
         ) : (
           <>
             <div className="space-y-2 profile-rise">
-              <h1 className="font-brand text-4xl sm:text-6xl text-white">
+              <h1 className="font-heading font-bold text-4xl sm:text-6xl tracking-tight text-white">
                 {managing ? 'Administrar perfiles' : '¿Quién está a bordo?'}
               </h1>
               <p className="font-lead text-lg text-slate-300">

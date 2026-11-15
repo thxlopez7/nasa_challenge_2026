@@ -11,6 +11,7 @@
   --font-sans: var(--font-roboto-condensed), var(--font-geist-sans), system-ui, sans-serif;
   --font-lead: var(--font-roboto-semi), var(--font-roboto-condensed), sans-serif;
   --font-note: var(--font-roboto-italic), var(--font-roboto-condensed), sans-serif;
+  --font-heading: var(--font-roboto-bold), var(--font-roboto-condensed), sans-serif;
   --font-mono: var(--font-geist-mono);
   --font-display: var(--font-montserrat);
   --font-brand: var(--font-space);

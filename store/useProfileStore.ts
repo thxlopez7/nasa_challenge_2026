@@ -9,6 +9,7 @@ export const DEMO_PROFILES: CrewProfile[] = [
     name: 'Elena Ríos',
     role: 'Comandante',
     avatar: 'marte',
+    photo: '/images/crew/elena-rios.webp',
     age: 44,
     heightCm: 168,
     weightKg: 61,
